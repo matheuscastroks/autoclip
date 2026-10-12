@@ -19,6 +19,7 @@ def test_worker_stream_separates_summaries_from_json_and_redacts(monkeypatch,tmp
     assert worker.main()==0
     assert json.loads(out.read_text())['text']==body
     assert seen[0]['thinking_config']['include_thoughts'] is True
+    assert 0<seen[0]['thinking_config']['thinking_budget']<=4096
     rows=[json.loads(line) for line in events.read_text(encoding='utf-8').splitlines()]
     assert any(e['kind']=='thought_summary' and 'Conferindo' in e['message'] for e in rows)
     assert 'fixture-secret' not in events.read_text(encoding='utf-8')
@@ -43,6 +44,33 @@ def test_partial_event_is_ignored_until_complete(tmp_path):
     from engine.pipeline.analysis_events import read_events
     path=tmp_path/'events.jsonl';path.write_text('{"kind":"thought_summary","message":"ok"}\n{"kind":')
     assert read_events(path)[0]['message']=='ok'
+
+
+def test_worker_reports_truncated_output_instead_of_saving_an_incomplete_result(monkeypatch,tmp_path):
+    from engine.adapters.gemini import request_worker as worker
+    request=tmp_path/'request.json';out=tmp_path/'out.json'
+    request.write_text(json.dumps({'model':'gemini-2.5-flash','contents':'text','timeout_s':180,'show_thought_summaries':False}))
+    seen=[]
+    def generate(**kw):
+        seen.append(kw['config']);response=chunk('{"topics":')
+        response.candidates[0].finish_reason='MAX_TOKENS';yield response
+    monkeypatch.setattr(worker,'get_gemini_key',lambda:'fixture-secret')
+    monkeypatch.setattr(worker.genai,'Client',lambda **kw:NS(models=NS(generate_content_stream=generate),close=lambda:None))
+    monkeypatch.setattr(worker.sys,'argv',['worker',str(request),str(out)])
+    assert worker.main()==1
+    assert json.loads(out.read_text())['error']['code']=='PROVIDER_OUTPUT_TRUNCATED'
+    assert seen[0]['thinking_config']['thinking_budget']==2048 and seen[0]['thinking_config']['include_thoughts'] is False
+
+
+def test_thinking_budget_is_not_forced_on_unsupported_models(monkeypatch,tmp_path):
+    from engine.adapters.gemini import request_worker as worker
+    request=tmp_path/'request.json';out=tmp_path/'out.json';seen=[]
+    request.write_text(json.dumps({'model':'gemini-2.5-flash-image','contents':'text','timeout_s':180,'show_thought_summaries':True}))
+    def generate(**kw):seen.append(kw['config']);yield chunk('{"topics":[],"candidates":[]}')
+    monkeypatch.setattr(worker,'get_gemini_key',lambda:'fixture-secret')
+    monkeypatch.setattr(worker.genai,'Client',lambda **kw:NS(models=NS(get=lambda **kw:NS(thinking=False),generate_content_stream=generate),close=lambda:None))
+    monkeypatch.setattr(worker.sys,'argv',['worker',str(request),str(out)])
+    assert worker.main()==0 and 'thinking_config' not in seen[0]
 
 def test_hard_process_timeout_is_transport_error_but_cancellation_is_preserved(tmp_path,monkeypatch):
     from engine.adapters.gemini import analyzer

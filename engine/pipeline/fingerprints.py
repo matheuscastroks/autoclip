@@ -8,7 +8,7 @@ FILES={
  'audio':['engine/media/audio.py','engine/pipeline/cancellation.py'],
  'pauses':['engine/media/pauses.py'],
  'transcribe':['engine/adapters/openshorts/transcriber.py','engine/worker.py','vendor/openshorts/transcribe_backends.py','vendor/openshorts/subtitles.py'],
- 'analyze':['engine/adapters/gemini/analyzer.py','engine/adapters/gemini/request_worker.py','engine/adapters/openshorts/windows.py','vendor/openshorts/clip_selection.py'],
+ 'analyze':['engine/adapters/gemini/analyzer.py','engine/adapters/gemini/request_worker.py','engine/adapters/gemini/checkpoints.py','engine/adapters/openshorts/windows.py','vendor/openshorts/clip_selection.py'],
  'select':['engine/editorial/select.py'],
  'edit_plan':['engine/editorial/edl.py','vendor/openshorts/recut.py','vendor/openshorts/clip_selection.py'],
  'captions':['engine/adapters/openshorts/captions.py','vendor/openshorts/subtitles.py','vendor/openshorts/ffmpeg_utils.py'],

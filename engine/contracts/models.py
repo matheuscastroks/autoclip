@@ -279,7 +279,7 @@ class ASRConfig(Contract):
 class AnalysisConfig(Contract):
     model: str = Field(min_length=1)
     prompt_version: Literal['analysis_v1'] = 'analysis_v1'
-    timeout_s: int = Field(default=60, ge=1, le=60)
+    timeout_s: int = Field(default=180, ge=1, le=600)
     offline: bool = False
     max_calls: int = Field(ge=1)
     window_seconds: int = Field(default=180,ge=60,le=1800)

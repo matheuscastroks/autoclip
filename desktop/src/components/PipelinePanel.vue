@@ -25,7 +25,7 @@ function state(step:string){
       <div class="step-copy"><h3>{{title}}</h3><p>{{labels[state(id)]||state(id)}}</p>
         <div v-if="state(id)!=='pending'" role="progressbar" :aria-label="title" :aria-valuenow="state(id)==='completed'?100:undefined" aria-valuemin="0" aria-valuemax="100" class="stage-progress" :class="{indeterminate:['running','processing','cancelling'].includes(state(id)),complete:state(id)==='completed',failed:['failed','cancelled','interrupted'].includes(state(id))}"><span></span></div>
         <button v-if="id==='transcribe'&&!project.has_transcript&&!project.is_manual&&!processing" class="button small secondary" :disabled="busy||!project.source" @click="$emit('transcribe')">Transcrever vídeo</button>
-        <button v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':'Iniciar análise'}}</button>
+        <button v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':job&&['failed','cancelled','interrupted'].includes(job.status)&&['prepare','analyze'].includes(job.operation)?'Continuar análise':'Iniciar análise'}}</button>
         <button v-if="id==='render'&&!project.is_manual" class="button small secondary" :disabled="busy||processing||!project.has_analysis" @click="$emit('render')">Gerar prévias</button>
         <button v-if="id==='render'&&(hasCuts||project.is_manual)" class="button small primary" @click="$emit('review')">Revisar cortes</button>
       </div>

@@ -8,6 +8,7 @@ from engine.adapters.gemini.analyzer import GeminiResponse
 from engine.adapters.gemini.credentials import get_gemini_key
 from engine.pipeline.artifacts import atomic_json
 from engine.pipeline.analysis_events import EventWriter
+from engine.contracts import PipelineError
 
 def main():
     request,out=map(Path,sys.argv[1:3]);data=json.loads(request.read_text(encoding='utf-8'));client=None
@@ -15,17 +16,21 @@ def main():
         secret=get_gemini_key()
         client=genai.Client(api_key=secret,http_options=types.HttpOptions(timeout=data['timeout_s']*1000,retry_options=types.HttpRetryOptions(attempts=1)))
         writer=EventWriter(data.get('events_path'),secret);context=data.get('context',{})
-        config={'temperature':0,'response_mime_type':'application/json','response_json_schema':GeminiResponse.model_json_schema()}
-        # Requests started by older workers keep their previous thinking policy.
+        config={'temperature':0,'response_mime_type':'application/json','response_json_schema':GeminiResponse.model_json_schema(),'max_output_tokens':16384}
         summaries=data.get('show_thought_summaries',False)
-        if summaries:
+        family=re.sub(r'^models/','',data['model'])
+        known_25=bool(re.fullmatch(r'gemini-2\.5-(?:pro|flash(?:-lite)?)(?:-preview(?:-[\w.-]+)?)?',family))
+        known_3=bool(re.fullmatch(r'gemini-3(?:\.\d+)?-(?:pro|flash(?:-lite)?)(?:-preview(?:-[\w.-]+)?)?',family))
+        supported=known_25
+        if summaries or known_3:
             try:supported=bool(client.models.get(model=data['model'],config=types.GetModelConfig(http_options=types.HttpOptions(timeout=5000,retry_options=types.HttpRetryOptions(attempts=1)))).thinking)
-            except Exception:supported=False
-            if supported:
-                config['thinking_config']={'include_thoughts':True}
-                if re.match(r'^(models/)?gemini-2\.5-',data['model']):config['thinking_config']['thinking_budget']=-1
-            else:writer.emit('thoughts_unavailable','Suporte a resumos não confirmado para este modelo. A análise continua sem resumos.',**context)
-        else:writer.emit('thoughts_disabled','Exibição de resumos desativada nas configurações.',**context)
+            except Exception:supported=known_25
+        if supported:
+            config['thinking_config']={'include_thoughts':summaries}
+            if known_25:config['thinking_config']['thinking_budget']=2048
+            elif known_3:config['thinking_config']['thinking_level']='low'
+        elif summaries:writer.emit('thoughts_unavailable','Suporte a resumos não confirmado para este modelo. A análise continua sem resumos.',**context)
+        if not summaries:writer.emit('thoughts_disabled','Exibição de resumos desativada nas configurações.',**context)
         text=[];model_version=None;usage=None;had_summary=False;started=time.monotonic()
         for response in client.models.generate_content_stream(model=data['model'],contents=data['contents'],config=config):
             if time.monotonic()-started>data['timeout_s']:raise TimeoutError()
@@ -33,6 +38,8 @@ def main():
             metadata=getattr(response,'usage_metadata',None)
             if metadata:usage=metadata.model_dump(mode='json')
             candidates=getattr(response,'candidates',None) or []
+            if candidates and 'MAX_TOKENS' in str(getattr(candidates[0],'finish_reason','')):
+                raise PipelineError('PROVIDER_OUTPUT_TRUNCATED','analyze','A resposta atingiu o limite de tokens antes de concluir o JSON.')
             parts=getattr(getattr(candidates[0],'content',None),'parts',None) if candidates else []
             for part in parts or []:
                 if not getattr(part,'text',None):continue

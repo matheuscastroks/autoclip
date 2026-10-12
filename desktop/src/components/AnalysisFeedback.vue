@@ -33,7 +33,7 @@ async function toggleFollow(){following.value=!following.value;await nextTick();
 </script>
 <template>
   <section v-if="job" class="analysis-feedback" aria-label="Análise do Gemini">
-    <div class="feedback-heading"><h4>Análise do Gemini</h4><span class="feedback-state" role="status">{{labels[job.status]||job.status}}</span></div><small v-if="context?.window_index">Janela {{context.window_index}} · tentativa {{context.attempt||job.requests_used}}</small>
+    <div class="feedback-heading"><h4>Análise do Gemini</h4><span class="feedback-state" role="status">{{labels[job.status]||job.status}}</span></div><small v-if="context?.window_index">Janela {{context.window_index}} · {{context.attempt===0?'resultado reaproveitado':'tentativa '+(context.attempt||job.requests_used)}}</small>
     <template v-if="summary"><div class="summary-toolbar"><small class="feedback-origin">Resumo enviado pelo Gemini</small><button type="button" class="text-button" data-action="toggle-follow" :aria-pressed="following" @click="toggleFollow">{{following?'Pausar acompanhamento':'Acompanhar atualizações'}}</button></div><div ref="scrollArea" class="thought-scroll hidden-scrollbar" role="region" aria-label="Resumo da análise atual" tabindex="0" @scroll="onScroll"><p class="thought-text">{{summary}}</p></div></template>
     <p v-else class="feedback-status">{{budgetNotice||unavailable?.message||status}}</p>
     <p v-if="summary&&latest?.kind!=='thought_summary'" class="feedback-status">Aplicativo: {{status}}</p>

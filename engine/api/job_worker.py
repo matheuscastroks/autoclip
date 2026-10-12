@@ -95,7 +95,12 @@ def main(folder:Path):
         code=getattr(exc,'code','JOB_FAILED')
         if operation in ('prepare','analyze'):EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
-        atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.'}})
+        messages={'PROVIDER_TIMEOUT':'O Gemini excedeu o tempo de resposta. Continue a análise; janelas validadas serão reaproveitadas.',
+            'PROVIDER_UNAVAILABLE':'Falha de comunicação com o Gemini. Continue a análise para tentar as janelas restantes.',
+            'PROVIDER_INVALID_OUTPUT':'O Gemini não entregou uma resposta estruturada válida. As janelas já validadas foram preservadas.',
+            'PROVIDER_OUTPUT_TRUNCATED':'A resposta do Gemini foi truncada antes de concluir o JSON. As janelas validadas foram preservadas.',
+            'PROVIDER_AUTH':'O Gemini recusou a autenticação. Verifique a chave e o acesso ao modelo.'}
+        atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.')}})
         return 1
     return 0
 

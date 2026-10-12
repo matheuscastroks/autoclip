@@ -61,3 +61,13 @@ Task 5: complete — final Python76 passed/1 skipped in144.33s; Vue10 passed; vu
 ## 2026-10-12 — Painel sem histórico visível
 
 Removidos o botão de histórico, modal, seleção de trabalhos antigos e sua navegação no frontend. Mantidos resumo atual, temas, propostas, indicação de análise parcial, autoscroll e revisão de cortes. Endpoint e logs locais são preservados para diagnóstico interno. O frontend não consulta o endpoint paginado de histórico. Os 30 testes Vue passaram; regressões verificam ausência do botão e do modal sem afetar o feedback atual. Nenhuma geração Gemini disparada.
+
+
+## 2026-10-12 — Recuperação de falhas repetidas Gemini
+
+- Diagnóstico confirmado nas últimas quatro tarefas reais: TimeoutError na primeira janela, após aproximadamente 60 segundos por tentativa; nenhuma janela foi validada. Configuração anterior pedia thinking_budget=-1.
+- Correção: timeout padrão 180 segundos, orçamento de pensamento 2048 nos modelos 2.5 compatíveis e nível baixo em 3 compatíveis, independente da visibilidade. Modelos sem suporte não recebem os parâmetros. Limite de saída 16384 tokens e detecção explícita MAX_TOKENS; erro acionável.
+- Prompt recebe transcrição inteira como contexto global em cada janela e remove regra de três propostas. IDs aceitos continuam limitados à janela. Seleção final mantém suas regras existentes.
+- Checkpoints atômicos por resposta validada, digest e chave de transcrição/modelo/prompt/schema/runtime, cobertura e proveniência preservadas. Retomada não repete janela aceita; orçamento confere apenas janelas pendentes. Sem reutilização de JSON parcial ou resumos. Botão Continuar análise e marcação de resultado reaproveitado.
+- RED/GREEN comprovou retomada sob novo orçamento, invalidação e corrupção, contexto completo, truncamento e modelos sem suporte. Suíte: 113 Python passaram, 1 opt-in real foi ignorado; 30 Vue passaram; build/TypeScript passaram. Revisão independente identificou dois pontos de compatibilidade de thinking, ambos corrigidos e retestados.
+- Teste real tentou ser solicitado, mas a revisão automática de aprovação rejeitou iniciar geração por falta de autorização atual segundo seu critério; comando não executado, nenhuma solicitação gerada. Serviço/interface locais foram atualizados sem chamada remota. Validação real permanece pendente de aprovação expressa.
