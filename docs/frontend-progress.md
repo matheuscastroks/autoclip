@@ -10,3 +10,5 @@ Pre-flight Task1→2: registry id/path consumed by jobs; independent of source a
 Task 1: in progress — API/registry tests first; baseline existing suite running.
 
 Task 1: complete — 8 tests observed RED (missing API/dependencies) → GREEN (8 passed). Baseline 52 passed/1 skipped. Registry persists; partial projects honest; media supports signed tickets/Range; secrets omitted. Asyncio socketpair hangs only under restricted sandbox; a minimal FastAPI reproduction confirmed it. API tests run with loopback permitted, no external provider calls.
+
+Task 2: complete — 7 new tests observed RED → GREEN; combined API/budget/boundaries/cache suite 16 passed. Durable counter reserves before transport/retry; single heavy worker, cancel marker/tree grace and interrupted recovery. Analysis requires explicit new text authorization; no implicit remote resume. Audio fixtures initially escaped their project; confined fixtures corrected, storage guard preserved. Native file picker plumbing prepared for Task3.

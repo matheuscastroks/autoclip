@@ -325,7 +325,7 @@ class PipelineConfig(Contract):
 class ProjectRun(Contract):
     project_id: UUID = Field(default_factory=uuid4)
     source: Source
-    status: Literal['processing','needs_review','no_candidates','completed','failed','cancelled']
+    status: Literal['processing','transcribed','analyzed','needs_review','no_candidates','completed','failed','cancelled']
     transcript_path: Path | None = None
     candidates_path: Path | None = None
     revisions: list[dict] = Field(default_factory=list)

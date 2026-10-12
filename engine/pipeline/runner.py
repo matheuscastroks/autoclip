@@ -29,7 +29,8 @@ def _asr_worker(audio,config,root,cancelled):
         raise PipelineError('ASR_FAILED','transcribe','Local worker failed; check model and runtime.')
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())
 
-def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None) -> ProjectRun:
+def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render') -> ProjectRun:
+    if stop_after not in ('transcribe','analyze','render'):raise ValueError('Unknown stage boundary')
     root=Path(project_root).resolve();root.mkdir(parents=True,exist_ok=True)
     state_path=root/'project.json'
     if state_path.exists():
@@ -58,9 +59,13 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         assets=model_fingerprint(config.asr.model_path) if transcriber is None else 'injected:'+str(getattr(transcriber,'cache_identity',type(transcriber).__qualname__))
         transcript=stage('transcribe',{'audio':audio.sha256,'source_id':str(source.id),'config':config.asr.model_dump(mode='json'),'model_digest':assets,'runtime':stage_dependencies('transcribe')},lambda:transcriber.transcribe(audio,config.asr) if transcriber else _asr_worker(audio,config.asr,root,cancelled),TranscriptArtifact)
         atomic_json(root/'transcript.json',transcript);state.transcript_path=root/'transcript.json';atomic_json(state_path,state)
+        if stop_after=='transcribe':
+            state.status='transcribed';atomic_json(state_path,state);return state
         semantic={'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars}
         analysis=stage('analyze',{'transcript':object_hash(transcript),'config':semantic,'prompt_hash':file_hash(CODE_ROOT/'prompts/analysis_v1.txt'),'runtime':stage_dependencies('analyze')},lambda:(analyzer or GeminiAnalyzer(work_root=root/'work')).analyze(transcript,config.analysis,cancelled=cancelled),AnalysisArtifact)
         atomic_json(root/'analysis.json',analysis)
+        if stop_after=='analyze':
+            state.status='analyzed';atomic_json(state_path,state);return state
         candidates=stage('select',{'analysis':object_hash(analysis),'config':config.selection.model_dump(mode='json'),'runtime':stage_dependencies('select')},lambda:select_candidates(analysis,transcript,config.selection),CandidateArtifact)
         atomic_json(root/'candidates.json',candidates);state.candidates_path=root/'candidates.json'
         failures=[]

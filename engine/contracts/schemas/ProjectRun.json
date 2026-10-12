@@ -104,6 +104,8 @@
     "status": {
       "enum": [
         "processing",
+        "transcribed",
+        "analyzed",
         "needs_review",
         "no_candidates",
         "completed",

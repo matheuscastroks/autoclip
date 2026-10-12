@@ -23,11 +23,28 @@ class AppConfig(Input):
     ffmpeg:str
     ffprobe:str
 
+class JobOptions(Input):
+    authorize_text:bool=False
+    max_calls:int|None=Field(default=None,ge=1,le=100)
+    window_seconds:int|None=Field(default=None,ge=60,le=1800)
+    max_text_chars:int|None=Field(default=None,ge=1000,le=300000)
+    source_input:str|None=None
+class StartJob(Input):
+    operation:str
+    options:JobOptions=Field(default_factory=JobOptions)
+class NewProject(Input):
+    name:str=Field(min_length=1,max_length=100)
+    source_input:str=Field(min_length=1)
+class Picker(Input):
+    kind:str
+
 def create_app(workspace:Path,token:str)->FastAPI:
     workspace=Path(workspace).resolve();store=ProjectStore(workspace/'.autoclip/library.sqlite');settings=Settings(workspace)
     discover(store,workspace)
     app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store=store;app.state.workspace=workspace;app.state.token=token;app.state.settings=settings
+    from .jobs import JobManager
+    jobs=JobManager(store,workspace);app.state.jobs=jobs
 
     @app.middleware('http')
     async def access(request:Request,call_next):
@@ -74,6 +91,13 @@ def create_app(workspace:Path,token:str)->FastAPI:
         credential.set_gemini_key(value.key.get_secret_value());return {'configured':True}
     @app.get('/api/v1/projects')
     def projects():return [project_detail(row) for row in store.list_projects()]
+    @app.post('/api/v1/projects')
+    def new_project(value:NewProject):
+        import uuid
+        row=store.create(workspace/'.autoclip/projects'/str(uuid.uuid4()),value.name.strip() or 'Novo projeto')
+        try:job=jobs.start(row['id'],'import',{'source_input':value.source_input})
+        except RuntimeError as exc:raise HTTPException(409,str(exc))
+        return {'project':project_detail(row),'job':job}
     @app.post('/api/v1/projects/import')
     def register(value:ImportProject):return project_detail(store.register(Path(value.path),value.name))
     @app.get('/api/v1/projects/{pid}')
@@ -90,6 +114,29 @@ def create_app(workspace:Path,token:str)->FastAPI:
         return {'url':make_ticket(token,pid,asset)}
     @app.get('/api/v1/projects/{pid}/media/{asset}')
     def media(pid:str,asset:str):return FileResponse(asset_path(Path(store.get(pid)['path']),asset),media_type='video/mp4')
+
+    @app.get('/api/v1/jobs')
+    def list_jobs():return [jobs.status(j['id']) for j in store.jobs()]
+    @app.get('/api/v1/jobs/{jid}')
+    def job_status(jid:str):return jobs.status(jid)
+    @app.post('/api/v1/projects/{pid}/jobs')
+    def start_job(pid:str,value:StartJob):
+        try:return jobs.start(pid,value.operation,value.options.model_dump(exclude_none=True))
+        except RuntimeError as exc:raise HTTPException(409,str(exc))
+    @app.post('/api/v1/jobs/{jid}/cancel')
+    def cancel_job(jid:str):return jobs.cancel(jid)
+    @app.post('/api/v1/jobs/{jid}/resume')
+    def resume_job(jid:str):
+        try:return jobs.resume(jid)
+        except RuntimeError as exc:raise HTTPException(409,str(exc))
+    @app.post('/api/v1/picker')
+    def picker(value:Picker):
+        from .native import pick
+        return {'path':pick(value.kind)}
+    @app.post('/api/v1/projects/{pid}/open-folder')
+    def open_folder(pid:str):
+        from .native import open_directory
+        open_directory(Path(store.get(pid)['path']));return {'opened':True}
 
     dist=workspace/'desktop/dist'
     if dist.is_dir():app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')

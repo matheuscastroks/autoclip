@@ -76,8 +76,9 @@ class Analyzer(Protocol):
     def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig,cancelled=lambda:False) -> AnalysisArtifact: ...
 
 class GeminiAnalyzer:
-    def __init__(self,request=None,sleep=time.sleep,work_root=None):
+    def __init__(self,request=None,sleep=time.sleep,work_root=None,budget=None):
         self.request=request;self.sleep=sleep;self.work_root=Path(work_root) if work_root else Path.cwd()/'.runtime-tmp'
+        self.budget=budget
 
     def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig,cancelled=lambda:False) -> AnalysisArtifact:
         if config.offline: raise PipelineError('OFFLINE_PROVIDER','analyze','Gemini requires internet; local stages and review remain available.')
@@ -91,7 +92,7 @@ class GeminiAnalyzer:
         prompt=(Path(__file__).resolve().parents[2]/'prompts/analysis_v1.txt').read_text(encoding='utf-8')
         topics=[];candidates=[];covered=set();hashes=[];responses=[];calls=0
         windows=build_windows(transcript,config.window_seconds,config.max_text_chars)
-        if len(windows)>config.max_calls:
+        if len(windows)>min(config.max_calls,self.budget.remaining if self.budget else config.max_calls):
             raise PipelineError('PROVIDER_BUDGET','analyze','Request budget cannot cover all windows; no request made.')
         try:
             for window in windows:
@@ -104,7 +105,9 @@ class GeminiAnalyzer:
                         check_cancelled()
                         if calls>=config.max_calls:
                             raise PipelineError('PROVIDER_BUDGET','analyze','Gemini request budget exhausted; analysis not complete.')
-                        calls+=1;hashes.append(object_hash({'model':config.model,'contents':text,'prompt_version':config.prompt_version}))
+                        payload_hash=object_hash({'model':config.model,'contents':text,'prompt_version':config.prompt_version})
+                        if self.budget:self.budget.reserve(payload_hash)
+                        calls+=1;hashes.append(payload_hash)
                         try:
                             response=request(model=config.model,contents=text,config={'temperature':0,'response_mime_type':'application/json','response_json_schema':GeminiResponse.model_json_schema()})
                             break
