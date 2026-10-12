@@ -1,6 +1,10 @@
 # AutoClip Editor — investigação e definição técnica
 
-Projeto desktop open source, local-first, para cortes informativos em português brasileiro. A pesquisa, especificações e primeira PoC do motor por CLI estão implementadas. A interface desktop permanece no roadmap; aprovação editorial dos cortes reais continua humana.
+Projeto desktop open source, local-first, para cortes informativos em português brasileiro. A pesquisa, especificações, PoC do motor e primeira interface Vue de gerenciamento estão implementadas. O launcher Windows abre por duplo clique, sem terminal; encapsulamento Tauri/instalador continua no roadmap. Aprovação editorial dos cortes reais permanece humana.
+
+## Usar no notebook
+
+Abra **AutoClip.lnk** ou **Abrir AutoClip.vbs** nesta pasta. Biblioteca, importação, configurações, transcrição, tarefas e revisão são administradas pela interface local. [Guia da interface](docs/frontend-runbook.md). O vídeo já transcrito mantém seus artefatos; esta etapa não fez chamadas reais Gemini.
 
 ## Documentos
 
@@ -16,6 +20,7 @@ Projeto desktop open source, local-first, para cortes informativos em português
 10. [Plano detalhado da PoC](docs/superpowers/plans/2026-10-12-poc-openshorts-gemini.md): tarefas, interfaces, testes e aceite para implementação.
 11. [Executar e revisar a PoC](docs/poc-runbook.md): instalação, credencial local, retomada, revisão e exportação.
 12. [Registro de execução e decisões](docs/poc-progress.md): testes, revisão independente e limites observados.
+13. [Interface e launcher](docs/frontend-runbook.md) e [validação do frontend](docs/frontend-progress.md).
 
 ## Evidências reproduzíveis
 

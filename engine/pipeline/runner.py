@@ -29,7 +29,7 @@ def _asr_worker(audio,config,root,cancelled):
         raise PipelineError('ASR_FAILED','transcribe','Local worker failed; check model and runtime.')
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())
 
-def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render') -> ProjectRun:
+def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render',precomputed_analysis:AnalysisArtifact|None=None) -> ProjectRun:
     if stop_after not in ('transcribe','analyze','render'):raise ValueError('Unknown stage boundary')
     root=Path(project_root).resolve();root.mkdir(parents=True,exist_ok=True)
     state_path=root/'project.json'
@@ -62,7 +62,14 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         if stop_after=='transcribe':
             state.status='transcribed';atomic_json(state_path,state);return state
         semantic={'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars}
-        analysis=stage('analyze',{'transcript':object_hash(transcript),'config':semantic,'prompt_hash':file_hash(CODE_ROOT/'prompts/analysis_v1.txt'),'runtime':stage_dependencies('analyze')},lambda:(analyzer or GeminiAnalyzer(work_root=root/'work')).analyze(transcript,config.analysis,cancelled=cancelled),AnalysisArtifact)
+        if precomputed_analysis is not None:
+            if stop_after!='render' or not precomputed_analysis.complete or precomputed_analysis.transcript_id!=transcript.transcript_id or set(precomputed_analysis.covered_word_ids)!={w.id for w in transcript.words}:
+                raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Existing analysis must cover the complete current transcript for rendering.')
+            # Rendering consumes original analysis provenance. It must never seed
+            # a provider cache under the user's current/new analysis settings.
+            analysis=precomputed_analysis
+        else:
+            analysis=stage('analyze',{'transcript':object_hash(transcript),'config':semantic,'prompt_hash':file_hash(CODE_ROOT/'prompts/analysis_v1.txt'),'runtime':stage_dependencies('analyze')},lambda:(analyzer or GeminiAnalyzer(work_root=root/'work')).analyze(transcript,config.analysis,cancelled=cancelled),AnalysisArtifact)
         atomic_json(root/'analysis.json',analysis)
         if stop_after=='analyze':
             state.status='analyzed';atomic_json(state_path,state);return state

@@ -51,7 +51,7 @@ Esses tempos não incluem download do modelo e não estabelecem superioridade: e
 3. Avaliar cortes reais de todos os candidatos aplicáveis com a rubrica editorial; jameselle e auto-editor não receberam benchmark completo Windows nesta rodada.
 4. Ground truth humano, WER/timing, cortes de pausas, tracking/reframe, ASS burn, áudio e QA audiovisual do resultado.
 5. Conferir a stack mínima MIT sem cloud/Ultralytics/Remotion obrigatórios; pacote público ainda exige SBOM/licença aprovada.
-6. PoC CLI/motor implementada após aprovação: contratos, importação, ASR CPU, análise textual configurável, EDL protegida, captions, render 9:16 fit-blur, QA, retomada e exportação com aprovação humana. Interface desktop permanece fora desta fase.
+6. PoC CLI/motor implementada após aprovação: contratos, importação, ASR CPU, análise textual configurável, EDL protegida, captions, render 9:16 fit-blur, QA, retomada e exportação com aprovação humana. Posteriormente usuário aprovou interface de gerenciamento Vue/FastAPI/SQLite com launcher Windows; implementada nesta rodada. Tauri/instalador permanece no marco seguinte.
 
 ## Validação da PoC implementada
 
@@ -62,6 +62,14 @@ ASR integral do vídeo indicado: **5.414 palavras**, **2.841,406 s** (~47 min), 
 Preview manual de 25,67 s com legendas e fit-blur passou QA técnica e inspeção de frames. Ele não foi escolhido pelo Gemini nem recebeu aprovação editorial. A comparação semântica dos cinco projetos, WER/timing humanos e aceitação de cortes reais continuam pendentes.
 
 Google documenta `response_json_schema` para saída estruturada ([referência oficial](https://ai.google.dev/gemini-api/docs/structured-output)). A tentativa anterior via `response_schema` foi rejeitada por `additional_properties`; regressão de wire observada RED -> GREEN. A análise de toda a fonte em uma única chamada encontrou timeout HTTP504 de 60 s. Nenhum corte semântico real foi aprovado ou exportado.
+
+## Interface de gerenciamento
+
+Interface Vue + API local + SQLite + launcher Windows implementados após aprovação do escopo/plano. **AutoClip.lnk** e **Abrir AutoClip.vbs** abrem a biblioteca sem terminal. Três projetos existentes acessíveis; original, transcrição, configurações, trabalhos locais e revisão/exportação pela interface. Não existe instalador Tauri nesta entrega.
+
+Validação final: **76 testes Python passaram e 1 skipped** (Gemini real); **10 testes Vue passaram**, TypeScript/build aprovados. Uma revisão independente encontrou três falhas materiais e elas foram reproduzidas RED→GREEN: identidade de preview/decisão, cache de análise ao trocar modelo e consulta de projeto com prévia danificada. Regressões e JUnit em `poc-results/frontend/`.
+
+Inspeção real no Chrome: biblioteca/projeto/configurações/manual em1366×768; configurações em390×844 sem controles transbordando; busca, seek por timestamp22.02s, salvamento das preferências e criação/cancelamento de formulário confirmados. Launcher/service smoke:3 projetos,5.414 palavras preservadas,0 trabalhos iniciados/0 requests Gemini, Range vídeo32bytes. Painel textual de palavras de legendas/avisos detalhados QA fica pendente; legendas no vídeo e gate técnico existem. Seletor nativo possui teste de contrato/cancelamento, sem automação exaustiva da janela Windows.
 
 ## Como reproduzir os ensaios
 

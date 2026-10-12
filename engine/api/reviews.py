@@ -18,8 +18,9 @@ def list_revisions(root:Path):
     state=read_json(root/'project.json',{}) or {};result=[]
     if (root/'manual-check.json').exists():return []
     for row in state.get('revisions',[]):
-        rid=row.get('revision_id','');folder=revision_folder(root,rid)
+        rid=row.get('revision_id','')
         try:
+            folder=revision_folder(root,rid)
             edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
             qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
             candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
@@ -33,7 +34,7 @@ def list_revisions(root:Path):
                 'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
                 'warnings':qa.warnings,'content_hash':fingerprint,'notes':decision.get('notes','')})
-        except (OSError,ValueError,PipelineError):
+        except (OSError,ValueError,PipelineError,HTTPException):
             result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.']})
     return result
 

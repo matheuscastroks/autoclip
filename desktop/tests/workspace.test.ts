@@ -42,7 +42,7 @@ describe('workspace interactions',()=>{
     expect(w.find('[data-action=approve]').exists()).toBe(false)
   })
   it('requires all five checks before approving',async()=>{
-    const w=mount(ReviewPanel,{props:{manual:false,mediaUrl:'',sourceUrl:'',revisions:[{revision_id:'r',title:'Corte teste',rationale:'Fixture somente',technical_pass:true,review_status:'needs_review',duration_us:30000000,start_us:0,end_us:30000000,caption_words:[],warnings:[],content_hash:'fixture'}]}})
+    const w=mount(ReviewPanel,{props:{manual:false,mediaUrl:'/fixture-preview.mp4',sourceUrl:'',revisions:[{revision_id:'r',title:'Corte teste',rationale:'Fixture somente',technical_pass:true,review_status:'needs_review',duration_us:30000000,start_us:0,end_us:30000000,caption_words:[],warnings:[],content_hash:'fixture'}]}})
     expect((w.get('[data-action=approve]').element as HTMLButtonElement).disabled).toBe(true)
     for(const check of w.findAll('input[type=checkbox]'))await check.setValue(true)
     await w.get('[data-action=approve]').trigger('click')

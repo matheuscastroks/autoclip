@@ -44,9 +44,9 @@ def main(folder:Path):
                 export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
             transcriber=PreparedTranscript(source,root) if (root/'transcript.json').is_file() else None
             if operation in ('analyze','render') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
-            if operation=='render':analyzer=PreparedAnalysis(root,transcriber.transcript)
-            else:analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls))
-            state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation)
+            precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation=='render' else None
+            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls)) if operation=='analyze' else None
+            state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation,precomputed_analysis=precomputed)
             if state.status=='failed':raise PipelineError('RENDER_FAILED','job','One or more previews failed technical QA.')
         atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
     except BaseException as exc:

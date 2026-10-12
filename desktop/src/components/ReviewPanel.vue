@@ -3,15 +3,15 @@ import {computed,reactive,ref,watch,nextTick} from 'vue'
 import {Scissors,Check,RotateCcw,Play,Info} from '@lucide/vue'
 import type {Revision,Checks,Decision} from '../types'
 import {time,labels} from '../format'
-const props=defineProps<{revisions:Revision[];manual:boolean;mediaUrl:string;sourceUrl:string;busy?:boolean}>()
+const props=defineProps<{revisions:Revision[];manual:boolean;mediaUrl:string;sourceUrl:string;busy?:boolean;selectedRevision?:string;mediaLoading?:boolean}>()
 const emit=defineEmits<{select:[id:string];decision:[value:Decision];export:[]}>()
 const selected=ref(''),notes=ref(''),sourcePlayer=ref<HTMLVideoElement>()
 const criteria:{key:keyof Checks;label:string}[]=[{key:'completeness',label:'O pensamento está completo'},{key:'context',label:'O trecho faz sentido fora do vídeo'},{key:'qualifications',label:'Negações, números e ressalvas estão preservados'},{key:'words_and_boundaries',label:'Nenhuma palavra ou argumento foi cortado'},{key:'audiovisual',label:'Revisei áudio, enquadramento e legendas'}]
 const checks=reactive<Checks>({completeness:false,context:false,qualifications:false,words_and_boundaries:false,audiovisual:false})
-const current=computed(()=>props.revisions.find(r=>r.revision_id===selected.value)||props.revisions[0])
-const ready=computed(()=>current.value?.technical_pass&&criteria.every(c=>checks[c.key])&&!props.busy)
-watch(()=>props.revisions,async rows=>{if(!rows.some(r=>r.revision_id===selected.value)&&rows.length){selected.value=rows[0].revision_id;emit('select',selected.value)}},{immediate:true})
-watch(()=>current.value?.revision_id,()=>{for(const c of criteria)checks[c.key]=false;notes.value=current.value?.notes||''})
+const current=computed(()=>props.revisions.find(r=>r.revision_id===(props.selectedRevision||selected.value))||props.revisions[0])
+const ready=computed(()=>current.value?.technical_pass&&!!props.mediaUrl&&!props.mediaLoading&&criteria.every(c=>checks[c.key])&&!props.busy)
+watch(()=>props.revisions,rows=>{if(props.selectedRevision&&rows.some(r=>r.revision_id===props.selectedRevision)){selected.value=props.selectedRevision;return}if(!rows.some(r=>r.revision_id===selected.value)&&rows.length){selected.value=rows[0].revision_id;emit('select',selected.value)}},{immediate:true})
+watch(()=>[current.value?.revision_id,current.value?.content_hash],()=>{for(const c of criteria)checks[c.key]=false;notes.value=current.value?.notes||''})
 function choose(id:string){selected.value=id;emit('select',id)}
 function decide(decision:'approved'|'rejected'){if(!current.value?.content_hash||(decision==='approved'&&!ready.value))return;emit('decision',{revision_id:current.value.revision_id,decision,checks:{...checks},notes:notes.value,content_hash:current.value.content_hash})}
 function context(){if(sourcePlayer.value){sourcePlayer.value.currentTime=Math.max(0,(current.value?.start_us||0)/1e6-30);sourcePlayer.value.play().catch(()=>{})}}
