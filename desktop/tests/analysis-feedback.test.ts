@@ -49,8 +49,8 @@ describe('editorial controls and Gemini feedback',()=>{
     expect(w.text()).toContain('Conferindo a conclusão')
     expect(w.find('img').exists()).toBe(false)
     expect(w.text()).toContain('Resumo enviado pelo Gemini')
-    await w.get('[data-action=analysis-history]').trigger('click')
-    expect(w.emitted('history')?.[0]).toEqual(['j']);w.unmount()
+    expect(w.find('[data-action=analysis-history]').exists()).toBe(false)
+    expect(w.text()).not.toContain('Ver histórico');w.unmount()
   })
   it('does not invent thinking when the provider has no summary',()=>{
     const w=mount(AnalysisFeedback,{props:{jobs:[{id:'j',project_id:'p',operation:'analyze',status:'completed',created_at:'',request_limit:3,requests_used:1,events:[{id:'1',at:'',kind:'thoughts_unavailable',message:'Gemini não forneceu resumos nesta tentativa.'}]}]}})

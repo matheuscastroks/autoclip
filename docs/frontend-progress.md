@@ -56,3 +56,8 @@ Task 5: complete — final Python76 passed/1 skipped in144.33s; Vue10 passed; vu
 - Autoscroll pausável, scrollbar oculta, região focável para teclado e indicação de status separada do texto. Etapas compactas e colunas 50/50, responsivas. Parâmetros de janela/chars em ajustes avançados com explicação.
 - Regressões RED/GREEN: ordenação após quatro consultas, seleção diante de respostas reordenadas, retenção de chunks, autoscroll e pausa/retomada. Verificação final: 30 testes Vue, 16 testes API jobs/workflow e 2 de feedback/histórico passaram; vue-tsc e Vite build passaram.
 - Inspeção real: 606,4 px por coluna; nenhum overflow horizontal; scrollbar-width none; scrollTop acompanhando o fim. Serviço atualizado e saudável. Nenhuma chamada de geração disparada na verificação; a falha PROVIDER_UNAVAILABLE da análise anterior é preservada, sem confundi-la com erros antigos de orçamento.
+
+
+## 2026-10-12 — Painel sem histórico visível
+
+Removidos o botão de histórico, modal, seleção de trabalhos antigos e sua navegação no frontend. Mantidos resumo atual, temas, propostas, indicação de análise parcial, autoscroll e revisão de cortes. Endpoint e logs locais são preservados para diagnóstico interno. O frontend não consulta o endpoint paginado de histórico. Os 30 testes Vue passaram; regressões verificam ausência do botão e do modal sem afetar o feedback atual. Nenhuma geração Gemini disparada.

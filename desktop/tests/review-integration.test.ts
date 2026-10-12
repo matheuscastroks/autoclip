@@ -21,6 +21,7 @@ describe('review identity across refresh and failures',()=>{
     setup();vi.mocked(api.config).mockResolvedValue({...config,gemini_key_configured:true})
     vi.spyOn(api,'start').mockResolvedValue({} as any)
     const w=await open();await w.get('[data-stage=analyze] button').trigger('click');await flushPromises()
+    expect(w.text()).not.toContain('Histórico da análise Gemini')
     const dialog=w.findAll('dialog').find(d=>d.text().includes('Analisar com Gemini'))!
     expect(dialog.find('input[type=checkbox]').exists()).toBe(false)
     expect(dialog.text()).not.toContain('Limite de tentativas')

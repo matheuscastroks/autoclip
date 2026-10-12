@@ -3,7 +3,6 @@ import {computed,ref,watch,nextTick} from 'vue'
 import type {Job,AnalysisEvent} from '../types'
 import {active,labels,latestJob} from '../format'
 const props=defineProps<{jobs:Job[]}>()
-defineEmits<{history:[id:string]}>()
 const job=computed(()=>latestJob(props.jobs.filter(j=>['analyze','prepare'].includes(j.operation))))
 const events=ref<AnalysisEvent[]>([]),scrollArea=ref<HTMLElement>(),following=ref(true)
 let retainedJob=''
@@ -42,7 +41,6 @@ async function toggleFollow(){following.value=!following.value;await nextTick();
     <p v-if="['failed','cancelled','interrupted'].includes(job.status)" class="feedback-status">{{labels[job.status]}}. {{summary?'Os resumos recebidos são parciais e não representam uma análise completa.':'Este trabalho não completou a análise.'}}</p>
     <ul v-if="validated?.topics?.length" class="feedback-topics"><li v-for="topic in validated.topics.slice(0,2)" :key="topic.id">{{topic.label}}</li></ul>
     <small v-if="validated?.candidates?.length">{{validated.candidates.length}} proposta(s) recebida(s), ainda sem aprovação.</small>
-    <button type="button" class="button small secondary" data-action="analysis-history" @click="$emit('history',job.id)">Ver histórico e propostas</button>
     <small>Resumos da API, não o pensamento interno completo. As propostas exigem revisão.</small>
   </section>
 </template>

@@ -5,7 +5,7 @@ import type {Project,Job} from '../types'
 import {active,labels,latestJob} from '../format'
 import AnalysisFeedback from './AnalysisFeedback.vue'
 const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean}>()
-defineEmits<{transcribe:[];analyze:[];render:[];review:[];cancel:[id:string];resume:[id:string];history:[id:string]}>()
+defineEmits<{transcribe:[];analyze:[];render:[];review:[];cancel:[id:string];resume:[id:string]}>()
 const names=[['import','Importar vídeo'],['transcribe','Transcrever'],['analyze','Analisar temas'],['render','Gerar e revisar']] as const
 const job=computed(()=>latestJob(props.jobs))
 const processing=computed(()=>props.jobs.some(j=>active(j.status)))
@@ -30,7 +30,7 @@ function state(step:string){
         <button v-if="id==='render'&&(hasCuts||project.is_manual)" class="button small primary" @click="$emit('review')">Revisar cortes</button>
       </div>
     </div></div>
-    <AnalysisFeedback :jobs="jobs" @history="$emit('history',$event)"/>
+    <AnalysisFeedback :jobs="jobs"/>
     <div v-if="job" class="pipeline-activity" aria-live="polite"><p v-if="['analyze','prepare'].includes(job.operation)">{{job.requests_used||0}} chamada(s) Gemini{{job.request_mode==='automatic'?' · planejamento automático':' de '+job.request_limit}}</p><p v-if="job.error" class="notice error">{{job.error.code}}: {{job.error.message}}</p><p v-if="job.exports?.length">{{job.exports.length}} pacote(s) exportado(s).</p><button v-if="['failed','cancelled','interrupted'].includes(job.status)&&!['prepare','analyze'].includes(job.operation)" class="button small secondary" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Retomar etapa</button><p v-else-if="['failed','cancelled','interrupted'].includes(job.status)&&job.operation==='prepare'">A sequência foi interrompida. Inicie a análise novamente para continuar com planejamento automático.</p></div>
     <p v-if="project.error&&!job?.error" class="notice error">{{project.error.code}}. Verifique a fonte e as configurações antes de tentar novamente.</p>
     <p class="pipeline-note">Mídia local. Gemini recebe somente texto. Barras animadas indicam atividade, sem percentual estimado.</p>

@@ -1,4 +1,4 @@
-import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection,AnalysisEvent} from './types'
+import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection} from './types'
 let token=''
 export function initializeSession(){
   token=new URLSearchParams(location.hash.slice(1)).get('session')||''
@@ -18,7 +18,6 @@ export const api={
   projects:()=>request<Project[]>('/projects'),project:(id:string)=>request<Project>('/projects/'+id),
   config:()=>request<Config>('/config'),jobs:()=>request<Job[]>('/jobs'),
   transcript:(id:string)=>request<Transcript>(`/projects/${id}/transcript`),
-  analysisEvents:(pid:string,jid:string,offset=0)=>request<{events:AnalysisEvent[];next_offset:number;has_more:boolean}>(`/projects/${pid}/analysis-events?`+new URLSearchParams({job_id:jid,offset:String(offset),limit:'100'})),
   revisions:(id:string)=>request<Revision[]>(`/projects/${id}/revisions`),
   media:async(id:string,asset:string)=>(await request<{url:string}>(`/projects/${id}/media/${asset}/ticket`)).url,
   importProject:(path:string)=>post<Project>('/projects/import',{path}),
