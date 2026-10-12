@@ -329,8 +329,14 @@ class PauseVerification(Contract):
 
 class CaptionConfig(Contract):
     font_path: Path | None = None
-    font_name: str = 'Arial'
-    style_id: Literal['karaoke'] = 'karaoke'
+    font_name: str = 'Montserrat ExtraBold'
+    style_id: Literal['karaoke','bold-uppercase-v1'] = 'bold-uppercase-v1'
+    uppercase: bool = True
+    max_words: int = Field(default=3,ge=2,le=3)
+    font_color: str = Field(default='#FFFFFF',pattern=r'^#[0-9A-Fa-f]{6}$')
+    highlight_color: str = Field(default='#FFCC00',pattern=r'^#[0-9A-Fa-f]{6}$')
+    border_color: str = Field(default='#000000',pattern=r'^#[0-9A-Fa-f]{6}$')
+    border_width: int = Field(default=3,ge=1,le=10)
 
 
 class ExportConfig(Contract):

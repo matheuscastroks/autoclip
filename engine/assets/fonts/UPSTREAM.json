@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/JulietaUla/Montserrat",
+  "commit": "555facfb2a18c72c3c0380f0d9c0f060453a9058",
+  "license": "SIL Open Font License 1.1",
+  "files": {
+    "Montserrat-ExtraBold.ttf": {
+      "url": "https://raw.githubusercontent.com/JulietaUla/Montserrat/555facfb2a18c72c3c0380f0d9c0f060453a9058/fonts/ttf/Montserrat-ExtraBold.ttf",
+      "sha256": "d3ac6a843d3ba6d5cafd44cf39e437055c8aed7e261010f595f57d3c7b3e2c1b",
+      "bytes": 455468
+    },
+    "OFL.txt": {
+      "url": "https://raw.githubusercontent.com/JulietaUla/Montserrat/555facfb2a18c72c3c0380f0d9c0f060453a9058/OFL.txt",
+      "sha256": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e",
+      "bytes": 4400
+    }
+  }
+}

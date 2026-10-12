@@ -8,7 +8,7 @@ def test_caption_edit_does_not_mutate_raw_asr(tmp_path):
     revision=CaptionRevision(edits={'w0':r'Não {texto}\N injetado'})
     caps=OpenShortsCaptionBuilder(tmp_path).build(t,e,revision,CaptionConfig())
     assert t.words[0].text=='Não'
-    assert caps.words[0].display_text==revision.edits['w0']
+    assert caps.words[0].display_text==revision.edits['w0'].upper()
     assert caps.ass_path.exists() and caps.srt_path.exists()
-    assert r'{texto}' not in caps.ass_path.read_text(encoding='utf-8')
+    assert r'{TEXTO}' not in caps.ass_path.read_text(encoding='utf-8')
     assert all(w.end_us<=e.duration_us for w in caps.words)

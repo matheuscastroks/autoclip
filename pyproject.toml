@@ -21,7 +21,7 @@ autoclip-engine = "engine.cli:main"
 include = ["engine*", "vendor*"]
 
 [tool.setuptools.package-data]
-engine = ["prompts/*.txt", "contracts/schemas/*.json"]
+engine = ["prompts/*.txt", "contracts/schemas/*.json", "assets/fonts/*"]
 "vendor.openshorts" = ["LICENSE", "UPSTREAM.json"]
 
 [tool.pytest.ini_options]

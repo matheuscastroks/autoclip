@@ -18,12 +18,14 @@ class OpenShortsCaptionBuilder:
             if span is None: raise PipelineError('UNSAFE_EDIT','captions','Protected word is cut.')
             text=revision.edits.get(wid,w.text).strip()
             if not text: raise PipelineError('INVALID_CAPTION','captions','Empty display text must be reviewed explicitly.')
+            if config.uppercase:text=text.upper()
+            if len(text.split())>config.max_words:raise PipelineError('INVALID_CAPTION','captions','A display token exceeds the configured word limit.')
             words.append(CaptionWord(source_word_id=wid,display_text=text,start_us=span.output_start_us+w.start_us-span.source_start_us,end_us=span.output_start_us+w.end_us-span.source_start_us))
         folder=self.root/str(edl.revision_id)/str(revision.revision_id);folder.mkdir(parents=True,exist_ok=False)
         ass,srt=folder/'captions.ass',folder/'captions.srt'
         # Upstream consumes milliseconds; contract retains original microseconds.
         payload=[{'text':w.display_text,'startMs':w.start_us//1000,'endMs':w.end_us//1000} for w in words]
         if not payload: raise PipelineError('INVALID_CAPTION','captions','No caption words.')
-        generate_ass_from_captions(payload,str(ass),max_chars=32,max_duration=2.0,font_name=config.font_name,fontsize=22,effect='pop')
-        generate_srt_from_captions(payload,str(srt),max_chars=32,max_duration=2.0)
-        return CaptionArtifact(transcript_id=transcript.transcript_id,edl_revision_id=edl.revision_id,revision_id=revision.revision_id,words=words,ass_path=ass.resolve(),srt_path=srt.resolve(),font=str(config.font_path) if config.font_path else config.font_name)
+        generate_ass_from_captions(payload,str(ass),max_chars=32,max_duration=2.0,font_name=config.font_name,fontsize=22,effect='none',font_color=config.font_color,highlight_color=config.highlight_color,border_color=config.border_color,border_width=config.border_width,max_words=config.max_words)
+        generate_srt_from_captions(payload,str(srt),max_chars=32,max_duration=2.0,max_words=config.max_words)
+        return CaptionArtifact(transcript_id=transcript.transcript_id,edl_revision_id=edl.revision_id,revision_id=revision.revision_id,words=words,ass_path=ass.resolve(),srt_path=srt.resolve(),font=str(config.font_path) if config.font_path else config.font_name,style_id=config.style_id)

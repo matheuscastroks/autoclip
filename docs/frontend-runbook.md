@@ -96,3 +96,10 @@ A aba Cortes possui filtros **Em geração**, **Para revisar**, **Aprovados** e 
 Novas prévias usam somente o recorte **central estático 9:16, 1080×1920**, com legendas gravadas. Não há fundo borrado, sobreposição horizontal ou acompanhamento facial. O original permanece intacto. Prévias antigas conservam seu formato; gere uma nova revisão para obter o novo enquadramento.
 
 O tema global é claro, com preto/roxo, bordas visíveis, controles quadrados e foco contrastante. Em telas estreitas a análise empilha os painéis; as quatro abas permanecem acessíveis. Nenhum histórico de falhas foi adicionado.
+
+
+### Legendas em maiúsculas
+
+Novas prévias usam Montserrat ExtraBold incluída no pacote sob SIL OFL 1.1, sem instalação manual. O texto aparece em maiúsculas, em grupos de até três palavras: palavra falada em `#FFCC00`, demais em branco, com contorno preto espesso. A transcrição original mantém sua grafia e timestamps. Intervalos sobrepostos do ASR são limitados apenas na apresentação ASS para evitar duas legendas simultâneas. SRT permanece editável.
+
+Prévias existentes permanecem intactas; gere uma nova revisão para aplicar o estilo. A mudança não exige nova análise Gemini. Evidência técnica: `poc-results/frontend/bold-caption-style-validation.json` e `bold-caption-style-frame.jpg`; amostra real de 3,36 segundos, sem validação editorial de um corte completo.

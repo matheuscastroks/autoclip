@@ -297,7 +297,7 @@ def _collect_word_blocks(transcript, clip_start, clip_end, max_chars=20, max_dur
     return blocks
 
 
-def _collect_captions_blocks(captions, max_chars=20, max_duration=2.0):
+def _collect_captions_blocks(captions, max_chars=20, max_duration=2.0, max_words=4):
     """Group clip-relative captions {text, startMs, endMs} into blocks for SRT/ASS."""
     # captions already clip-relative ms; convert to seconds
     words = []
@@ -321,7 +321,7 @@ def _collect_captions_blocks(captions, max_chars=20, max_duration=2.0):
             continue
         cur_len = sum(len(x['word']) + 1 for x in current)
         dur = w['end'] - block_start
-        if len(current) >= 4 or cur_len + len(w['word']) > max_chars or dur > max_duration:
+        if sum(len(x['word'].split()) for x in current)+len(w['word'].split())>max_words or cur_len + len(w['word']) > max_chars or dur > max_duration:
             blocks.append(current)
             current = [w]
             block_start = w['start']
@@ -332,9 +332,9 @@ def _collect_captions_blocks(captions, max_chars=20, max_duration=2.0):
     return blocks
 
 
-def generate_srt_from_captions(captions, output_path, max_chars=20, max_duration=2.0):
+def generate_srt_from_captions(captions, output_path, max_chars=20, max_duration=2.0, max_words=4):
     """Generate SRT directly from edited clip-relative captions."""
-    blocks = _collect_captions_blocks(captions, max_chars, max_duration)
+    blocks = _collect_captions_blocks(captions, max_chars, max_duration, max_words)
     if not blocks:
         return False
     srt = ""
@@ -352,7 +352,7 @@ def generate_ass_from_captions(captions, output_path, max_chars=20, max_duration
                                highlight_color="#FFD700", bg_color="#000000", bg_opacity=0.0,
                                effect="none", base_opacity=1.0, uppercase=False,
                                margin_v=43, word_gap=8, letter_spacing=0,
-                               marginV=None, wordGap=None, letterSpacing=None):
+                               marginV=None, wordGap=None, letterSpacing=None, max_words=4):
     """Karaoke ASS directly from edited captions."""
     # Normalize aliases (camelCase from frontend styleOptions vs snake_case direct calls)
     if marginV is not None:
@@ -365,7 +365,7 @@ def generate_ass_from_captions(captions, output_path, max_chars=20, max_duration
     spacing = int(_clamp_number(letter_spacing, -2, 20, 0))
     # word_gap is preview-only (Remotion flex gap); kept for API parity / future ASS hacks
     _ = word_gap
-    blocks = _collect_captions_blocks(captions, max_chars, max_duration)
+    blocks = _collect_captions_blocks(captions, max_chars, max_duration, max_words)
     if not blocks:
         return False
     # Reuse karaoke rendering by building a pseudo-transcript with same timing
@@ -408,9 +408,15 @@ Style: Default,{safe_font},{final_fontsize},{primary_colour},&H00FFFFFF,{outline
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+    ordered_words=[word for block in blocks for word in block]
+    next_starts={id(word):ordered_words[i+1]['start'] for i,word in enumerate(ordered_words[:-1])}
     for block in blocks:
         # One dialogue per word for karaoke highlight
         for idx, w in enumerate(block):
+            # Presentation only: overlapping ASR intervals must not paint two
+            # groups/highlights simultaneously. Keep the source timestamps intact.
+            cue_end=min(w['end'],next_starts.get(id(w),w['end']))
+            if _ass_time(cue_end)==_ass_time(w['start']):continue
             word_text = _wrap_emoji_ass(w['word'].upper() if uppercase else w['word'], safe_font)
             # Build line with highlight on current word, dimmed others
             parts = []
@@ -429,7 +435,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 else:
                     parts.append(ot)
             line = " ".join(parts)
-            ass += f"Dialogue: 0,{_ass_time(w['start'])},{_ass_time(w['end'])},Default,,0,0,0,,{line}\n"
+            ass += f"Dialogue: 0,{_ass_time(w['start'])},{_ass_time(cue_end)},Default,,0,0,0,,{line}\n"
 
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(ass)

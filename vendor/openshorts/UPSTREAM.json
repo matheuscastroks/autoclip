@@ -6,7 +6,8 @@
     "relative imports",
     "recut render wrappers excluded",
     "explicit per-job Whisper helper",
-    "caption groups limited to four words"
+    "configurable caption word limit (legacy default four; engine default three)",
+    "clip overlapping ASS display cues without changing transcript timestamps"
   ],
   "files": [
     {
@@ -22,7 +23,7 @@
     {
       "file": "subtitles.py",
       "original_sha256": "4d1eb781cbf804fa23082e094f57bbdca4979092a4a16f4ddc992334d88ebb64",
-      "vendored_sha256": "4104392d60a1a4c7bb21a149d23348199ca9ef6acfb45bb9d82d99e71782d0d5"
+      "vendored_sha256": "6090ac1e44aceb19342272bbee97d8b88767bc25c73f0a3cefb0efbcc52fc9ee"
     },
     {
       "file": "ffmpeg_utils.py",

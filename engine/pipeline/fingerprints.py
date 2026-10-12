@@ -36,6 +36,9 @@ def resolve_font(path:Path|None,name:str) -> Path:
     if path is not None:
         if not path.is_file():raise PipelineError('FONT_MISSING','captions','Configured font file unavailable.')
         return path.resolve()
+    if name.casefold()=='montserrat extrabold':
+        bundled=Path(__file__).resolve().parents[1]/'assets/fonts/Montserrat-ExtraBold.ttf'
+        if bundled.is_file():return bundled.resolve()
     if os.name=='nt' and name.lower()=='arial':
         p=Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/arial.ttf'
         if p.is_file():return p
