@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "CaptionWord": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start_us": {
+          "minimum": 0,
+          "title": "Start Us",
+          "type": "integer"
+        },
+        "end_us": {
+          "exclusiveMinimum": 0,
+          "title": "End Us",
+          "type": "integer"
+        },
+        "source_word_id": {
+          "title": "Source Word Id",
+          "type": "string"
+        },
+        "display_text": {
+          "title": "Display Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start_us",
+        "end_us",
+        "source_word_id",
+        "display_text"
+      ],
+      "title": "CaptionWord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "transcript_id": {
+      "format": "uuid",
+      "title": "Transcript Id",
+      "type": "string"
+    },
+    "edl_revision_id": {
+      "format": "uuid",
+      "title": "Edl Revision Id",
+      "type": "string"
+    },
+    "revision_id": {
+      "format": "uuid",
+      "title": "Revision Id",
+      "type": "string"
+    },
+    "words": {
+      "items": {
+        "$ref": "#/$defs/CaptionWord"
+      },
+      "title": "Words",
+      "type": "array"
+    },
+    "ass_path": {
+      "format": "path",
+      "title": "Ass Path",
+      "type": "string"
+    },
+    "srt_path": {
+      "format": "path",
+      "title": "Srt Path",
+      "type": "string"
+    },
+    "font": {
+      "title": "Font",
+      "type": "string"
+    },
+    "style_id": {
+      "default": "karaoke",
+      "title": "Style Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "transcript_id",
+    "edl_revision_id",
+    "revision_id",
+    "words",
+    "ass_path",
+    "srt_path",
+    "font"
+  ],
+  "title": "CaptionArtifact",
+  "type": "object"
+}

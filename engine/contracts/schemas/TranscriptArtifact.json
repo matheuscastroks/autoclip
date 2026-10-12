@@ -1,0 +1,175 @@
+{
+  "$defs": {
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start_us": {
+          "minimum": 0,
+          "title": "Start Us",
+          "type": "integer"
+        },
+        "end_us": {
+          "exclusiveMinimum": 0,
+          "title": "End Us",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "word_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Word Ids",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start_us",
+        "end_us",
+        "id",
+        "word_ids",
+        "text"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start_us": {
+          "minimum": 0,
+          "title": "Start Us",
+          "type": "integer"
+        },
+        "end_us": {
+          "exclusiveMinimum": 0,
+          "title": "End Us",
+          "type": "integer"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "probability": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Probability"
+        },
+        "speaker_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Speaker Id"
+        }
+      },
+      "required": [
+        "start_us",
+        "end_us",
+        "id",
+        "text"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "transcript_id": {
+      "format": "uuid",
+      "title": "Transcript Id",
+      "type": "string"
+    },
+    "source_id": {
+      "format": "uuid",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "language": {
+      "default": "pt",
+      "title": "Language",
+      "type": "string"
+    },
+    "model": {
+      "additionalProperties": true,
+      "title": "Model",
+      "type": "object"
+    },
+    "words": {
+      "items": {
+        "$ref": "#/$defs/Word"
+      },
+      "title": "Words",
+      "type": "array"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/Segment"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "source_sha256",
+    "words"
+  ],
+  "title": "TranscriptArtifact",
+  "type": "object"
+}

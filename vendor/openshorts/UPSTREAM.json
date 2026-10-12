@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/Marsic1/openshorts",
+  "commit": "b1f5350fcf24b17cb48b581400c35ad9f3974ba5",
+  "license": "MIT (outside cloud/)",
+  "changes": [
+    "relative imports",
+    "recut render wrappers excluded",
+    "explicit per-job Whisper helper",
+    "caption groups limited to four words"
+  ],
+  "files": [
+    {
+      "file": "clip_selection.py",
+      "original_sha256": "e415f66e74d4105a43944b519561b07abb1abf9a2a8321ff8b1684d14997eec2",
+      "vendored_sha256": "4a0f34582ed578f9bded87527dd88814a7cd4187824592a7507aa5ef072377e5"
+    },
+    {
+      "file": "transcribe_backends.py",
+      "original_sha256": "b29189da9b8b4af3a52e7da8cd53db4aad3ee0a68148926c6cbd0c1fb62b047e",
+      "vendored_sha256": "a7c6c67dc1ee884b3c2537b34466d2001d1e9fa05e0e774d0ac05be777b38ba9"
+    },
+    {
+      "file": "subtitles.py",
+      "original_sha256": "4d1eb781cbf804fa23082e094f57bbdca4979092a4a16f4ddc992334d88ebb64",
+      "vendored_sha256": "4104392d60a1a4c7bb21a149d23348199ca9ef6acfb45bb9d82d99e71782d0d5"
+    },
+    {
+      "file": "ffmpeg_utils.py",
+      "original_sha256": "3297fe33f1af8c7f9185bb3198bb55130e98d70c38c1da3d189af9a82fd1991c",
+      "vendored_sha256": "bc11a20d738201935852ee4c44f3aa17e4215460ac14ee07533d20bc2faefbef"
+    },
+    {
+      "file": "recut.py",
+      "original_sha256": "6a737cd28a5407e71253282f9fc1c9a2cbefe7c5ad8decf9724710bef7d96f9d",
+      "vendored_sha256": "e0531b59c6ac2faf4e39ccd895e7647f2b0aebbedcc9630db49c4340c1fe0fee"
+    },
+    {
+      "file": "LICENSE",
+      "original_sha256": "600e97e951834767c07845af65b79dfc727b5d993a51079c238d447ce9c2c669",
+      "vendored_sha256": "80ca08d38b4705c1a0d5f613846461206342ac379a25635de999542f8562693e"
+    }
+  ]
+}

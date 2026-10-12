@@ -1,0 +1,9 @@
+{
+  "repository": "Systran/faster-whisper-small",
+  "local_path": "research/models/whisper-small",
+  "model_file": "model.bin",
+  "model_sha256": "3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671",
+  "model_bytes": 483546902,
+  "purpose": "Local CPU ASR benchmark on the user-selected video",
+  "redistribution_license_audit_completed": false
+}

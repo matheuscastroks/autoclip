@@ -1,0 +1,167 @@
+{
+  "$defs": {
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "topic_id": {
+          "title": "Topic Id",
+          "type": "string"
+        },
+        "start_word_id": {
+          "title": "Start Word Id",
+          "type": "string"
+        },
+        "end_word_id": {
+          "title": "End Word Id",
+          "type": "string"
+        },
+        "evidence_word_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Word Ids",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "context_before_word_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Before Word Ids",
+          "type": "array"
+        },
+        "context_after_word_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context After Word Ids",
+          "type": "array"
+        },
+        "editorial": {
+          "$ref": "#/$defs/EditorialFlags"
+        },
+        "title_suggestion": {
+          "default": "",
+          "title": "Title Suggestion",
+          "type": "string"
+        },
+        "description_suggestion": {
+          "default": "",
+          "title": "Description Suggestion",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "topic_id",
+        "start_word_id",
+        "end_word_id",
+        "evidence_word_ids",
+        "rationale",
+        "editorial"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "EditorialFlags": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "completeness": {
+          "enum": [
+            "yes",
+            "no",
+            "uncertain"
+          ],
+          "title": "Completeness",
+          "type": "string"
+        },
+        "standalone_context": {
+          "enum": [
+            "yes",
+            "no",
+            "uncertain"
+          ],
+          "title": "Standalone Context",
+          "type": "string"
+        },
+        "qualification_preserved": {
+          "enum": [
+            "yes",
+            "no",
+            "uncertain"
+          ],
+          "title": "Qualification Preserved",
+          "type": "string"
+        }
+      },
+      "required": [
+        "completeness",
+        "standalone_context",
+        "qualification_preserved"
+      ],
+      "title": "EditorialFlags",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "transcript_id": {
+      "format": "uuid",
+      "title": "Transcript Id",
+      "type": "string"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/Candidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "rejected": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Rejected",
+      "type": "array"
+    }
+  },
+  "required": [
+    "transcript_id",
+    "candidates"
+  ],
+  "title": "CandidateArtifact",
+  "type": "object"
+}

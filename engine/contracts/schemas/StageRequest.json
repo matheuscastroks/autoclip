@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "relative_path": {
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "relative_path",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "job_id": {
+      "format": "uuid",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "stage_version": {
+      "title": "Stage Version",
+      "type": "string"
+    },
+    "inputs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "config": {
+      "additionalProperties": true,
+      "title": "Config",
+      "type": "object"
+    },
+    "runtime": {
+      "additionalProperties": true,
+      "title": "Runtime",
+      "type": "object"
+    },
+    "cancellation_token_id": {
+      "format": "uuid",
+      "title": "Cancellation Token Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "stage",
+    "stage_version",
+    "inputs",
+    "config",
+    "runtime",
+    "cancellation_token_id"
+  ],
+  "title": "StageRequest",
+  "type": "object"
+}

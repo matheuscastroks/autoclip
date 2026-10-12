@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "relative_path": {
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "relative_path",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "metrics": {
+      "additionalProperties": true,
+      "title": "Metrics",
+      "type": "object"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "StageResult",
+  "type": "object"
+}

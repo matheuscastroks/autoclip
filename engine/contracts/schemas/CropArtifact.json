@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_id": {
+      "format": "uuid",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "edl_revision_id": {
+      "format": "uuid",
+      "title": "Edl Revision Id",
+      "type": "string"
+    },
+    "mode": {
+      "const": "fit-blur",
+      "default": "fit-blur",
+      "title": "Mode",
+      "type": "string"
+    },
+    "fallback_reason": {
+      "default": "Face tracking deferred to M2; full frame preserved.",
+      "title": "Fallback Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "edl_revision_id"
+  ],
+  "title": "CropArtifact",
+  "type": "object"
+}

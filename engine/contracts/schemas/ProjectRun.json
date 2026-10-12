@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "local_path": {
+          "format": "path",
+          "title": "Local Path",
+          "type": "string"
+        },
+        "kind": {
+          "default": "file",
+          "enum": [
+            "file",
+            "url"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "original_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Url"
+        },
+        "original_title": {
+          "default": "",
+          "title": "Original Title",
+          "type": "string"
+        },
+        "channel": {
+          "default": "",
+          "title": "Channel",
+          "type": "string"
+        },
+        "attribution": {
+          "default": "",
+          "title": "Attribution",
+          "type": "string"
+        },
+        "rights_note": {
+          "default": "Local evaluation; redistribution not established.",
+          "title": "Rights Note",
+          "type": "string"
+        },
+        "duration_us": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Duration Us",
+          "type": "integer"
+        },
+        "probe": {
+          "additionalProperties": true,
+          "title": "Probe",
+          "type": "object"
+        }
+      },
+      "required": [
+        "sha256",
+        "local_path"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "status": {
+      "enum": [
+        "processing",
+        "needs_review",
+        "no_candidates",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "transcript_path": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Transcript Path"
+    },
+    "candidates_path": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Candidates Path"
+    },
+    "revisions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Revisions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "source",
+    "status"
+  ],
+  "title": "ProjectRun",
+  "type": "object"
+}

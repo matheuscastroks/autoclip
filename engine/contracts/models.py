@@ -1,0 +1,326 @@
+from pathlib import Path
+from typing import Literal
+from uuid import UUID, uuid4
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class Contract(BaseModel):
+    model_config = ConfigDict(extra='forbid', allow_inf_nan=False, validate_assignment=True)
+    schema_version: Literal['1.0'] = '1.0'
+
+
+class Interval(Contract):
+    start_us: int = Field(ge=0, strict=True)
+    end_us: int = Field(gt=0, strict=True)
+
+    @model_validator(mode='after')
+    def ordered(self):
+        if self.end_us <= self.start_us:
+            raise ValueError('end_us must exceed start_us')
+        return self
+
+
+class Word(Interval):
+    id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    probability: float | None = Field(default=None, ge=0, le=1)
+    speaker_id: str | None = None
+
+
+class Segment(Interval):
+    id: str
+    word_ids: list[str]
+    text: str
+
+
+class Source(Contract):
+    id: UUID = Field(default_factory=uuid4)
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    local_path: Path
+    kind: Literal['file', 'url'] = 'file'
+    original_url: str | None = None
+    original_title: str = ''
+    channel: str = ''
+    attribution: str = ''
+    rights_note: str = 'Local evaluation; redistribution not established.'
+    duration_us: int = Field(default=0, ge=0)
+    probe: dict = Field(default_factory=dict)
+
+
+class AudioArtifact(Contract):
+    source_id: UUID
+    source_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    path: Path
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    duration_us: int = Field(gt=0)
+    sample_rate: Literal[16000] = 16000
+    channels: Literal[1] = 1
+    source_origin_us: int = 0
+
+
+class TranscriptArtifact(Contract):
+    transcript_id: UUID = Field(default_factory=uuid4)
+    source_id: UUID = Field(default_factory=uuid4)
+    source_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    language: str = 'pt'
+    model: dict = Field(default_factory=dict)
+    words: list[Word]
+    segments: list[Segment] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def valid_words(self):
+        ids = [w.id for w in self.words]
+        if len(ids) != len(set(ids)):
+            raise ValueError('duplicate word IDs')
+        if any(b.start_us < a.start_us for a,b in zip(self.words, self.words[1:])):
+            raise ValueError('words must be sorted')
+        if any(b.start_us < a.end_us for a,b in zip(self.words, self.words[1:])) and 'overlapping_words' not in self.warnings:
+            self.warnings.append('overlapping_words')
+        for segment in self.segments:
+            if not set(segment.word_ids).issubset(ids):
+                raise ValueError('unknown segment word ID')
+        return self
+
+
+class EditorialFlags(Contract):
+    completeness: Literal['yes','no','uncertain']
+    standalone_context: Literal['yes','no','uncertain']
+    qualification_preserved: Literal['yes','no','uncertain']
+
+
+class Candidate(Contract):
+    id: UUID = Field(default_factory=uuid4)
+    topic_id: str
+    start_word_id: str
+    end_word_id: str
+    evidence_word_ids: list[str]
+    rationale: str
+    context_before_word_ids: list[str] = Field(default_factory=list)
+    context_after_word_ids: list[str] = Field(default_factory=list)
+    editorial: EditorialFlags
+    title_suggestion: str = ''
+    description_suggestion: str = ''
+    warnings: list[str] = Field(default_factory=list)
+
+
+class Topic(Contract):
+    id: str
+    label: str
+    summary: str
+    evidence_word_ids: list[str]
+
+
+class AnalysisArtifact(Contract):
+    transcript_id: UUID
+    topics: list[Topic] = Field(default_factory=list)
+    candidates: list[Candidate] = Field(default_factory=list)
+    complete: bool
+    covered_word_ids: list[str]
+    model: str
+    prompt_hash: str
+    payload_hashes: list[str]
+    responses: list[dict] = Field(default_factory=list)
+
+
+class CandidateArtifact(Contract):
+    transcript_id: UUID
+    candidates: list[Candidate]
+    rejected: list[dict] = Field(default_factory=list)
+
+
+class Span(Contract):
+    source_start_us: int = Field(ge=0)
+    source_end_us: int = Field(gt=0)
+    output_start_us: int = Field(ge=0)
+    output_end_us: int = Field(gt=0)
+    speed_num: Literal[1] = 1
+    speed_den: Literal[1] = 1
+
+    @model_validator(mode='after')
+    def valid_span(self):
+        if self.source_end_us <= self.source_start_us or self.output_end_us <= self.output_start_us:
+            raise ValueError('invalid span')
+        if self.source_end_us-self.source_start_us != self.output_end_us-self.output_start_us:
+            raise ValueError('span duration mismatch')
+        return self
+
+
+class EDLArtifact(Contract):
+    revision_id: UUID = Field(default_factory=uuid4)
+    source_id: UUID
+    transcript_id: UUID
+    policy: Literal['continuous_selection_with_verified_pause_removal'] = 'continuous_selection_with_verified_pause_removal'
+    spans: list[Span]
+    removed: list[dict] = Field(default_factory=list)
+    protected_word_ids: list[str]
+    duration_us: int = Field(gt=0)
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def valid_timeline(self):
+        cursor, source_end = 0, 0
+        for span in self.spans:
+            if span.output_start_us != cursor or span.source_start_us < source_end:
+                raise ValueError('timeline gap/overlap/order')
+            cursor, source_end = span.output_end_us, span.source_end_us
+        if cursor != self.duration_us:
+            raise ValueError('timeline duration mismatch')
+        return self
+
+
+class CropArtifact(Contract):
+    source_id: UUID
+    edl_revision_id: UUID
+    mode: Literal['fit-blur'] = 'fit-blur'
+    fallback_reason: str = 'Face tracking deferred to M2; full frame preserved.'
+
+
+class CaptionRevision(Contract):
+    revision_id: UUID = Field(default_factory=uuid4)
+    edits: dict[str,str] = Field(default_factory=dict)
+
+
+class CaptionWord(Interval):
+    source_word_id: str
+    display_text: str
+
+
+class CaptionArtifact(Contract):
+    transcript_id: UUID
+    edl_revision_id: UUID
+    revision_id: UUID
+    words: list[CaptionWord]
+    ass_path: Path
+    srt_path: Path
+    font: str
+    style_id: str = 'karaoke'
+
+
+class EditorialChecks(Contract):
+    completeness: bool
+    context: bool
+    qualifications: bool
+    words_and_boundaries: bool
+    audiovisual: bool
+
+
+class ReviewDecision(Contract):
+    id: UUID = Field(default_factory=uuid4)
+    revision_id: UUID
+    decision: Literal['approved','rejected']
+    checks: EditorialChecks
+    notes: str = ''
+    author_kind: Literal['human'] = 'human'
+
+    @model_validator(mode='after')
+    def approval_checks(self):
+        if self.decision == 'approved' and not all(self.checks.model_dump(exclude={'schema_version'}).values()):
+            raise ValueError('all human checks required for approval')
+        return self
+
+
+class RenderArtifact(Contract):
+    revision_id: UUID
+    path: Path
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    size_bytes: int = Field(gt=0)
+
+
+class ExportValidation(Contract):
+    revision_id: UUID
+    technical_pass: bool
+    checks: dict
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ArtifactRef(Contract):
+    id: UUID = Field(default_factory=uuid4)
+    kind: str
+    relative_path: str
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    size_bytes: int = Field(gt=0)
+
+
+class StageRequest(Contract):
+    job_id: UUID
+    stage: str
+    stage_version: str
+    inputs: list[ArtifactRef]
+    config: dict
+    runtime: dict
+    cancellation_token_id: UUID
+
+
+class StageResult(Contract):
+    status: Literal['completed','failed','cancelled']
+    artifacts: list[ArtifactRef] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    metrics: dict = Field(default_factory=dict)
+    error: dict | None = None
+
+    @model_validator(mode='after')
+    def valid_status(self):
+        if (self.status == 'failed') != (self.error is not None):
+            raise ValueError('failed requires error; other statuses disallow it')
+        return self
+
+
+class ASRConfig(Contract):
+    model_path: Path
+    language: Literal['pt'] = 'pt'
+    device: Literal['cpu'] = 'cpu'
+    compute_type: Literal['int8'] = 'int8'
+
+
+class AnalysisConfig(Contract):
+    model: str = Field(min_length=1)
+    prompt_version: Literal['analysis_v1'] = 'analysis_v1'
+    timeout_s: int = Field(default=60, ge=1, le=60)
+    offline: bool = False
+    max_calls: int = Field(ge=1)
+
+
+class SelectionConfig(Contract):
+    min_us: int = Field(default=20_000_000, gt=0)
+    max_us: int = Field(default=60_000_000, le=60_000_000)
+    max_clips: int = Field(default=3, ge=1, le=3)
+
+    @model_validator(mode='after')
+    def durations(self):
+        if self.min_us > self.max_us: raise ValueError('min exceeds max')
+        return self
+
+
+class CaptionConfig(Contract):
+    font_path: Path | None = None
+    font_name: str = 'Arial'
+    style_id: Literal['karaoke'] = 'karaoke'
+
+
+class ExportConfig(Contract):
+    width: Literal[1080] = 1080
+    height: Literal[1920] = 1920
+    fps_num: Literal[30] = 30
+    fps_den: Literal[1] = 1
+    crf: int = Field(default=20, ge=0, le=51)
+    output_root: Path
+
+
+class PipelineConfig(Contract):
+    asr: ASRConfig
+    analysis: AnalysisConfig
+    selection: SelectionConfig = Field(default_factory=SelectionConfig)
+    captions: CaptionConfig = Field(default_factory=CaptionConfig)
+    export: ExportConfig
+    ffmpeg: Path
+    ffprobe: Path
+
+
+class ProjectRun(Contract):
+    project_id: UUID = Field(default_factory=uuid4)
+    source: Source
+    status: Literal['processing','needs_review','no_candidates','completed','failed','cancelled']
+    transcript_path: Path | None = None
+    candidates_path: Path | None = None
+    revisions: list[dict] = Field(default_factory=list)

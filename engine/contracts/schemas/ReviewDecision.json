@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "EditorialChecks": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "completeness": {
+          "title": "Completeness",
+          "type": "boolean"
+        },
+        "context": {
+          "title": "Context",
+          "type": "boolean"
+        },
+        "qualifications": {
+          "title": "Qualifications",
+          "type": "boolean"
+        },
+        "words_and_boundaries": {
+          "title": "Words And Boundaries",
+          "type": "boolean"
+        },
+        "audiovisual": {
+          "title": "Audiovisual",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "completeness",
+        "context",
+        "qualifications",
+        "words_and_boundaries",
+        "audiovisual"
+      ],
+      "title": "EditorialChecks",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "revision_id": {
+      "format": "uuid",
+      "title": "Revision Id",
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "approved",
+        "rejected"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "checks": {
+      "$ref": "#/$defs/EditorialChecks"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    },
+    "author_kind": {
+      "const": "human",
+      "default": "human",
+      "title": "Author Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "revision_id",
+    "decision",
+    "checks"
+  ],
+  "title": "ReviewDecision",
+  "type": "object"
+}

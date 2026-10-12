@@ -1,0 +1,62 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_id": {
+      "format": "uuid",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "path": {
+      "format": "path",
+      "title": "Path",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "duration_us": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Us",
+      "type": "integer"
+    },
+    "sample_rate": {
+      "const": 16000,
+      "default": 16000,
+      "title": "Sample Rate",
+      "type": "integer"
+    },
+    "channels": {
+      "const": 1,
+      "default": 1,
+      "title": "Channels",
+      "type": "integer"
+    },
+    "source_origin_us": {
+      "default": 0,
+      "title": "Source Origin Us",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source_id",
+    "source_sha256",
+    "path",
+    "sha256",
+    "duration_us"
+  ],
+  "title": "AudioArtifact",
+  "type": "object"
+}

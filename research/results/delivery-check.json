@@ -1,0 +1,71 @@
+{
+  "document_count": 10,
+  "snapshots": [
+    {
+      "repo": "Gutsken/Autoclip",
+      "sha": "5d0eac36fa615b79dd2104083bf273a96f8d68bb"
+    },
+    {
+      "repo": "jameselle/clipper",
+      "sha": "ee284c8e9e6aa598e26dd9e2254da6195e308f01"
+    },
+    {
+      "repo": "Marsic1/openshorts",
+      "sha": "b1f5350fcf24b17cb48b581400c35ad9f3974ba5"
+    },
+    {
+      "repo": "Steezy-code/clipper",
+      "sha": "eda13985b1d93333baf8dc44327c65e552a782be"
+    },
+    {
+      "repo": "WyattBlue/auto-editor",
+      "sha": "ca3626bd21d944af43079f43e5e90c69c57d018c"
+    }
+  ],
+  "asr": [
+    {
+      "candidate": "autoclip",
+      "status": "completed",
+      "seconds": 216.613,
+      "words": 365,
+      "sample_hash": "595a283ec3c4fdfc65a1c5dd2be247ba3b7029764b725e38125c4dc513e54237",
+      "error": null
+    },
+    {
+      "candidate": "openshorts",
+      "status": "completed",
+      "seconds": 168.704,
+      "words": 354,
+      "sample_hash": "595a283ec3c4fdfc65a1c5dd2be247ba3b7029764b725e38125c4dc513e54237",
+      "error": null
+    },
+    {
+      "candidate": "steezy",
+      "status": "completed",
+      "seconds": 157.112,
+      "words": 365,
+      "sample_hash": "595a283ec3c4fdfc65a1c5dd2be247ba3b7029764b725e38125c4dc513e54237",
+      "error": null
+    }
+  ],
+  "tests": [
+    {
+      "file": "autoclip-tests.xml",
+      "tests": 88,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "file": "openshorts-tests.xml",
+      "tests": 119,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 2
+    }
+  ],
+  "source_hash_matches": true,
+  "document_issues": [],
+  "product_pipeline_validated": false,
+  "semantic_benchmark_completed": false
+}
