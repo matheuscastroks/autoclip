@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed,watch} from 'vue'
 import {Check,Square,RotateCcw} from '@lucide/vue'
 import type {Project,Job,Revision,AnalysisView} from '../types'
 import {active,labels,latestJob} from '../format'
 import GenerationQueue from './GenerationQueue.vue'
+import {notifyJob,notify} from '../notifications'
 const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean;revisions?:Revision[];analysis?:AnalysisView|null;sourceUrl?:string;selectedCount?:number}>()
 defineEmits<{transcribe:[];analyze:[];render:[];analysis:[];review:[];cancel:[id:string];resume:[id:string];replaceSource:[id:string];generate:[];export:[]}>()
 const names=[['import','Importar vídeo'],['transcribe','Transcrever'],['analyze','Analisar temas'],['choose','Escolher trechos'],['render','Gerar prévias'],['review','Revisar'],['export','Exportar']] as const
@@ -12,6 +13,7 @@ const job=computed(()=>latestJob(props.jobs))
 const recovery=computed(()=>job.value&&['failed','cancelled','interrupted'].includes(job.value.status))
 const importRecovery=computed(()=>recovery.value&&!props.project.source&&['prepare','import'].includes(job.value?.operation||''))
 const approved=computed(()=>props.revisions?.some(r=>r.review_status==='approved'))
+watch(job,value=>{if(value&&['failed','interrupted'].includes(value.status))notifyJob(value)},{immediate:true})
 const processing=computed(()=>props.jobs.some(j=>active(j.status)))
 function state(step:string){
   if(step==='choose')return props.selectedCount?'completed':props.project.has_analysis?'waiting':'pending'
@@ -38,7 +40,7 @@ function state(step:string){
         <span class="step-mark" :class="{done:state(id)==='completed'}"><Check v-if="state(id)==='completed'" :size="16"/><span v-else>{{names.findIndex(n=>n[0]===id)+1}}</span></span>
         <div class="step-copy"><div class="step-heading"><h3>{{title}}</h3><p>{{state(id)==='waiting'?'Sua próxima ação':labels[state(id)]||state(id)}}</p></div>
           <div v-if="!['pending','waiting'].includes(state(id))" role="progressbar" :aria-label="title" :aria-valuenow="state(id)==='completed'?100:undefined" aria-valuemin="0" aria-valuemax="100" class="stage-progress" :class="{indeterminate:['running','processing','cancelling'].includes(state(id)),complete:state(id)==='completed',failed:['failed','cancelled','interrupted'].includes(state(id))}"><span></span></div>
-          <div v-if="id==='import'&&importRecovery&&job" class="import-recovery" role="alert"><p>{{job.error?.message||'A importação foi interrompida. Tente novamente ou escolha um arquivo local.'}}</p><div class="step-actions"><button class="button small primary" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Tentar novamente</button><button class="button small secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">Usar arquivo local</button></div></div>
+          <div v-if="id==='import'&&importRecovery&&job" class="import-recovery"><p>Importação interrompida. Escolha como continuar.</p><button v-if="job.error" type="button" class="text-button" data-action="error-details" @click="notifyJob(job,true)">Ver motivo da falha</button><div class="step-actions"><button class="button small primary" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Tentar novamente</button><button class="button small secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">Usar arquivo local</button></div></div>
           <button v-if="id==='transcribe'&&!project.has_transcript&&!project.is_manual&&!processing" class="button small secondary" :disabled="busy||!project.source" @click="$emit('transcribe')">Transcrever vídeo</button>
           <button v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':recovery?'Continuar análise':'Iniciar análise'}}</button>
           <button v-if="id==='choose'&&!project.is_manual" class="button small secondary" :disabled="busy||processing||!project.has_analysis" @click="$emit('render')">{{selectedCount?selectedCount+' trechos selecionados · Ajustar':'Escolher trechos'}}</button>
@@ -48,8 +50,8 @@ function state(step:string){
         </div>
       </li></ol></section></div>
     <div class="analysis-overview" v-if="project.has_transcript"><div><strong>{{analysis?.state==='completed'?'Análise concluída':analysis?.proposals.length?'Análise parcial disponível':'Acompanhe a análise'}}</strong><p v-if="analysis">{{analysis.completed_windows}}/{{analysis.total_windows}} janelas · {{analysis.topic_groups.length}} temas · {{analysis.proposals.length}} propostas</p></div><button class="button small secondary" @click="$emit('analysis')">Ver análise</button></div>
-    <div v-if="job&&!importRecovery" class="pipeline-activity" aria-live="polite"><p v-if="['analyze','prepare'].includes(job.operation)&&project.has_transcript">{{job.requests_used||0}} chamada(s) Gemini{{job.request_mode==='automatic'?' · planejamento automático':' de '+job.request_limit}}</p><p v-if="job.error" class="notice error">{{job.error.code}}: {{job.error.message}}</p><p v-if="job.exports?.length">{{job.exports.length}} pacote(s) exportado(s).</p><button v-if="recovery&&!['analyze','render'].includes(job.operation)" class="button small secondary" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Continuar preparação</button></div>
-    <p v-if="project.error&&!job" class="notice error">{{project.error.message}}</p>
+    <div v-if="job&&!importRecovery" class="pipeline-activity" aria-live="polite"><p v-if="['analyze','prepare'].includes(job.operation)&&project.has_transcript">{{job.requests_used||0}} chamada(s) Gemini{{job.request_mode==='automatic'?' · planejamento automático':' de '+job.request_limit}}</p><button v-if="job.error" type="button" class="text-button" @click="notifyJob(job,true)">Ver motivo da falha</button><p v-if="job.exports?.length">{{job.exports.length}} pacote(s) exportado(s).</p><button v-if="recovery&&!['analyze','render'].includes(job.operation)" class="button small secondary" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Continuar preparação</button></div>
+    <button v-if="project.error&&!job" type="button" class="text-button" @click="notify.error(project.error.message)">Ver motivo da falha</button>
     <footer class="pipeline-note">Preparação automática até a análise. Geração, revisão e exportação sob seu controle.</footer>
   </section>
 </template>

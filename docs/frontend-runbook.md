@@ -125,3 +125,14 @@ Falhas de importação interrompem a barra e deixam as etapas seguintes pendente
 Erros do YouTube são classificados sem expor logs brutos: bloqueio de autenticação/bot, limite HTTP 429 e indisponibilidade genérica. Falhas antigas SOURCE_UNAVAILABLE também são classificadas na leitura de seus logs locais. Não há bypass de CAPTCHA, leitura automática de cookies ou repetição ilimitada. Link bloqueado pode continuar falhando; arquivo local é a alternativa. A publicação de source.json pela interface ocorre somente após validação de vídeo e áudio.
 
 Endpoint compatível: POST /api/v1/jobs/{id}/resume aceita opcionalmente {"source_input":"caminho local"}; requests antigos sem body continuam válidos.
+
+
+### Toasts globais
+
+Avisos transitórios passam por `desktop/src/notifications.ts` e um único `AppToaster`, baseado em Vue Sonner 2.0.9 (MIT). Posição: topo central; até três toasts visíveis, botão de fechar, erros por 9 segundos, avisos por 7 e confirmações por 4,5. O visual mantém bordas quadradas, sombra sólida e roxo; erros têm sinalização vermelha. Alt+T foca a área de avisos, que possui anúncio acessível. A biblioteca pausa o fechamento durante interação.
+
+O polling notifica transições terminais de tarefas e falhas individuais de cortes uma vez. O histórico inicial não dispara uma fila de falhas antigas. Ao abrir um projeto que precisa de atenção, sua falha atual pode aparecer; **Ver motivo da falha** reabre o toast explicitamente. Estados das etapas, critérios editoriais e ações de recuperação continuam no fluxo. Banners de sucesso/erro foram removidos das páginas, formulários e painéis.
+
+Um único host acompanha o dialog nativo aberto por Teleport e retorna ao body ao fechar. Assim o toast participa da camada superior do navegador e continua visível sobre o backdrop, sem criar um toaster por janela. Testes cobrem o erro de ação com dialog aberto, fechamento do dialog, Alt+T, deduplicação e falha de corte durante lote ativo.
+
+Referências: https://github.com/xiaoluoboding/vue-sonner e https://ui.shadcn.com/docs/components/radix/sonner.

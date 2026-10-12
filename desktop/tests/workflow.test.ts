@@ -1,15 +1,20 @@
 import {mount} from '@vue/test-utils'
-import {describe,it,expect} from 'vitest'
+import {describe,it,expect,vi} from 'vitest'
+import {notify,resetNotifications} from '../src/notifications'
 import ProjectWorkspace from '../src/components/ProjectWorkspace.vue'
 import ProjectLibrary from '../src/components/ProjectLibrary.vue'
 const project={id:'p',name:'Teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'processing',has_transcript:false,word_count:0,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'',updated_at:0,source:null,error:null}
 describe('workflow visibility',()=>{
   it('shows failed import with recovery and places small video inside preparation',async()=>{
+    resetNotifications();const errorToast=vi.spyOn(notify,'error')
     const w=mount(ProjectWorkspace,{props:{project:{...project,status:'failed'},transcript:null,revisions:[],jobs:[{id:'j',project_id:'p',operation:'prepare',status:'failed',created_at:'',requests_used:0,request_limit:null,events:[],error:{code:'SOURCE_AUTH_REQUIRED',message:'YouTube bloqueou o download. Use um arquivo local.'},progress:{stage:'import',steps:{import:'failed',transcribe:'pending',analyze:'pending'}}}],sourceUrl:'',previewUrl:'',busy:false}})
     expect(w.text()).not.toContain('Importação em andamento')
     expect(w.find('.original-column').exists()).toBe(false)
     expect(w.find('.pipeline-panel .pipeline-video').exists()).toBe(true)
-    expect(w.get('[data-stage=import]').text()).toContain('YouTube bloqueou')
+    expect(w.get('[data-stage=import]').text()).not.toContain('YouTube bloqueou')
+    expect(errorToast).toHaveBeenCalledWith(expect.any(String),expect.objectContaining({description:'YouTube bloqueou o download. Use um arquivo local.'}))
+    await w.get('[data-action=error-details]').trigger('click')
+    expect(errorToast).toHaveBeenLastCalledWith(expect.any(String),expect.objectContaining({force:true}))
     await w.get('[data-action=retry-import]').trigger('click')
     expect(w.emitted('resume')?.[0]).toEqual(['j'])
     await w.get('[data-action=replace-source]').trigger('click')

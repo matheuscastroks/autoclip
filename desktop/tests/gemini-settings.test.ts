@@ -1,6 +1,7 @@
 import {mount,flushPromises} from '@vue/test-utils'
 import {describe,it,expect,vi} from 'vitest'
 import SettingsPanel from '../src/components/SettingsPanel.vue'
+import {notify} from '../src/notifications'
 const config={asr_model_path:'/model',gemini_model:'gemini-2.5-flash',max_calls:10,window_seconds:600,max_text_chars:60000,ffmpeg:'/ffmpeg',ffprobe:'/probe',asr_available:true,tools_available:true,gemini_key_configured:true}
 const valid={status:'valid' as const,configured:true,checked_at:'2026-10-12T12:00:00Z',message:'Conexão validada.',models:[{id:'gemini-3.8-flash',name:'models/gemini-3.8-flash',display_name:'Gemini 3.8 Flash'},{id:'gemini-2.5-flash',name:'models/gemini-2.5-flash',display_name:'Gemini 2.5 Flash'}]}
 function props(){return {config,saveConfig:vi.fn().mockResolvedValue(undefined),saveKey:vi.fn().mockResolvedValue(valid),pick:vi.fn(),getConnection:vi.fn().mockResolvedValue({...valid,status:'untested',models:[]}),testConnection:vi.fn().mockResolvedValue(valid)}}
@@ -31,9 +32,11 @@ describe('dynamic Gemini settings',()=>{
     expect((w.get('[data-action=save-config]').element as HTMLButtonElement).disabled).toBe(true);w.unmount()
   })
   it('failed replacement does not claim success or discard the active catalog',async()=>{
+    const errorToast=vi.spyOn(notify,'error')
     const p=props();p.getConnection.mockResolvedValue(valid);p.saveKey.mockRejectedValue(new Error('Chave inválida. A chave anterior permanece salva.'))
     const w=mount(SettingsPanel,{props:p});await flushPromises();await w.get('input[type=password]').setValue('invalid-fixture');await w.get('[data-action=save-key]').trigger('click');await flushPromises()
-    expect(w.text()).toContain('A chave anterior permanece salva')
+    expect(errorToast).toHaveBeenCalledWith('Chave inválida. A chave anterior permanece salva.')
+    expect(w.find('.notice').exists()).toBe(false)
     expect(w.get('[data-field=gemini-model]').text()).toContain('Gemini 3.8 Flash');w.unmount()
   })
 })
