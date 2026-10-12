@@ -6,6 +6,32 @@ def read_json(path:Path,default=None):
     try:return json.loads(path.read_text(encoding='utf-8'))
     except (OSError,ValueError):return default
 
+def project_summary(root:Path,state:dict,job)->dict:
+    analysis=read_json(root/'analysis.json',{}) or {}
+    ids={str(c.get('id')) for c in analysis.get('candidates',[]) if c.get('id')}
+    selection=read_json(root/'analysis-selection.json',{}) or {}
+    # Reject stale selections when the analysis was replaced.
+    from engine.pipeline.artifacts import object_hash
+    selected=set(selection.get('candidate_ids',[])) & ids
+    if selection.get('analysis_hash') and selection['analysis_hash']!=object_hash(analysis):selected=set()
+    generated=set()
+    for row in state.get('revisions',[]):
+        rid=row.get('revision_id','')
+        from uuid import UUID
+        try:UUID(rid)
+        except (ValueError,TypeError):continue
+        folder=root/'revisions'/rid
+        if (folder/'deleted.json').exists():continue
+        media=Path(row.get('render_path',''))
+        if not media.resolve().is_relative_to(root.resolve()) or not media.is_file():continue
+        if not all((folder/name).is_file() for name in ('edl.json','captions.json')):continue
+        if not all(isinstance(read_json(folder/name),dict) for name in ('edl.json','captions.json')):continue
+        candidate=read_json(folder/'candidate.json',{}) or {}
+        qa=read_json(folder/'qa.json',{}) or {}
+        if candidate.get('id') and qa.get('technical_pass'):generated.add(str(candidate['id']))
+    return {'proposed':len(ids) if analysis else None,'selected':len(selected) if analysis else None,
+        'generated':len(generated),'stage':job.get('stage') if job and job.get('status') in ('pending','running','cancelling') else None}
+
 def project_detail(row:dict,job=None)->dict:
     root=Path(row['path']);warnings=[];source=None;transcript=None;state=None
     for name,model in [('source',Source),('transcript',TranscriptArtifact),('project',ProjectRun)]:
@@ -31,6 +57,7 @@ def project_detail(row:dict,job=None)->dict:
         'status':status,'has_transcript':transcript is not None,'word_count':len(transcript.words) if transcript else 0,
         'revisions':state.revisions if state and not manual else [],'is_manual':manual,'warnings':warnings,'error':error,
         'has_analysis':bool((read_json(root/'analysis.json') or {}).get('complete')),
+        'summary':project_summary(root,state.model_dump(mode='json') if state else {},job),
         'updated_at':max((p.stat().st_mtime for p in root.glob('*.json')),default=0)}
 
 def discover(store,workspace):
