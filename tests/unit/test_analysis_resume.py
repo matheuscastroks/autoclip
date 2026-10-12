@@ -55,3 +55,14 @@ def test_prompt_has_full_video_context_and_no_three_candidate_rule():
     assert 'Até três propostas' not in calls[0]['contents']
     assert t.words[-1].text in calls[0]['contents'].split('</CONTEXTO_GLOBAL>')[0]
     assert AnalysisConfig(model='fixture',max_calls=1).timeout_s>=180
+
+
+def test_candidate_evidence_is_compact_but_full_span_is_not_shortened():
+    from engine.adapters.gemini.analyzer import GeminiResponse
+    from test_gemini import payload
+    t=transcript();value=payload(t)
+    value['candidates'][0]['evidence_word_ids']=[w.id for w in t.words[:12]]
+    with pytest.raises(ValueError):GeminiResponse.model_validate(value)
+    value['candidates'][0]['evidence_word_ids']=['w0','w29']
+    accepted=GeminiResponse.model_validate(value).candidates[0]
+    assert accepted.start_word_id=='w0' and accepted.end_word_id=='w29'

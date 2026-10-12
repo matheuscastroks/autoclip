@@ -71,3 +71,12 @@ Removidos o botão de histórico, modal, seleção de trabalhos antigos e sua na
 - Checkpoints atômicos por resposta validada, digest e chave de transcrição/modelo/prompt/schema/runtime, cobertura e proveniência preservadas. Retomada não repete janela aceita; orçamento confere apenas janelas pendentes. Sem reutilização de JSON parcial ou resumos. Botão Continuar análise e marcação de resultado reaproveitado.
 - RED/GREEN comprovou retomada sob novo orçamento, invalidação e corrupção, contexto completo, truncamento e modelos sem suporte. Suíte: 113 Python passaram, 1 opt-in real foi ignorado; 30 Vue passaram; build/TypeScript passaram. Revisão independente identificou dois pontos de compatibilidade de thinking, ambos corrigidos e retestados.
 - Teste real tentou ser solicitado, mas a revisão automática de aprovação rejeitou iniciar geração por falta de autorização atual segundo seu critério; comando não executado, nenhuma solicitação gerada. Serviço/interface locais foram atualizados sem chamada remota. Validação real permanece pendente de aprovação expressa.
+
+
+## 2026-10-12 — Validação real concluída e JSON compacto
+
+Após aprovação expressa, a execução real enviou somente texto ao Gemini 2.5 Flash. Duas chamadas de diagnóstico atingiram MAX_TOKENS. Telemetria confirmou pensamento1593, saída14770 tokens: o schema permitia listas de evidência/contexto sem limite. Corrigido com max8 IDs/lista e instrução de preservar todo o start/end; não encurta fala. Primeira janela real validada em cerca de30 segundos, saída2663tokens.
+
+Execução concluída: 7/7janelas, 5556/5556palavras, 19propostas. Total11/28tentativas autorizadas;9 na execução concluída, incluindo2reparações de JSON. Teste local reutilizou7checkpoints com chamada remota proibida e0solicitações. Seleção existente de3 planos:51,46/59,34/100,06s. MP4 não gerado; revisão humana pendente. Interface Concluído/Analisado, sem aviso antigo, Gerar prévias habilitado.
+
+Correção adicional do aviso antigo foi RED→GREEN em execução e conclusão. Suíte final115Python/1skip,32Vue e compilação passaram. Revisão adicional sem defeitos materiais. Relatórios real-gemini-recovery.md/json e python-tests.xml registram o resultado, sem credenciais.

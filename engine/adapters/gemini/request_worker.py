@@ -38,14 +38,17 @@ def main():
             metadata=getattr(response,'usage_metadata',None)
             if metadata:usage=metadata.model_dump(mode='json')
             candidates=getattr(response,'candidates',None) or []
-            if candidates and 'MAX_TOKENS' in str(getattr(candidates[0],'finish_reason','')):
-                raise PipelineError('PROVIDER_OUTPUT_TRUNCATED','analyze','A resposta atingiu o limite de tokens antes de concluir o JSON.')
             parts=getattr(getattr(candidates[0],'content',None),'parts',None) if candidates else []
             for part in parts or []:
                 if not getattr(part,'text',None):continue
                 if getattr(part,'thought',False):
                     if summaries:writer.emit('thought_summary',part.text,**context);had_summary=True
                 else:text.append(part.text)
+            if candidates and 'MAX_TOKENS' in str(getattr(candidates[0],'finish_reason','')):
+                writer.emit('response_truncated','O Gemini atingiu o limite de saída antes de entregar o JSON completo.',**context,usage=usage,output_characters=sum(len(item) for item in text))
+                error=PipelineError('PROVIDER_OUTPUT_TRUNCATED','analyze','A resposta atingiu o limite de tokens antes de concluir o JSON.')
+                error.usage=usage;error.output_characters=sum(len(item) for item in text)
+                raise error
         if summaries and 'thinking_config' in config and not had_summary:writer.emit('thoughts_unavailable','Gemini não forneceu resumos nesta tentativa.',**context)
         atomic_json(out,{'text':''.join(text),'model_version':model_version,'usage':usage})
         return 0
@@ -59,7 +62,7 @@ def main():
         message=str(getattr(exc,'message',''))
         try:message=message.replace(get_gemini_key(),'[REDACTED]')
         except Exception:message=''
-        atomic_json(out,{'error':{'code':getattr(exc,'code',None),'type':type(exc).__name__,'message':message[:2000],'transport':isinstance(exc,transport_types),'retry_after':headers.get('Retry-After')}})
+        atomic_json(out,{'error':{'code':getattr(exc,'code',None),'type':type(exc).__name__,'message':message[:2000],'transport':isinstance(exc,transport_types),'retry_after':headers.get('Retry-After'),'usage':getattr(exc,'usage',None),'output_characters':getattr(exc,'output_characters',None)}})
         return 1
     finally:
         if client:client.close()

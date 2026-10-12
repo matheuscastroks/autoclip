@@ -1,0 +1,96 @@
+{
+  "project_title": "O que é corrupção?",
+  "model": "gemini-2.5-flash",
+  "complete": true,
+  "covered_words": 5556,
+  "transcript_words": 5556,
+  "windows": 7,
+  "topics": 12,
+  "proposals": 19,
+  "selected_with_existing_limit": 3,
+  "existing_selection_limit": 3,
+  "planned_cut_seconds": [
+    51.46,
+    59.34,
+    100.06
+  ],
+  "rejected_by_selector": [
+    {
+      "candidate_id": "18c08cb3-e67d-49a3-83af-806c45473bc0",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "4904e511-f65f-44e9-abae-96b3d3915fcd",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "c48916e9-e1e1-4539-99d5-72ac6d7feee3",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "d8846745-a6ae-4f17-b81d-1554aaa4b10b",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "a6031fbd-985c-4874-9bfb-46781ec5294f",
+      "reason": "duration outside 20–180 seconds"
+    },
+    {
+      "candidate_id": "cc71bae8-f085-4aaa-88a1-67f16f3f2958",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "27487c11-bae1-4250-ac8e-857c92f833d8",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "1a26cd55-51ed-45d5-86bf-f9e3986c1b42",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "ec90f6d0-873a-4b79-a4a7-87c25e2de6ad",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "b693490c-7d76-44d5-a18c-fe56b63d52c0",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "8afb1ea4-b694-47f3-846c-adef9b37ab06",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "ab2ac705-eb94-4aed-ae83-c23622f0e40d",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "56ae7faf-0bf1-4ecf-ab15-d321d3d37a08",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "99a044e8-2aa0-4b8a-b79e-0302815bd188",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "757c35b2-1d2f-4ef5-9e31-c337580ad61f",
+      "reason": "maximum candidates reached"
+    },
+    {
+      "candidate_id": "68cd4d61-d468-4f88-8e4f-8a8d9d7a6f32",
+      "reason": "maximum candidates reached"
+    }
+  ],
+  "real_attempts_total": 11,
+  "authorized_limit": 28,
+  "real_job_ids": [
+    "305f50be-845e-4d7d-a942-f44cdd9ffa82",
+    "9d52841f-5517-489e-b4d7-c883f80d4bdd",
+    "a1ca1ddc-876f-4366-ad2a-915af48b30b1"
+  ],
+  "checkpoint_reuse_without_network": true,
+  "resume_remote_calls": 0,
+  "rendered": false,
+  "human_review_pending": true,
+  "successful_job_requests": 9,
+  "json_repairs": 2
+}

@@ -24,21 +24,21 @@ class ResponseTopic(BaseModel):
     model_config=ConfigDict(extra='forbid')
     id:str
     label:str
-    summary:str
-    evidence_word_ids:list[str]
+    summary:str=Field(max_length=600)
+    evidence_word_ids:list[str]=Field(max_length=8)
 
 class ResponseCandidate(BaseModel):
     model_config=ConfigDict(extra='forbid')
     topic_id:str
     start_word_id:str
     end_word_id:str
-    evidence_word_ids:list[str]
-    rationale:str
+    evidence_word_ids:list[str]=Field(max_length=8)
+    rationale:str=Field(max_length=800)
     editorial:ResponseFlags
-    context_before_word_ids:list[str]=Field(default_factory=list)
-    context_after_word_ids:list[str]=Field(default_factory=list)
-    title_suggestion:str=''
-    description_suggestion:str=''
+    context_before_word_ids:list[str]=Field(default_factory=list,max_length=8)
+    context_after_word_ids:list[str]=Field(default_factory=list,max_length=8)
+    title_suggestion:str=Field(default='',max_length=160)
+    description_suggestion:str=Field(default='',max_length=400)
 
 class GeminiResponse(BaseModel):
     model_config=ConfigDict(extra='forbid')

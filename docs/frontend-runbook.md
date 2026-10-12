@@ -74,3 +74,10 @@ Respostas completas e validadas são gravadas atomicamente em work/analysis-chec
 O botão **Continuar análise** inicia esse fluxo quando uma tarefa foi interrompida. Uma análise completa só é publicada após cobertura de todas as palavras. Falhas antigas na primeira janela não possuem resultados validados para recuperar.
 
 Referência da política: [Gemini thinking — budgets e limites de saída](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thinking-budgets).
+
+
+### Respostas compactas e avisos atuais
+
+Evidências dos temas/candidatos e listas curtas de contexto têm até8IDs cada. O início e o fim continuam definindo o trecho contínuo inteiro; palavras internas não são descartadas por não aparecerem nas evidências. Justificativas/descrições são concisas e os limites de strings são validados localmente. A telemetria separa tokens de pensamento, saída e tamanho de JSON truncado. O painel mostra erros da tarefa atual; um last-error.json antigo não é reapresentado durante outra tarefa ou após sua conclusão.
+
+A validação real de12/10/2026 concluiu o vídeo com7janelas/19propostas, usando11/28tentativas no total incluindo diagnósticos. Veja poc-results/frontend/real-gemini-recovery.md para evidência e limites da validação. Gerar prévias continua manual.
