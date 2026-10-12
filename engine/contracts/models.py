@@ -212,11 +212,14 @@ class ReviewDecision(Contract):
     checks: EditorialChecks
     notes: str = ''
     author_kind: Literal['human'] = 'human'
+    content_hash: str | None = Field(default=None,pattern=r'^[a-f0-9]{64}$')
 
     @model_validator(mode='after')
     def approval_checks(self):
         if self.decision == 'approved' and not all(self.checks.model_dump(exclude={'schema_version'}).values()):
             raise ValueError('all human checks required for approval')
+        if self.decision == 'approved' and self.content_hash is None:
+            raise ValueError('approval must bind the reviewed content hash')
         return self
 
 

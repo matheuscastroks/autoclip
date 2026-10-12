@@ -80,6 +80,19 @@
       "default": "human",
       "title": "Author Kind",
       "type": "string"
+    },
+    "content_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content Hash"
     }
   },
   "required": [
