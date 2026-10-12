@@ -95,4 +95,4 @@ A aba Cortes possui filtros **Em geração**, **Para revisar**, **Aprovados** e 
 
 Novas prévias usam somente o recorte **central estático 9:16, 1080×1920**, com legendas gravadas. Não há fundo borrado, sobreposição horizontal ou acompanhamento facial. O original permanece intacto. Prévias antigas conservam seu formato; gere uma nova revisão para obter o novo enquadramento.
 
-O tema global é claro, com preto/amarelo, bordas visíveis, controles quadrados e foco contrastante. Em telas estreitas a análise empilha os painéis; as quatro abas permanecem acessíveis. Nenhum histórico de falhas foi adicionado.
+O tema global é claro, com preto/roxo, bordas visíveis, controles quadrados e foco contrastante. Em telas estreitas a análise empilha os painéis; as quatro abas permanecem acessíveis. Nenhum histórico de falhas foi adicionado.
