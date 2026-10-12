@@ -1,5 +1,11 @@
 /* Desktop physical controls: transform occupies the shadow without layout shift. */
 :root{--press-depth:3px;--sidebar-width:224px;--line-soft:#d3d3d3}
+.app-select-trigger{--depth:3px;display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-width:0;min-height:42px;padding:10px 12px;border:2px solid var(--ink);border-radius:0;background:var(--panel);color:var(--ink);box-shadow:3px 3px 0 var(--ink);text-align:left;font-size:13px;line-height:1.5}
+.app-select-trigger>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app-select-trigger:hover:not(:disabled),.app-select-trigger[data-state=open]{background:var(--accent-soft)}
+.app-select-trigger[data-state=open]{box-shadow:none;transform:translate(3px,3px)}.filter .app-select-trigger{min-width:160px}
+.app-select-content{z-index:40;width:var(--reka-select-trigger-width);min-width:min(220px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:min(360px,var(--reka-select-content-available-height));border:2px solid var(--ink);background:var(--panel);color:var(--ink);box-shadow:5px 5px 0 var(--ink);overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;font-size:13px}
+.app-select-viewport{padding:5px;max-height:320px}.app-select-item{position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:40px;padding:10px 34px 10px 12px;line-height:1.5;cursor:pointer;border-bottom:1px solid var(--line-soft);overflow-wrap:anywhere;outline:none}
+.app-select-item:last-child{border-bottom:0}.app-select-item[data-state=checked]{background:var(--accent-soft);font-weight:650}.app-select-item[data-highlighted]{background:var(--accent);color:var(--accent-on)}.app-select-item[data-disabled]{opacity:.5;cursor:not-allowed}.app-select-check{position:absolute;right:10px;display:flex}.app-select-scroll{display:flex;justify-content:center;padding:5px;background:var(--soft)}
 .physical-control{--depth:2px;transition:transform 100ms ease-out,box-shadow 100ms ease-out,background-color 120ms ease-out}
 .button,.sidebar-create{--depth:4px;box-shadow:var(--depth) var(--depth) 0 var(--ink)}
 .button.secondary{--depth:3px;background:var(--accent-soft)}

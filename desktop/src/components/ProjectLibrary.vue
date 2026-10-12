@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue'
+import AppSelect from './AppSelect.vue'
 import {computed,ref} from 'vue'
 import {Search,Film,Trash2,FolderOpen,Plus,FileVideo} from '@lucide/vue'
 import type {Project} from '../types'
@@ -8,13 +9,14 @@ const props=defineProps<{projects:Project[];busy:boolean;covers?:Record<string,s
 defineEmits<{open:[id:string];create:[];import:[];delete:[id:string];trash:[]}>()
 const query=ref(''),filter=ref('all')
 const sort=ref('updated')
+const stateOptions=computed(()=>[{value:'all',label:'Todos os projetos'},...Array.from(new Set(props.projects.map(p=>p.status))).map(state=>({value:state,label:labels[state]||state}))])
 const brokenCovers=ref<Record<string,string>>({})
 const filtered=computed(()=>props.projects.filter(p=>(p.title+' '+p.name).toLocaleLowerCase('pt-BR').includes(query.value.toLocaleLowerCase('pt-BR'))&&(filter.value==='all'||p.status===filter.value)).sort((a,b)=>sort.value==='name'?(a.title||a.name).localeCompare(b.title||b.name,'pt-BR'):b.updated_at-a.updated_at))
 function updated(value:number){return value?new Date(value*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}
 </script>
 <template>
   <header class="page-heading"><div><p class="breadcrumb">Biblioteca local</p><h1>Seus projetos<span class="heading-count">{{projects.length}}</span></h1><p>Do vídeo original ao trecho que vale compartilhar.</p></div><div class="actions"><AppButton class="button secondary" @click="$emit('import')" :disabled="busy||!!activeProjects?.length"><FolderOpen :size="17"/>Importar projeto</AppButton><AppButton class="button primary" @click="$emit('create')" :disabled="busy||!!activeProjects?.length"><Plus :size="18"/>Novo projeto</AppButton></div></header>
-  <section class="library-tools"><label class="search"><Search :size="17"/><input type="search" v-model="query" placeholder="Buscar projeto ou vídeo" aria-label="Buscar projetos"/></label><label class="filter">Estado<select v-model="filter" aria-label="Filtrar por estado"><option value="all">Todos os projetos</option><option v-for="state in [...new Set(projects.map(p=>p.status))]" :key="state" :value="state">{{labels[state]||state}}</option></select></label><label class="filter">Ordenar<select v-model="sort"><option value="updated">Mais recentes</option><option value="name">Nome do projeto</option></select></label></section>
+  <section class="library-tools"><label class="search"><Search :size="17"/><input type="search" v-model="query" placeholder="Buscar projeto ou vídeo" aria-label="Buscar projetos"/></label><label class="filter">Estado<AppSelect v-model="filter" label="Filtrar por estado" :options="stateOptions"/></label><label class="filter">Ordenar<AppSelect v-model="sort" label="Ordenar projetos" :options="[{value:'updated',label:'Mais recentes'},{value:'name',label:'Nome do projeto'}]"/></label></section>
   <section class="project-table" aria-label="Projetos locais">
     <div class="table-head"><span>Projeto</span><span>Duração</span><span>Etapa / estado</span><span>Cortes</span><span>Atualizado</span><span>Ações</span></div>
     <div v-for="project in filtered"  :key="project.id" class="project-row" :data-project-id="project.id" @click="$emit('open',project.id)">
