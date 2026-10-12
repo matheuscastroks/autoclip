@@ -30,3 +30,9 @@ dist/
 *.pem
 *.log
 .wire-test-tmp/
+.api-test-tmp/
+.autoclip/
+desktop/node_modules/
+desktop/dist/
+desktop/coverage/
+*.lnk
