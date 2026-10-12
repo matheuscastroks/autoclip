@@ -26,7 +26,7 @@ Em **Configurações**, selecione modelo Whisper local, ferramentas de vídeo e 
 
 O teste usa somente `models.list`, sem geração nem envio de transcrição, vídeo, áudio ou frames. Acesso ao catálogo não garante cota de geração nem suporte do modelo ao contrato de análise. Uma chave definida em `GEMINI_API_KEY` tem precedência; remova essa variável e reabra o aplicativo para substituir uma chave diferente pela interface.
 
-Os cortes elegíveis aparecem na aba **Cortes**, com preview, fonte/contexto e motivo. Ouça e marque os cinco critérios editoriais antes de aprovar. A aprovação pertence à revisão atual; alteração dos artefatos exige nova revisão. **Exportar aprovados** gera pacotes locais com MP4, legendas e metadados. Um projeto sem análise válida permanece sem cortes; a prévia manual é identificada e não recebe aprovação semântica nesta fase.
+Os temas e propostas aparecem na aba **Análise**, com justificativa, duração e reprodução do intervalo original. Selecione os trechos e use **Gerar N prévias**. As prévias verificadas aparecem na aba **Cortes**, com fonte/contexto e motivo. Ouça e marque os cinco critérios editoriais antes de aprovar. A aprovação pertence à revisão atual; alteração dos artefatos exige nova revisão. **Exportar aprovados** gera pacotes locais com MP4, legendas e metadados. Um projeto sem análise válida permanece sem cortes; a prévia manual é identificada e não recebe aprovação semântica nesta fase.
 
 ## Duração, pausas e feedback Gemini
 
@@ -44,7 +44,7 @@ Python3.12 e FFmpeg/libass/libx264 são necessários. Instale o lock Python no v
 
 ## Validação
 
-Testes automatizados do provedor usam fixtures. A conexão real ao catálogo foi validada separadamente, sem gerar conteúdo. Resultado real da seleção permanece pendente. Consulte `docs/frontend-progress.md` e `poc-results/frontend/` para evidência de testes/startup e os limites da inspeção visual.
+Testes automatizados do provedor usam fixtures. A conexão real ao catálogo foi validada separadamente, sem gerar conteúdo. A seleção real salva contém 19 propostas; a validação desta interface não requer novas chamadas Gemini. Consulte `docs/frontend-progress.md` e `poc-results/frontend/` para evidência de testes/startup e os limites da inspeção visual.
 
 
 ### Chamadas automáticas e compatibilidade
@@ -54,7 +54,7 @@ A interface não expõe limite de tentativas nem checkbox de envio de texto. O l
 
 ### Painel equilibrado e leitura da análise
 
-A visão geral divide vídeo e painel em duas colunas iguais; abaixo de 1000 px, usa uma coluna. As quatro etapas ficam em uma grade compacta e o resumo tem sua própria área. O painel mantém o trabalho ativo ou mais recente por data, independentemente da ordem de atualização. Resumos já recebidos não desaparecem quando o lote de eventos consultado avança.
+A visão geral divide vídeo e painel em duas colunas iguais; abaixo de 1000 px, usa uma coluna. As etapas automáticas e ações humanas ficam em uma grade compacta. A visão geral mostra um resumo; a aba Análise contém temas, propostas e os resumos da API. O painel mantém o trabalho ativo ou mais recente por data, independentemente da ordem de atualização. Resumos já recebidos não desaparecem quando o lote de eventos consultado avança.
 
 O resumo acompanha novas mensagens automaticamente. Rolar para cima ou usar **Pausar acompanhamento** suspende o movimento; **Acompanhar atualizações** volta ao fim. A barra fica oculta, mas mouse, toque e teclado continuam disponíveis. Os registros técnicos permanecem internos, sem navegação por análises antigas na interface.
 
@@ -81,3 +81,18 @@ Referência da política: [Gemini thinking — budgets e limites de saída](http
 Evidências dos temas/candidatos e listas curtas de contexto têm até8IDs cada. O início e o fim continuam definindo o trecho contínuo inteiro; palavras internas não são descartadas por não aparecerem nas evidências. Justificativas/descrições são concisas e os limites de strings são validados localmente. A telemetria separa tokens de pensamento, saída e tamanho de JSON truncado. O painel mostra erros da tarefa atual; um last-error.json antigo não é reapresentado durante outra tarefa ou após sua conclusão.
 
 A validação real de12/10/2026 concluiu o vídeo com7janelas/19propostas, usando11/28tentativas no total incluindo diagnósticos. Veja poc-results/frontend/real-gemini-recovery.md para evidência e limites da validação. Gerar prévias continua manual.
+
+
+### Análise, seleção e geração por corte
+
+As abas são **Visão geral**, **Transcrição**, **Análise** e **Cortes**. Na Análise, filtre por tema ou busque na fala/justificativa. Ouça o trecho com ou sem 15 segundos de contexto. A reprodução do original independe de gerar MP4. Dados parciais mostram somente janelas validadas da tarefa atual; a geração exige a análise completa. O agrupamento usa rótulos equivalentes por normalização, conservando IDs e evidências; temas semelhantes com nomes diferentes permanecem separados.
+
+A seleção é persistida em `analysis-selection.json`, vinculada ao hash da análise. O motor recusa uma seleção antiga ou inelegível. A escolha manual pode ultrapassar três propostas e mantém versões sobrepostas, com aviso. O comportamento automático antigo da CLI continua limitado pela sua configuração. As verificações de duração (20–máximo configurado) e flags editoriais continuam obrigatórias.
+
+**Gerar prévias** consome a análise salva, sem nova chamada ao Gemini. A fila mostra edição, pausas, legendas, codificação e verificação. Percentuais usam `out_time_us` do FFmpeg sobre a duração efetiva do EDL; 100% codificado ainda aguarda QA. As demais fases mostram atividade e tempo decorrido, sem ETA. Cada corte tecnicamente válido aparece imediatamente para revisão; falhas ficam localizadas. **Continuar prévias pendentes** usa o snapshot do lote, excluindo itens já prontos.
+
+A aba Cortes possui filtros **Em geração**, **Para revisar**, **Aprovados** e **Exportados**. É possível consultar e aprovar uma prévia pronta enquanto outras são geradas; exportação e exclusão aguardam o fim da tarefa. Uma nova receita de apresentação cria outra revisão e preserva prévias/aprovações anteriores. Aprovar continua exigindo os cinco critérios e fingerprint da revisão.
+
+Novas prévias usam somente o recorte **central estático 9:16, 1080×1920**, com legendas gravadas. Não há fundo borrado, sobreposição horizontal ou acompanhamento facial. O original permanece intacto. Prévias antigas conservam seu formato; gere uma nova revisão para obter o novo enquadramento.
+
+O tema global é claro, com preto/amarelo, bordas visíveis, controles quadrados e foco contrastante. Em telas estreitas a análise empilha os painéis; as quatro abas permanecem acessíveis. Nenhum histórico de falhas foi adicionado.

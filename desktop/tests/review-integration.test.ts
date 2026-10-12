@@ -12,9 +12,17 @@ function setup(){
   vi.spyOn(api,'transcript').mockResolvedValue({words:[{id:'w',text:'Texto fixture',start_us:0,end_us:1000000}],segments:[]})
   vi.spyOn(api,'revisions').mockResolvedValue(revisions);vi.spyOn(api,'media').mockImplementation(async (_pid,asset)=>'/media/'+asset)
   vi.spyOn(api,'decide').mockResolvedValue({})
+  vi.spyOn(api,'analysis').mockResolvedValue({schema_version:'1.0',state:'not_started',job_id:null,analysis_hash:null,model:null,completed_windows:0,total_windows:0,topic_groups:[],proposals:[]});vi.spyOn(api,'selection').mockResolvedValue({schema_version:'1.0',analysis_hash:null,candidate_ids:[]})
 }
 async function open(){const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click');await flushPromises();return w}
 describe('review identity across refresh and failures',()=>{
+  it('does not reopen a project when navigation abandons an in-flight load',async()=>{
+    setup();let resolveProject:(value:typeof project)=>void=()=>{}
+    vi.mocked(api.project).mockImplementation(()=>new Promise(resolve=>resolveProject=resolve))
+    const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click')
+    await w.get('nav button:nth-child(2)').trigger('click');resolveProject(project);await flushPromises()
+    expect(w.get('h1').text()).toBe('Configurações');expect(w.find('[role=tablist]').exists()).toBe(false);w.unmount()
+  })
   it('starts analysis without a manual limit or consent checkbox',async()=>{
     Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:vi.fn()})
     Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:vi.fn()})
@@ -59,7 +67,7 @@ describe('review identity across refresh and failures',()=>{
     expect(w.get('video').attributes('src')).toBe('/media/source');w.unmount()
   })
   it('preserves selected B video and target after a review refresh',async()=>{
-    setup();const w=await open();await w.get('[role=tablist] button:nth-child(3)').trigger('click');await flushPromises()
+    setup();const w=await open();await w.get('#tab-cuts').trigger('click');await flushPromises()
     await w.findAll('.clip-item')[1].trigger('click');await flushPromises()
     expect(w.get('.clip-preview > video').attributes('src')).toBe('/media/B')
     for(const checkbox of w.findAll('.review-checks input[type=checkbox]'))await checkbox.setValue(true)
@@ -69,7 +77,7 @@ describe('review identity across refresh and failures',()=>{
     expect(w.get('.clip-item.selected').text()).toContain('Corte B');w.unmount()
   })
   it('ignores stale media responses when rapidly selecting A then B',async()=>{
-    setup();const w=await open();await w.get('[role=tablist] button:nth-child(3)').trigger('click');await flushPromises()
+    setup();const w=await open();await w.get('#tab-cuts').trigger('click');await flushPromises()
     let resolveA:(value:string)=>void=()=>{},resolveB:(value:string)=>void=()=>{}
     vi.mocked(api.media).mockImplementation((_p,asset)=>new Promise(resolve=>{if(asset==='A')resolveA=resolve;else resolveB=resolve}))
     await w.findAll('.clip-item')[0].trigger('click');await w.findAll('.clip-item')[1].trigger('click')

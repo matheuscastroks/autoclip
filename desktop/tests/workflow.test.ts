@@ -4,6 +4,11 @@ import ProjectWorkspace from '../src/components/ProjectWorkspace.vue'
 import ProjectLibrary from '../src/components/ProjectLibrary.vue'
 const project={id:'p',name:'Teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'processing',has_transcript:false,word_count:0,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'',updated_at:0,source:null,error:null}
 describe('workflow visibility',()=>{
+  it('keeps review pending while any ready preview still needs a human decision',()=>{
+    const revisions=[{revision_id:'a',title:'A',technical_pass:true,review_status:'approved',warnings:[]},{revision_id:'b',title:'B',technical_pass:true,review_status:'needs_review',warnings:[]}]
+    const w=mount(ProjectWorkspace,{props:{project,transcript:null,revisions,jobs:[],sourceUrl:'',previewUrl:'',busy:false}})
+    expect(w.get('[data-stage=review]').text()).toContain('Sua próxima ação');w.unmount()
+  })
   it.each(['running','completed'])('does not show an old project error while the current job is %s',status=>{
     const oldFailure={...project,error:{code:'PROVIDER_UNAVAILABLE',message:'Falha antiga'}}
     const w=mount(ProjectWorkspace,{props:{project:oldFailure,transcript:null,revisions:[],jobs:[{id:'j',project_id:'p',operation:'analyze',status,created_at:'',requests_used:1,request_limit:28,events:[]}],sourceUrl:'',previewUrl:'',busy:status==='running'}})

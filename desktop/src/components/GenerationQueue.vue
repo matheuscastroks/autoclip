@@ -1,0 +1,14 @@
+<script setup lang="ts">
+import {computed,ref,onMounted,onUnmounted} from 'vue'
+import type {Job} from '../types'
+import {latestJob,active} from '../format'
+const props=defineProps<{jobs:Job[]}>()
+defineEmits<{resume:[id:string]}>()
+const job=computed(()=>latestJob(props.jobs.filter(j=>j.operation==='render')))
+const now=ref(Date.now());let timer:ReturnType<typeof setInterval>|undefined
+onMounted(()=>{timer=setInterval(()=>now.value=Date.now(),1000)})
+onUnmounted(()=>{if(timer)clearInterval(timer)})
+const elapsed=computed(()=>{const start=Date.parse(job.value?.created_at||'');if(!Number.isFinite(start))return '';const seconds=Math.max(0,Math.floor((now.value-start)/1000));return `${Math.floor(seconds/60)} min ${String(seconds%60).padStart(2,'0')} s`})
+const phases:Record<string,string>={waiting:'Na fila',edit_plan:'Preparando edição',pauses:'Verificando pausas',captions:'Sincronizando legendas',render:'Codificando vídeo',verify:'Verificando áudio e vídeo',ready:'Pronta para revisar',failed:'Falha neste corte'}
+</script>
+<template><section v-if="job?.progress?.items?.length" class="generation-queue"><header><h3>Geração de prévias</h3><span>{{job.progress.completed_items||0}}/{{job.progress.total_items}} prontas</span></header><p v-if="job.progress.phase==='pauses'" class="subtle">Verificando pausas no áudio antes de gerar as prévias</p><p v-if="elapsed&&job&&active(job.status)" class="subtle">Em andamento há {{elapsed}} · Sem estimativa de conclusão</p><ol><li v-for="item in job.progress.items" :key="item.candidate_id" :data-state="item.state"><div><strong>{{item.title||'Trecho selecionado'}}</strong><span>{{item.state==='running'&&!active(job.status)?'Interrompida':phases[item.phase]||item.phase}}{{item.reused&&item.state==='ready'?' · reaproveitada':''}}</span></div><div v-if="item.phase==='render'&&item.total_us" class="queue-progress" role="progressbar" :aria-label="'Codificação de '+(item.title||'trecho')" :aria-valuenow="Math.min(100,Math.floor(item.processed_us/item.total_us*100))" aria-valuemin="0" aria-valuemax="100"><span :style="{width:Math.min(100,item.processed_us/item.total_us*100)+'%'}"></span></div><small v-if="item.phase==='render'&&item.total_us">{{Math.min(100,Math.floor(item.processed_us/item.total_us*100))}}% codificado · Verificação técnica a seguir</small><small v-if="item.error_code">{{item.error_code}} · As outras prévias foram preservadas.</small></li></ol><button v-if="['failed','cancelled','interrupted'].includes(job.status)" class="button small secondary" @click="$emit('resume',job.id)">Continuar prévias pendentes</button></section></template>

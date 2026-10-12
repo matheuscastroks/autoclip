@@ -1,4 +1,4 @@
-import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection} from './types'
+import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection,AnalysisView,AnalysisSelection} from './types'
 let token=''
 export function initializeSession(){
   token=new URLSearchParams(location.hash.slice(1)).get('session')||''
@@ -18,6 +18,9 @@ export const api={
   projects:()=>request<Project[]>('/projects'),project:(id:string)=>request<Project>('/projects/'+id),
   config:()=>request<Config>('/config'),jobs:()=>request<Job[]>('/jobs'),
   transcript:(id:string)=>request<Transcript>(`/projects/${id}/transcript`),
+  analysis:(id:string)=>request<AnalysisView>(`/projects/${id}/analysis`),
+  selection:(id:string)=>request<AnalysisSelection>(`/projects/${id}/analysis-selection`),
+  saveSelection:(id:string,value:AnalysisSelection)=>request<AnalysisSelection>(`/projects/${id}/analysis-selection`,{method:'PUT',body:JSON.stringify({analysis_hash:value.analysis_hash,candidate_ids:value.candidate_ids})}),
   revisions:(id:string)=>request<Revision[]>(`/projects/${id}/revisions`),
   media:async(id:string,asset:string)=>(await request<{url:string}>(`/projects/${id}/media/${asset}/ticket`)).url,
   importProject:(path:string)=>post<Project>('/projects/import',{path}),

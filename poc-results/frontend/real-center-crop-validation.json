@@ -1,0 +1,35 @@
+{
+  "candidate_id": "18c08cb3-e67d-49a3-83af-806c45473bc0",
+  "checks": {
+    "audio": true,
+    "decoded": true,
+    "dimensions": true,
+    "duration": true,
+    "fps": true,
+    "hash": true,
+    "non_silent": true,
+    "orientation": true,
+    "pixel_format": true,
+    "revision_match": true,
+    "size": true,
+    "source_match": true,
+    "video_codec": true
+  },
+  "duration_us": 126460000,
+  "editorial_status": "needs_review",
+  "frame": "C:\\Users\\Matheus\\Projects\\autoclip-editor\\poc-results\\frontend\\real-center-crop-frame.jpg",
+  "gemini_calls_in_render": 0,
+  "job_id": "f9549440-8577-4527-af04-7d7c9797934a",
+  "render": {
+    "path": "C:\\Users\\Matheus\\Projects\\autoclip-editor\\.autoclip\\projects\\202f827f-a5d1-4e59-bd81-a8e82357030c\\previews\\4e96f82488ed37cc19368570c46c5d4f8bb1de2f405e65666b4fa34b1b48fdd2\\1545fcaa-4b92-4a28-a794-81df170e2a45.mp4",
+    "revision_id": "1545fcaa-4b92-4a28-a794-81df170e2a45",
+    "schema_version": "1.0",
+    "sha256": "d3e7aa092d22360c42147e75ebb9eff6db29ebb2e73cf9b7709f303f209210a5",
+    "size_bytes": 81709450
+  },
+  "revision_id": "1545fcaa-4b92-4a28-a794-81df170e2a45",
+  "schema_version": "1.0",
+  "technical_pass": true,
+  "visible_previews": 3,
+  "revision_index_entries": 4
+}
