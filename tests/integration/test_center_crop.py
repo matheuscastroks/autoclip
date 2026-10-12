@@ -1,4 +1,5 @@
 import subprocess,json
+import pytest
 from uuid import uuid4
 from engine.contracts import Span,EDLArtifact,CropArtifact,CaptionArtifact,ExportConfig
 from engine.media.importer import import_source
@@ -6,7 +7,8 @@ from engine.media.probe import probe_source
 from engine.render.ffmpeg import FFmpegRenderer
 from engine.render.verify import verify_render
 
-def test_actual_pixels_are_center_crop_without_horizontal_foreground(tmp_path,ffmpeg,ffprobe):
+@pytest.mark.parametrize('tracking',[False,True])
+def test_actual_pixels_are_center_crop_without_horizontal_foreground(tmp_path,ffmpeg,ffprobe,tracking):
     original=tmp_path/'bands.mp4'
     subprocess.run([str(ffmpeg),'-v','error','-y','-f','lavfi','-i','color=c=green:size=320x180:rate=30:duration=2,drawbox=x=0:y=0:w=100:h=180:color=red:t=fill,drawbox=x=220:y=0:w=100:h=180:color=blue:t=fill','-f','lavfi','-i','sine=frequency=440:duration=2','-c:v','libx264','-c:a','aac',str(original)],check=True)
     source=probe_source(import_source(str(original),tmp_path/'project'),ffprobe)
@@ -14,10 +16,20 @@ def test_actual_pixels_are_center_crop_without_horizontal_foreground(tmp_path,ff
     ass=tmp_path/'captions.ass';srt=tmp_path/'captions.srt'
     ass.write_text('[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Default,Arial,80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,180,1\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\nDialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,LEGENDA\n',encoding='utf-8');srt.write_text('')
     caps=CaptionArtifact(transcript_id=edl.transcript_id,edl_revision_id=edl.revision_id,revision_id=uuid4(),words=[],ass_path=ass,srt_path=srt,font='Arial')
-    rendered=FFmpegRenderer(ffmpeg).render(source,edl,CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id),caps,ExportConfig(output_root=tmp_path/'out'))
+    from engine.contracts import CropPoint
+    crop=CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id)
+    if tracking:crop=CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id,mode='face-track',points=[CropPoint(output_us=0,center_x=.15),CropPoint(output_us=1_900_000,center_x=.85)])
+    rendered=FFmpegRenderer(ffmpeg).render(source,edl,crop,caps,ExportConfig(output_root=tmp_path/'out'))
     assert verify_render(rendered,source,edl,ffprobe,ffmpeg).technical_pass
     pixels=subprocess.run([str(ffmpeg),'-v','error','-ss','0.5','-i',str(rendered.path),'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],capture_output=True,check=True).stdout
     assert len(pixels)==1080*1920*3
+    if tracking:
+        def pixel_at(time):
+            data=subprocess.run([str(ffmpeg),'-v','error','-ss',str(time),'-i',str(rendered.path),'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],capture_output=True,check=True).stdout
+            return data[(960*1080+540)*3:(960*1080+540)*3+3]
+        r,g,b=pixel_at(.05);assert r>g+60 and r>b+60
+        r,g,b=pixel_at(1.85);assert b>g+60 and b>r+60
+        return
     # Horizontal overlay would bring the red band back at the middle left.
     for x,y in [(100,960),(980,960),(100,200),(980,1800)]:
         r,g,b=pixels[(y*1080+x)*3:(y*1080+x)*3+3];assert g>r+60 and g>b+60

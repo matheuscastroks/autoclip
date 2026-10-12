@@ -12,9 +12,10 @@ FILES={
  'select':['engine/editorial/select.py'],
  'edit_plan':['engine/editorial/edl.py','vendor/openshorts/recut.py','vendor/openshorts/clip_selection.py'],
  'captions':['engine/adapters/openshorts/captions.py','vendor/openshorts/subtitles.py','vendor/openshorts/ffmpeg_utils.py'],
- 'render':['engine/render/ffmpeg.py','engine/pipeline/cancellation.py'],
+ 'reframe':['engine/media/face_tracking.py','engine/pipeline/cancellation.py'],
+ 'render':['engine/media/face_tracking.py','engine/render/ffmpeg.py','engine/pipeline/cancellation.py'],
  'verify':['engine/render/verify.py','engine/media/probe.py']}
-PACKAGES={'transcribe':['faster-whisper','ctranslate2','av','tokenizers','onnxruntime'],'pauses':['faster-whisper','onnxruntime','numpy'],'analyze':['google-genai','pydantic'],'captions':['pydantic']}
+PACKAGES={'reframe':['mediapipe','numpy'],'transcribe':['faster-whisper','ctranslate2','av','tokenizers','onnxruntime'],'pauses':['faster-whisper','onnxruntime','numpy'],'analyze':['google-genai','pydantic'],'captions':['pydantic']}
 
 def stage_dependencies(stage:str) -> dict:
     packages={}

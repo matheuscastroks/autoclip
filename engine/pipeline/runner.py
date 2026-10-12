@@ -11,6 +11,7 @@ from engine.editorial.select import select_candidates,validate_explicit_candidat
 from engine.editorial.edl import plan_continuous_edit
 from engine.adapters.openshorts.captions import OpenShortsCaptionBuilder
 from engine.render.ffmpeg import FFmpegRenderer
+from engine.media.face_tracking import track_faces,model_path as face_model_path
 from engine.render.verify import verify_render
 from engine.editorial.review import review_fingerprint
 from engine.pipeline.fingerprints import stage_dependencies,tool_fingerprint,font_fingerprint,resolve_font
@@ -96,7 +97,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
             current=next(i for i in items if i['candidate_id']==str(candidate.id))
             try:
                 # A changed presentation creates a new revision, retaining the old render and its review.
-                recipe={'captions':config.captions,'export':config.export,'crop':'center-crop','render_runtime':stage_dependencies('render'),'caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
+                recipe={'captions':config.captions,'export':config.export,'crop':config.reframe,'reframe_runtime':stage_dependencies('reframe'),'face_model':file_hash(face_model_path(config.reframe)) if face_model_path(config.reframe).is_file() else 'missing','render_runtime':stage_dependencies('render'),'caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
                 edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan'),'presentation_recipe':object_hash(recipe)},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
@@ -104,7 +105,8 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 font=font_fingerprint(caption_config.font_path,caption_config.font_name)
                 caps=stage('captions',{'edl':object_hash(edl),'transcript':object_hash(transcript),'config':caption_config.model_dump(mode='json'),'font':font,'runtime':stage_dependencies('captions')},lambda:OpenShortsCaptionBuilder(root/'captions').build(transcript,edl,CaptionRevision(),caption_config),CaptionArtifact)
                 atomic_json(revision_dir/'captions.json',caps)
-                crop=CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id)
+                crop=stage('reframe',{'source':source.sha256,'edl':object_hash(edl),'config':config.reframe,'runtime':stage_dependencies('reframe'),'model':recipe['face_model'],'ffmpeg':ffmpeg_identity},lambda:track_faces(source,edl,config.reframe,config.ffmpeg,cancelled=cancelled,progress=lambda done,total:report('reframe',done,total)),CropArtifact)
+                atomic_json(revision_dir/'crop.json',crop)
                 profile=object_hash({'edl':edl,'caps':caps,'crop':crop,'profile':config.export,'font':font,'ffmpeg':ffmpeg_identity,'runtime':stage_dependencies('render')})
                 export_config=config.export.model_copy(update={'output_root':root/'previews'/profile})
                 def render():

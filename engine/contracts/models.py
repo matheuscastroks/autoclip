@@ -169,11 +169,28 @@ class EDLArtifact(Contract):
         return self
 
 
+class CropPoint(Contract):
+    output_us: int = Field(ge=0)
+    center_x: float = Field(ge=0,le=1)
+
+
 class CropArtifact(Contract):
     source_id: UUID
     edl_revision_id: UUID
-    mode: Literal['fit-blur','center-crop'] = 'center-crop'
+    mode: Literal['fit-blur','center-crop','face-track'] = 'center-crop'
     fallback_reason: str = 'Static central 9:16 crop; face tracking is not enabled.'
+    points: list[CropPoint] = Field(default_factory=list)
+    model_sha256: str | None = None
+    detected_samples: int = Field(default=0,ge=0)
+    total_samples: int = Field(default=0,ge=0)
+
+    @model_validator(mode='after')
+    def valid_path(self):
+        if any(a.output_us>=b.output_us for a,b in zip(self.points,self.points[1:])):
+            raise ValueError('crop path must have increasing output timestamps')
+        if self.mode=='face-track' and (not self.points or self.points[0].output_us!=0):
+            raise ValueError('face track must start at zero')
+        return self
 
 
 class CaptionRevision(Contract):
@@ -348,12 +365,20 @@ class ExportConfig(Contract):
     output_root: Path
 
 
+class ReframeConfig(Contract):
+    enabled: bool = True
+    model_path: Path | None = None
+    sample_fps: int = Field(default=2,ge=1,le=4)
+    min_confidence: float = Field(default=.6,ge=.3,le=1)
+
+
 class PipelineConfig(Contract):
     asr: ASRConfig
     analysis: AnalysisConfig
     selection: SelectionConfig = Field(default_factory=SelectionConfig)
     pauses: PauseConfig = Field(default_factory=PauseConfig)
     captions: CaptionConfig = Field(default_factory=CaptionConfig)
+    reframe: ReframeConfig = Field(default_factory=ReframeConfig)
     export: ExportConfig
     ffmpeg: Path
     ffprobe: Path

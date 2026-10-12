@@ -93,7 +93,7 @@ A seleção é persistida em `analysis-selection.json`, vinculada ao hash da an�
 
 A aba Cortes possui filtros **Em geração**, **Para revisar**, **Aprovados** e **Exportados**. É possível consultar e aprovar uma prévia pronta enquanto outras são geradas; exportação e exclusão aguardam o fim da tarefa. Uma nova receita de apresentação cria outra revisão e preserva prévias/aprovações anteriores. Aprovar continua exigindo os cinco critérios e fingerprint da revisão.
 
-Novas prévias usam somente o recorte **central estático 9:16, 1080×1920**, com legendas gravadas. Não há fundo borrado, sobreposição horizontal ou acompanhamento facial. O original permanece intacto. Prévias antigas conservam seu formato; gere uma nova revisão para obter o novo enquadramento.
+Novas prévias usam recorte **9:16, 1080×1920**, com acompanhamento facial local e legendas gravadas. Não há fundo borrado ou sobreposição horizontal. Sem detecção confiável, o recorte usa o centro. O original permanece intacto. Prévias antigas conservam seu formato; gere uma nova revisão para obter o novo enquadramento.
 
 O tema global é claro, com preto/roxo, bordas visíveis, controles quadrados e foco contrastante. Em telas estreitas a análise empilha os painéis; as quatro abas permanecem acessíveis. Nenhum histórico de falhas foi adicionado.
 
@@ -103,3 +103,14 @@ O tema global é claro, com preto/roxo, bordas visíveis, controles quadrados e 
 Novas prévias usam Montserrat ExtraBold incluída no pacote sob SIL OFL 1.1, sem instalação manual. O texto aparece em maiúsculas, em grupos de até três palavras: palavra falada em `#FFCC00`, demais em branco, com contorno preto espesso. A transcrição original mantém sua grafia e timestamps. Intervalos sobrepostos do ASR são limitados apenas na apresentação ASS para evitar duas legendas simultâneas. SRT permanece editável.
 
 Prévias existentes permanecem intactas; gere uma nova revisão para aplicar o estilo. A mudança não exige nova análise Gemini. Evidência técnica: `poc-results/frontend/bold-caption-style-validation.json` e `bold-caption-style-frame.jpg`; amostra real de 3,36 segundos, sem validação editorial de um corte completo.
+
+
+### Acompanhamento facial local
+
+Novas prévias usam MediaPipe Face Detector / BlazeFace short-range em CPU, modelo versionado incluído sob Apache 2.0. A etapa **Acompanhando rosto** tem progresso por tempo do corte. Quadros reduzidos são amostrados a 2 fps; o FFmpeg interpola horizontalmente a trajetória no vídeo 9:16 a 30 fps. Não há zoom ou blur. Legendas e áudio seguem o EDL original.
+
+O rosto inicial é o maior com confiança suficiente; depois a seleção prioriza proximidade espacial para reduzir trocas. Zona de tolerância de 2% da largura, suavização temporal e velocidade máxima de 18% da largura/segundo reduzem tremores. Perdas de até um segundo mantêm a posição; depois o recorte retorna suavemente ao centro. Nas bordas, o recorte é limitado ao quadro. Isso não identifica pessoas ou determina quem está falando; múltiplos rostos, perfis, mudanças bruscas de cena e movimentos rápidos exigem revisão.
+
+`crop.json` guarda posições em tempo de saída, detecções e hash do modelo, vinculado à revisão. A etapa possui cache incluindo fonte, EDL, configuração, modelo e versões do runtime. Modelo/runtime ausente ou nenhum rosto detectado resulta em recorte central e motivo registrado. Falhas de decodificação não publicam resultados parciais. `reframe.enabled=false` mantém o recorte central pela CLI/configuração. Prévias existentes são preservadas; gerar novamente cria nova revisão sem nova análise Gemini.
+
+Referências: https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector/python e o model card registrado em `engine/assets/models/UPSTREAM.json`. Evidência real curta: `poc-results/frontend/face-tracking-validation.json`; isso não substitui a revisão de um corte completo.
