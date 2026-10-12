@@ -123,7 +123,6 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/projects')
     def new_project(value:NewProject):
         import uuid
-        if value.automatic and not value.authorize_text:raise HTTPException(400,'Confirme a análise automática e seu limite de tentativas.')
         if value.automatic and not settings.get()['gemini_key_configured']:raise HTTPException(400,'Configure a chave Gemini antes de iniciar a sequência automática.')
         row=store.create(workspace/'.autoclip/projects'/str(uuid.uuid4()),value.name.strip() or 'Novo projeto')
         try:job=jobs.start(row['id'],'prepare' if value.automatic else 'import',{'source_input':value.source_input,'authorize_text':value.authorize_text,**({'max_calls':value.max_calls} if value.max_calls else {})})

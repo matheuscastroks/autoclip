@@ -32,6 +32,8 @@ class JobManager:
         from engine.pipeline.analysis_events import read_events
         job['events']+=read_events(folder/'analysis-events.jsonl',limit=100)
         job['progress']=read_json(folder/'progress.json')
+        policy=read_json(folder/'request-policy.json')
+        if policy:job.update(policy)
         request_log=folder/'stdout.log'
         if request_log.exists():
             # Never return raw process output or provider content to the UI.
@@ -48,7 +50,6 @@ class JobManager:
 
     def start(self,project_id,operation,options):
         if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
-        if operation in ('prepare','analyze') and options.get('authorize_text') is not True:raise ValueError('Confirme o envio de texto e o limite de tentativas.')
         if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')
         row=self.store.get(project_id)
         if (Path(row['path'])/'manual-check.json').exists():raise ValueError('Projeto manual disponível apenas para consulta nesta fase.')
@@ -59,8 +60,11 @@ class JobManager:
             values={k:v for k,v in settings.items() if k not in ('gemini_key_configured','schema_version','tools_available','asr_available')}
             # Only typed request options are accepted by the API; no arbitrary command.
             values.update({k:options[k] for k in ('max_calls','window_seconds','max_text_chars') if k in options})
+            # New UI jobs plan calls from the actual transcript. Explicit legacy API limits remain supported.
+            automatic=operation in ('prepare','analyze') and 'max_calls' not in options
+            values['automatic_calls']=automatic
             jid=str(uuid.uuid4());folder=self.root/jid;folder.mkdir()
-            job={'id':jid,'project_id':project_id,'operation':operation,'status':'running','created_at':now(),'requests_used':0,'request_limit':values['max_calls'],'events':[]}
+            job={'id':jid,'project_id':project_id,'operation':operation,'status':'running','created_at':now(),'requests_used':0,'request_mode':'automatic' if automatic else 'manual','request_limit':None if automatic else values['max_calls'],'events':[]}
             request={'job_id':jid,'project_id':project_id,'project_root':row['path'],'workspace':str(self.workspace),'operation':operation,'settings':values,'source_input':options.get('source_input')}
             atomic_json(folder/'request.json',request)
             with self.store.connect() as c:
@@ -99,6 +103,6 @@ class JobManager:
     def resume(self,job_id):
         job=self.status(job_id)
         if job['status'] not in ('failed','cancelled','interrupted'):raise ValueError('Tarefa não pode ser retomada neste estado.')
-        if job['operation'] in ('prepare','analyze'):raise ValueError('Análise exige novo orçamento explícito; inicie novamente pelo formulário de análise.')
+        if job['operation'] in ('prepare','analyze'):return self.start(job['project_id'],job['operation'],{'source_input':read_json(self.root/job_id/'request.json',{}).get('source_input')})
         request=read_json(self.root/job_id/'request.json',{})
         return self.start(job['project_id'],job['operation'],{'source_input':request.get('source_input')})

@@ -17,7 +17,7 @@ const validated=computed(()=>scoped.value.filter(e=>['window_validated','analysi
 const status=computed(()=>latest.value?.message||(job.value&&active(job.value.status)?'Aguardando feedback da análise.':'Este trabalho não registrou resumos do Gemini.'))
 const budgetNotice=computed(()=>{
   const planned=events.value.find(e=>e.kind==='analysis_started')?.windows
-  if(job.value?.requests_used===0&&(job.value.error?.code==='PROVIDER_BUDGET'||(planned&&planned>job.value.request_limit)))return `Limite de ${job.value.request_limit} tentativa(s) insuficiente${planned?' para '+planned+' janelas':''}. Nenhuma solicitação de análise foi enviada. Confirme um novo limite no formulário de análise.`
+  if(job.value?.requests_used===0&&(job.value.error?.code==='PROVIDER_BUDGET'||(planned&&job.value.request_limit!=null&&planned>job.value.request_limit)))return `Limite de ${job.value.request_limit} tentativa(s) insuficiente${planned?' para '+planned+' janelas':''}. Nenhuma solicitação de análise foi enviada. Inicie uma nova análise para usar o planejamento automático de chamadas.`
   return ''
 })
 </script>

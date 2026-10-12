@@ -23,8 +23,12 @@ def test_dead_owned_worker_becomes_interrupted(tmp_path):
     manager=JobManager(store,tmp_path)
     assert manager.status('dead')['status']=='interrupted'
 
-def test_analysis_requires_explicit_text_authorization(client,tmp_path):
+def test_analysis_starts_without_text_checkbox(client,tmp_path):
     pid=client.post('/api/v1/projects/import',json={'path':str(source_folder(tmp_path))}).json()['id']
+    class Process:
+        pid=0
+        def poll(self):return None
+    client.app.state.jobs.spawn=lambda *a,**kw:Process()
     r=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':'analyze','options':{}})
-    assert r.status_code==400
-    assert not client.get('/api/v1/jobs').json()
+    assert r.status_code==200 and r.json()['request_mode']=='automatic'
+    assert len(client.get('/api/v1/jobs').json())==1

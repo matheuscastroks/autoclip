@@ -15,6 +15,36 @@ function setup(){
 }
 async function open(){const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click');await flushPromises();return w}
 describe('review identity across refresh and failures',()=>{
+  it('starts analysis without a manual limit or consent checkbox',async()=>{
+    Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:vi.fn()})
+    Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:vi.fn()})
+    setup();vi.mocked(api.config).mockResolvedValue({...config,gemini_key_configured:true})
+    vi.spyOn(api,'start').mockResolvedValue({} as any)
+    const w=await open();await w.get('[data-stage=analyze] button').trigger('click');await flushPromises()
+    const dialog=w.findAll('dialog').find(d=>d.text().includes('Analisar com Gemini'))!
+    expect(dialog.find('input[type=checkbox]').exists()).toBe(false)
+    expect(dialog.text()).not.toContain('Limite de tentativas')
+    await dialog.get('form').trigger('submit');await flushPromises()
+    expect(api.start).toHaveBeenCalledWith('p','analyze',expect.not.objectContaining({max_calls:expect.anything()}))
+    expect(vi.mocked(api.start).mock.calls[0][2]).not.toHaveProperty('authorize_text')
+    w.unmount()
+  })
+  it('creates an automatic project without asking for a limit or checkbox',async()=>{
+    setup();vi.mocked(api.config).mockResolvedValue({...config,gemini_key_configured:true})
+    Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:vi.fn()})
+    Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:vi.fn()})
+    vi.spyOn(api,'create').mockResolvedValue({project,job:{} as any})
+    const w=mount(App);await flushPromises();await w.get('.sidebar-create').trigger('click')
+    const dialog=w.findAll('dialog').find(d=>d.text().includes('Nome do projeto'))!
+    expect(dialog.find('input[type=checkbox]').exists()).toBe(false)
+    expect(dialog.text()).not.toContain('Limite de tentativas')
+    await dialog.get('input[maxlength="100"]').setValue('Projeto novo')
+    await dialog.findAll('.source-switch button')[1].trigger('click')
+    await dialog.get('input[type=url]').setValue('https://www.youtube.com/watch?v=fixture')
+    await dialog.get('form').trigger('submit');await flushPromises()
+    expect(api.create).toHaveBeenCalledWith('Projeto novo','https://www.youtube.com/watch?v=fixture',{automatic:true})
+    w.unmount()
+  })
   it('loads original as soon as automatic import finishes while the job is still running',async()=>{
     setup()
     const pending={...project,source:null,has_transcript:false,has_analysis:false,status:'pending_import'}

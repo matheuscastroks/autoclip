@@ -140,7 +140,7 @@ class GeminiAnalyzer:
                             retryable=code in (429,500,502,503,504) or isinstance(exc,transport_types) or getattr(exc,'transport',False)
                             if not retryable or attempt==1:
                                 raise PipelineError('PROVIDER_UNAVAILABLE','analyze','Gemini request failed; no provider fallback.',retryable) from None
-                            writer.emit('request_retry','Nova tentativa dentro do limite confirmado.',**self.context)
+                            writer.emit('request_retry','Repetindo a solicitação após uma falha recuperável.',**self.context)
                             delay=retry_delay(exc)
                             while delay>0:
                                 check_cancelled();step=min(.2,delay);self.sleep(step);delay-=step

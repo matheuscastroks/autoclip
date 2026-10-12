@@ -9,6 +9,17 @@ from engine.media.importer import import_source
 from engine.media.probe import probe_source
 from .store import now
 from engine.pipeline.analysis_events import EventWriter
+from engine.adapters.openshorts.windows import build_windows
+
+def configure_analysis_requests(config,transcript,settings,folder):
+    if not settings.get('automatic_calls',False):return
+    if not transcript.words:raise PipelineError('NO_SPEECH','analyze','Não há fala transcrita para analisar.')
+    windows=len(build_windows(transcript,config.analysis.window_seconds,config.analysis.max_text_chars))
+    # Each window allows two transport attempts, plus one JSON repair with two attempts.
+    # This covers every existing execution path without unlimited retries on permanent failures.
+    config.analysis.max_calls=max(1,windows*4)
+    atomic_json(folder/'request-policy.json',{'request_mode':'automatic','request_limit':config.analysis.max_calls,'windows':windows})
+    EventWriter(folder/'analysis-events.jsonl').emit('requests_planned','Chamadas dimensionadas automaticamente pela transcrição; novas tentativas apenas em falhas recuperáveis.',windows=windows,request_limit=config.analysis.max_calls)
 
 def pipeline_config(settings,root):
     return PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),
@@ -55,6 +66,7 @@ def main(folder:Path):
             run_project(source,config,root,cancelled,transcriber=transcriber,stop_after='transcribe')
             stage('transcribe','completed');stage('analyze','running')
             transcriber=PreparedTranscript(source,root)
+            configure_analysis_requests(config,transcriber.transcript,settings,folder)
             analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl')
             run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after='analyze')
             stage('analyze','completed')
@@ -74,6 +86,7 @@ def main(folder:Path):
             transcriber=PreparedTranscript(source,root) if (root/'transcript.json').is_file() else None
             if operation in ('analyze','render') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
             precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation=='render' else None
+            if operation=='analyze':configure_analysis_requests(config,transcriber.transcript,settings,folder)
             analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl') if operation=='analyze' else None
             state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation,precomputed_analysis=precomputed)
             if state.status=='failed':raise PipelineError('RENDER_FAILED','job','One or more previews failed technical QA.')
