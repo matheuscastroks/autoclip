@@ -3,6 +3,11 @@ import {it,expect} from 'vitest'
 import AnalysisPanel from '../src/components/AnalysisPanel.vue'
 const proposal={candidate_id:'one',topic_ids:['t'],group_id:'tema',title:'O argumento completo',rationale:'Mantém a conclusão.',start_us:1000000,end_us:61000000,duration_us:60000000,start_word_id:'w1',end_word_id:'w2',evidence_word_ids:['w1'],editorial:{completeness:'yes'},warnings:[],eligible:true,reasons:[],text:'Fala original.',context_before:'Antes.',context_after:'Depois.'}
 const view={schema_version:'1.0',state:'completed',job_id:null,analysis_hash:'a'.repeat(64),model:'fixture',completed_windows:2,total_windows:2,topic_groups:[{id:'tema',label:'Tema',topic_ids:['t'],summaries:['Resumo'],evidence_word_ids:['w1']}],proposals:[proposal,{...proposal,candidate_id:'two',eligible:false,reasons:['editorial flags require review']}]}
+it('selects and removes the inspected proposal through the final step',async()=>{
+ const w=mount(AnalysisPanel,{props:{analysis:view,selection:null,jobs:[],sourceUrl:'',busy:false}})
+ await w.get('[data-action=select-focused]').trigger('click');expect(w.emitted('selection')?.[0]?.[0]).toMatchObject({candidate_ids:['one']})
+ await w.get('[data-action=select-focused]').trigger('click');expect(w.emitted('selection')?.[1]?.[0]).toMatchObject({candidate_ids:[]});w.unmount()
+})
 it('shows a distinct social opening before generation',()=>{
  const w=mount(AnalysisPanel,{props:{analysis:{...view,proposals:[{...proposal,title:'Por que essa ressalva muda tudo',opening_text:'Uma palavra muda o sentido?'}]},selection:null,jobs:[],sourceUrl:'',busy:false}})
  expect(w.get('.proposal-detail h3').text()).toBe('Por que essa ressalva muda tudo')

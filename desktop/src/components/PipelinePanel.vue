@@ -4,7 +4,6 @@ import {computed,watch} from 'vue'
 import {Check,Square,RotateCcw} from '@lucide/vue'
 import type {Project,Job,Revision,AnalysisView} from '../types'
 import {active,labels,latestJob} from '../format'
-import GenerationQueue from './GenerationQueue.vue'
 import {notifyJob,notify} from '../notifications'
 const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean;revisions?:Revision[];analysis?:AnalysisView|null;sourceUrl?:string;selectedCount?:number}>()
 defineEmits<{transcribe:[];analyze:[];render:[];analysis:[];review:[];cancel:[id:string];resume:[id:string];replaceSource:[id:string];generate:[];export:[]}>()
@@ -35,7 +34,7 @@ function state(step:string){
       <div class="preparation-intro"><span class="section-eyebrow">Fluxo do projeto</span><div class="pipeline-title"><h2>Preparar seus cortes</h2><AppButton v-if="processing&&job" class="button small secondary" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)"><Square :size="12"/>Cancelar</AppButton></div><p>Avance por etapas e acompanhe cada entrega.</p><p class="preparation-summary">{{project.has_transcript?project.word_count.toLocaleString('pt-BR')+' palavras transcritas':'Transcrição pendente'}} · {{analysis?.topic_groups.length||0}} temas · {{revisions?.length||0}} prévias</p></div>
       <figure class="pipeline-video"><video v-if="sourceUrl" :src="sourceUrl" controls preload="metadata" playsinline aria-label="Vídeo original em miniatura"></video><div v-else class="pipeline-video-empty">{{project.source?'Vídeo indisponível':importRecovery?'Importação interrompida':processing&&job?.progress?.steps.import==='running'?'Importando vídeo…':'Vídeo ainda não importado'}}</div><figcaption>Vídeo original · {{project.source?'Fonte preservada':'Aguardando fonte'}}</figcaption></figure>
     </header>
-    <GenerationQueue :jobs="jobs" @resume="$emit('resume',$event)"/>
+
     <div class="preparation-groups"><section v-for="group in groups" :key="group.title" class="preparation-group"><header><h3>{{group.title}}</h3><p>{{group.description}}</p></header>
       <ol class="pipeline-steps"><li v-for="[id,title] in group.steps" :key="id" class="pipeline-step" :data-stage="id" :data-state="state(id)">
         <span class="step-mark" :class="{done:state(id)==='completed'}"><Check v-if="state(id)==='completed'" :size="16"/><span v-else>{{names.findIndex(n=>n[0]===id)+1}}</span></span>

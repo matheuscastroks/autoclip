@@ -9,6 +9,14 @@ import {notify,resetNotifications} from '../src/notifications'
 const project={id:'p',name:'Projeto de teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'failed',has_transcript:true,word_count:100,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'2026-10-12T12:00:00Z',updated_at:0,source:null,error:null}
 const config={asr_model_path:'/model',gemini_model:'gemini-2.5-flash',max_calls:10,window_seconds:600,max_text_chars:60000,ffmpeg:'/ffmpeg',ffprobe:'/ffprobe',asr_available:true,tools_available:true,gemini_key_configured:true}
 describe('workspace interactions',()=>{
+  it('aligns the reviewed cut with an external sidebar selection outside the filter',async()=>{
+    const rows=[{revision_id:'a',title:'Para conferir',technical_pass:true,review_status:'needs_review',warnings:[],content_hash:'a'},{revision_id:'b',title:'Aprovada',technical_pass:true,review_status:'approved',warnings:[],content_hash:'b'}]
+    const w=mount(ReviewPanel,{props:{revisions:rows,manual:false,mediaUrl:'/a.mp4',sourceUrl:'',selectedRevision:'a'}})
+    await w.findAll('.cuts-filters button').find(b=>b.text()==='Para revisar')!.trigger('click')
+    await w.setProps({selectedRevision:'b',mediaUrl:'/b.mp4'})
+    expect(w.get('.preview-label').text()).toBe('Aprovada');expect(w.get('.clip-preview>video').attributes('src')).toBe('/b.mp4')
+    expect(w.get('[data-action=approve]').attributes('disabled')).toBeDefined();w.unmount()
+  })
   it('filters projects by name and opens a real row',async()=>{
     const w=mount(ProjectLibrary,{props:{projects:[project],busy:false}})
     await w.get('input[type=search]').setValue('inexistente')

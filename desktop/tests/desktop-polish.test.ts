@@ -4,6 +4,25 @@ import AppButton from '../src/components/AppButton.vue'
 import ProjectLibrary from '../src/components/ProjectLibrary.vue'
 import SettingsPanel from '../src/components/SettingsPanel.vue'
 describe('desktop controls',()=>{
+  it('reveals a hidden invalid setting before asking for correction',async()=>{
+    const w=mount(SettingsPanel,{props:{config:{asr_model_path:'m',gemini_model:'g',max_calls:0,window_seconds:600,max_text_chars:60000,ffmpeg:'f',ffprobe:'p',asr_available:true,tools_available:true,gemini_key_configured:false},saveConfig:vi.fn(),saveKey:vi.fn(),pick:vi.fn()}})
+    await w.findAll('.settings-tiles button')[2].trigger('click')
+    await w.get('.local-resources input').setValue('');await w.get('.local-resources input').trigger('invalid')
+    expect(w.get('.local-resources').isVisible()).toBe(true)
+    await w.get('input[max="300000"]').setValue(0);await w.get('input[max="300000"]').trigger('invalid')
+    expect(w.get('.credential-panel').isVisible()).toBe(true);expect(w.get('.analysis-advanced').attributes('open')).toBeDefined();w.unmount()
+  })
+  it('segments settings without discarding unsaved fields',async()=>{
+    const w=mount(SettingsPanel,{props:{config:{asr_model_path:'m',gemini_model:'g',max_calls:0,window_seconds:600,max_text_chars:60000,ffmpeg:'f',ffprobe:'p',asr_available:true,tools_available:true,gemini_key_configured:false},saveConfig:vi.fn(),saveKey:vi.fn(),pick:vi.fn()}})
+    expect(w.get('.local-resources').isVisible()).toBe(true)
+    expect(w.get('.credential-panel').isVisible()).toBe(false)
+    await w.get('.local-resources input').setValue('updated-model')
+    await w.findAll('.settings-tiles button')[1].trigger('click')
+    expect(w.get('.credential-panel').isVisible()).toBe(true)
+    expect(w.get('.local-resources').isVisible()).toBe(false)
+    await w.findAll('.settings-tiles button')[0].trigger('click')
+    expect((w.get('.local-resources input').element as HTMLInputElement).value).toBe('updated-model');w.unmount()
+  })
   it('forwards native attributes and emits one click',async()=>{
     const click=vi.fn();const w=mount(AppButton,{attrs:{type:'submit','aria-label':'Salvar',onClick:click}})
     expect(w.get('button').attributes('type')).toBe('submit');await w.trigger('click');expect(click).toHaveBeenCalledTimes(1)

@@ -21,7 +21,7 @@ describe('review identity across refresh and failures',()=>{
     vi.mocked(api.project).mockImplementation(()=>new Promise(resolve=>resolveProject=resolve))
     const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click')
     await w.get('nav button:nth-child(2)').trigger('click');resolveProject(project);await flushPromises()
-    expect(w.get('h1').text()).toBe('Configurações');expect(w.find('[role=tablist]').exists()).toBe(false);w.unmount()
+    expect(w.get('h1').text()).toBe('Configurações');expect(w.find('[aria-label="Áreas do projeto"]').exists()).toBe(false);w.unmount()
   })
   it('starts analysis without a manual limit or consent checkbox',async()=>{
     Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:vi.fn()})
