@@ -9,6 +9,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 .test-tmp/
+.render-test-tmp/
+.pipeline-test-tmp/
+.full-test-tmp/
 .superpowers/
 research/*pytest-temp/
 research/pytest-temp/
@@ -23,3 +26,4 @@ dist/
 !.env.example
 *.key
 *.pem
+*.log
