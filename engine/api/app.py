@@ -8,7 +8,6 @@ from engine.contracts import PipelineError,EditorialChecks
 from .store import ProjectStore
 from .projects import discover,project_detail
 from .settings import Settings
-from . import settings as credential
 from .media import make_ticket,valid_ticket,asset_path
 
 class Input(BaseModel):model_config=ConfigDict(extra='forbid')
@@ -48,6 +47,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
     discover(store,workspace)
     app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store=store;app.state.workspace=workspace;app.state.token=token;app.state.settings=settings
+    from .gemini_connection import GeminiConnection
+    gemini_connection=GeminiConnection();app.state.gemini_connection=gemini_connection
     from .jobs import JobManager
     jobs=JobManager(store,workspace);app.state.jobs=jobs
 
@@ -99,7 +100,11 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def update_config(values:AppConfig):return settings.save(values.model_dump())
     @app.put('/api/v1/config/credential')
     def update_credential(value:Credential):
-        credential.set_gemini_key(value.key.get_secret_value());return {'configured':True}
+        return gemini_connection.validate(value.key.get_secret_value())
+    @app.get('/api/v1/config/gemini')
+    def gemini_status():return gemini_connection.status()
+    @app.post('/api/v1/config/gemini/test')
+    def gemini_test():return gemini_connection.validate()
     @app.get('/api/v1/projects')
     def projects():return [project_detail(row) for row in store.list_projects()]
     @app.post('/api/v1/projects')

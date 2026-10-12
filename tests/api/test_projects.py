@@ -47,6 +47,7 @@ def test_registry_survives_restart(tmp_path):
     assert ProjectStore(db).get(first['id'])['path']==str(root.resolve())
 
 def test_config_and_credential_never_return_secret(client,monkeypatch):
+    client.app.state.gemini_connection.catalog=lambda key:[]
     import engine.api.settings as settings
     saved=[]
     monkeypatch.setattr(settings,'set_gemini_key',lambda key:saved.append(key))

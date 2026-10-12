@@ -18,7 +18,9 @@ Abra um projeto para ver o original, etapas e atividade. A aba **Transcrição**
 
 ## Configurações e revisão
 
-Em **Configurações**, selecione modelo Whisper local, ferramentas de vídeo e parâmetros de análise. A chave Gemini é digitada em campo oculto e salva no Gerenciador de Credenciais do Windows. A interface mostra apenas presença da chave salva. Não há teste remoto automático nem upload de vídeo/áudio/frames.
+Em **Configurações**, selecione modelo Whisper local, ferramentas de vídeo e parâmetros de análise. Digite a chave Gemini no campo oculto e clique em **Salvar e validar**: o aplicativo consulta o catálogo antes de substituir a credencial no Gerenciador de Credenciais do Windows. Falhas de validação preservam a chave anterior. **Testar conexão / Atualizar modelos** consulta a chave salva e preenche o seletor com os IDs e nomes retornados pela API. A interface mostra o estado da conexão e a data do teste, sem exibir a chave. Se o modelo selecionado não estiver no catálogo, escolha outro explicitamente antes de salvar. Abrir configurações não faz consulta remota automática.
+
+O teste usa somente `models.list`, sem geração nem envio de transcrição, vídeo, áudio ou frames. Acesso ao catálogo não garante cota de geração nem suporte do modelo ao contrato de análise. Uma chave definida em `GEMINI_API_KEY` tem precedência; remova essa variável e reabra o aplicativo para substituir uma chave diferente pela interface.
 
 Os cortes elegíveis aparecem na aba **Cortes**, com preview, fonte/contexto e motivo. Ouça e marque os cinco critérios editoriais antes de aprovar. A aprovação pertence à revisão atual; alteração dos artefatos exige nova revisão. **Exportar aprovados** gera pacotes locais com MP4, legendas e metadados. Um projeto sem análise válida permanece sem cortes; a prévia manual é identificada e não recebe aprovação semântica nesta fase.
 
@@ -28,4 +30,4 @@ Python3.12 e FFmpeg/libass/libx264 são necessários. Instale o lock Python no v
 
 ## Validação
 
-Testes do provedor usam fixtures. Nenhuma chamada real Gemini é feita na validação da interface. Resultado real da seleção permanece pendente. Consulte `docs/frontend-progress.md` e `poc-results/frontend/` para evidência de testes/startup e os limites da inspeção visual.
+Testes automatizados do provedor usam fixtures. A conexão real ao catálogo foi validada separadamente, sem gerar conteúdo. Resultado real da seleção permanece pendente. Consulte `docs/frontend-progress.md` e `poc-results/frontend/` para evidência de testes/startup e os limites da inspeção visual.

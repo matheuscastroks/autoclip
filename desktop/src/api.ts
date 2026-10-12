@@ -1,4 +1,4 @@
-import type {Project,Config,Job,Revision,Transcript,Decision} from './types'
+import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection} from './types'
 let token=''
 export function initializeSession(){
   token=new URLSearchParams(location.hash.slice(1)).get('session')||''
@@ -26,7 +26,9 @@ export const api={
   cancel:(id:string)=>post<Job>(`/jobs/${id}/cancel`),resume:(id:string)=>post<Job>(`/jobs/${id}/resume`),
   pick:async(kind:string)=>(await post<{path:string|null}>('/picker',{kind})).path,
   saveConfig:(config:Config)=>request<Config>('/config',{method:'PUT',body:JSON.stringify(Object.fromEntries(Object.entries(config).filter(([k])=>!['schema_version','asr_available','tools_available','gemini_key_configured'].includes(k))))}),
-  saveKey:(key:string)=>request<{configured:boolean}>('/config/credential',{method:'PUT',body:JSON.stringify({key})}),
+  saveKey:(key:string)=>request<GeminiConnection>('/config/credential',{method:'PUT',body:JSON.stringify({key})}),
+  geminiConnection:()=>request<GeminiConnection>('/config/gemini'),
+  testGemini:()=>post<GeminiConnection>('/config/gemini/test'),
   decide:(id:string,decision:Decision)=>post(`/projects/${id}/revisions/${decision.revision_id}/decision`,{decision:decision.decision,checks:decision.checks,notes:decision.notes,content_hash:decision.content_hash}),
   openFolder:(id:string)=>post(`/projects/${id}/open-folder`),shutdown:()=>post('/shutdown')
 }
