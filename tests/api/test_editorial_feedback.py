@@ -3,10 +3,10 @@ from test_projects import client,source_folder
 def test_duration_settings_validate_and_persist(client):
     config=client.get('/api/v1/config').json()
     config={k:v for k,v in config.items() if k not in ('schema_version','asr_available','tools_available','gemini_key_configured')}
-    config.update(clip_preferred_seconds=60,clip_max_seconds=180,pause_mode='conservative',show_thought_summaries=True)
+    config.update(clip_preferred_seconds=180,clip_max_seconds=300,pause_mode='conservative',show_thought_summaries=True)
     assert client.put('/api/v1/config',json=config).status_code==200
-    assert client.get('/api/v1/config').json()['clip_max_seconds']==180
-    config['clip_preferred_seconds']=181
+    assert client.get('/api/v1/config').json()['clip_max_seconds']==300
+    config['clip_preferred_seconds']=301
     assert client.put('/api/v1/config',json=config).status_code==422
 
 def test_job_feedback_is_live_and_history_is_paged_and_project_scoped(client,tmp_path):

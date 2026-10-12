@@ -128,6 +128,13 @@ class AnalysisArtifact(Contract):
     prompt_hash: str
     payload_hashes: list[str]
     responses: list[dict] = Field(default_factory=list)
+    clip_min_seconds: int = Field(default=20,ge=20,le=300)
+
+    @model_serializer(mode='wrap')
+    def serialize_policy(self,handler):
+        value=handler(self)
+        if self.clip_min_seconds==20:value.pop('clip_min_seconds',None)
+        return value
 
 
 class CandidateArtifact(Contract):
@@ -310,20 +317,21 @@ class AnalysisConfig(Contract):
     max_calls: int = Field(ge=1)
     window_seconds: int = Field(default=180,ge=60,le=1800)
     max_text_chars: int = Field(default=12000,ge=1000,le=300000)
-    clip_preferred_seconds: int = Field(default=60,ge=20,le=180)
-    clip_max_seconds: int = Field(default=60,ge=20,le=180)
+    clip_min_seconds: int = Field(default=20,ge=20,le=300)
+    clip_preferred_seconds: int = Field(default=180,ge=20,le=300)
+    clip_max_seconds: int = Field(default=300,ge=20,le=300)
     show_thought_summaries: bool = True
 
     @model_validator(mode='after')
     def clip_durations(self):
-        if self.clip_preferred_seconds>self.clip_max_seconds:raise ValueError('preferred duration exceeds maximum')
+        if not self.clip_min_seconds<=self.clip_preferred_seconds<=self.clip_max_seconds:raise ValueError('preferred duration exceeds maximum')
         return self
 
 
 class SelectionConfig(Contract):
     min_us: int = Field(default=20_000_000, gt=0)
-    max_us: int = Field(default=60_000_000, gt=0, le=180_000_000)
-    max_clips: int = Field(default=3, ge=1, le=3)
+    max_us: int = Field(default=60_000_000, gt=0, le=300_000_000)
+    max_clips: int = Field(default=10, ge=1, le=10)
 
     @model_validator(mode='after')
     def durations(self):

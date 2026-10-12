@@ -78,7 +78,7 @@ def test_automatic_policy_covers_actual_windows_despite_saved_one_call(tmp_path)
     transcript=TranscriptArtifact(source_id=uuid4(),source_sha256='a'*64,words=[Word(id=f'w{i}',text='fala',start_us=i*10_000_000,end_us=i*10_000_000+1_000_000) for i in range(210)])
     config=pipeline_config({'asr_model_path':str(tmp_path),'gemini_model':'fixture','max_calls':1,'window_seconds':600,'max_text_chars':60000,'ffmpeg':'ffmpeg','ffprobe':'ffprobe'},tmp_path)
     configure_analysis_requests(config,transcript,{'automatic_calls':True},tmp_path)
-    count=len(build_windows(transcript,600,60000))
+    count=len(build_windows(transcript,600,60000,overlap_seconds=300))
     assert count>1 and config.analysis.max_calls==4*count
     policy=json.loads((tmp_path/'request-policy.json').read_text())
     assert policy['windows']==count and policy['request_mode']=='automatic'

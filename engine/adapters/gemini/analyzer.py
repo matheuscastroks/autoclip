@@ -114,12 +114,12 @@ class GeminiAnalyzer:
                 if order[candidate.start_word_id]>order[candidate.end_word_id]:raise ValueError('reversed boundaries')
             return parsed
         prompt=(Path(__file__).resolve().parents[2]/'prompts/analysis_v1.txt').read_text(encoding='utf-8')
-        prompt=prompt.replace('20–60 segundos aproximadamente',f'20–{config.clip_max_seconds} segundos; prefira cerca de {config.clip_preferred_seconds} segundos, mas priorize concluir o raciocínio')
+        prompt=prompt.replace('{MIN_SECONDS}',str(config.clip_min_seconds)).replace('{MAX_SECONDS}',str(config.clip_max_seconds)).replace('{PREFERRED_SECONDS}',str(config.clip_preferred_seconds))
         prompt+='\nNão encerre um argumento no meio. Se a conclusão exigir mais que o máximo, não proponha esse corte. Resumos de análise, quando disponíveis, devem estar em português brasileiro.'
         global_text=' '.join(w.text for w in transcript.words)
         prompt+='\n<CONTEXTO_GLOBAL>\n'+global_text+'\n</CONTEXTO_GLOBAL>'
         topics=[];candidates=[];covered=set();hashes=[];responses=[];calls=0
-        windows=build_windows(transcript,config.window_seconds,config.max_text_chars)
+        windows=build_windows(transcript,max(config.window_seconds,config.clip_max_seconds*2) if config.clip_min_seconds>=60 else config.window_seconds,config.max_text_chars,overlap_seconds=config.clip_max_seconds if config.clip_min_seconds>=60 else 30)
         runtime={'analyzer':file_hash(Path(__file__)),'worker':file_hash(Path(__file__).with_name('request_worker.py')),'checkpoints':file_hash(Path(__file__).with_name('checkpoints.py')),'schema':GeminiResponse.model_json_schema(),'policy':2}
         identity={'transcript':object_hash(transcript),'model':config.model,'prompt':object_hash(prompt),'runtime':runtime}
         planned=[]
@@ -198,9 +198,21 @@ class GeminiAnalyzer:
                 candidate.id=uuid5(NAMESPACE_URL,'autoclip:'+key+':'+str(ordinal))
             topics.extend(domain_topics);candidates.extend(domain_candidates);covered.update(w.id for w in window['words']);responses.append(provenance)
             if self.events_path:
-                preview=AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,complete=False,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
+                preview=AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,clip_min_seconds=config.clip_min_seconds,complete=False,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
                 atomic_json(self.events_path.parent/'analysis-preview.json',{'analysis':preview.model_dump(mode='json'),'completed_windows':index,'total_windows':len(windows)})
             writer.emit('window_validated','Janela validada e salva para retomada; propostas aguardam revisão.',**self.context,topics=[t.model_dump(mode='json') for t in domain_topics],candidates=[{**c.model_dump(mode='json'),'start_us':next(w.start_us for w in window['words'] if w.id==c.start_word_id),'end_us':max(w.end_us for w in window['words'][next(i for i,w in enumerate(window['words']) if w.id==c.start_word_id):next(i for i,w in enumerate(window['words']) if w.id==c.end_word_id)+1])} for c in domain_candidates],usage=provenance['usage'])
         if covered!={w.id for w in transcript.words}:raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Some transcript words were not covered.')
+        # Consolidate after every window, preserving coverage independently of proposals.
+        from engine.editorial.select import select_candidates
+        from engine.contracts import SelectionConfig
+        topic_labels={t.id:' '.join(t.label.casefold().split()) for t in topics}
+        distinct=[];seen_topics=set()
+        full=AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,clip_min_seconds=config.clip_min_seconds,complete=True,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
+        valid=select_candidates(full,transcript,SelectionConfig(min_us=config.clip_min_seconds*1_000_000,max_us=config.clip_max_seconds*1_000_000,max_clips=10)).candidates
+        for candidate in valid:
+            label=topic_labels.get(candidate.topic_id,candidate.topic_id)
+            if label in seen_topics:continue
+            seen_topics.add(label);distinct.append(candidate)
+        candidates=distinct
         writer.emit('analysis_completed','Todas as janelas foram analisadas e validadas.',requests_used=calls,reused_windows=len(windows)-missing,topics_count=len(topics),candidates_count=len(candidates))
-        return AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,complete=True,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
+        return AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,clip_min_seconds=config.clip_min_seconds,complete=True,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)

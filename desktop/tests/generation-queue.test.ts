@@ -5,14 +5,14 @@ it('does not link a ready job item whose revision was removed',()=>{
  const w=mount(GenerationQueue,{props:{revisions:[],jobs:[{id:'j',project_id:'p',operation:'render',status:'completed',created_at:'',requests_used:0,request_limit:null,events:[],progress:{stage:'render',steps:{},items:[{candidate_id:'c',revision_id:'removed',title:'Excluída',state:'ready',phase:'ready',processed_us:0,total_us:null}]}}]}})
  expect(w.text()).not.toContain('Ver prévia');expect(w.text()).not.toContain('Excluída');w.unmount()
 })
-it('keeps a saved ready preview available without a render job',async()=>{
+it('hides the status rail once all previews are ready',()=>{
  const w=mount(GenerationQueue,{props:{jobs:[],revisions:[{revision_id:'r',candidate_id:'c',title:'Prévia salva',technical_pass:true,review_status:'needs_review',warnings:[]}]}})
- expect(w.text()).toContain('1/1 prontas');await w.get('button').trigger('click');expect(w.emitted('select')?.[0]).toEqual(['r']);w.unmount()
+ expect(w.find('.generation-queue').exists()).toBe(false);w.unmount()
 })
 it('keeps running and pending previews above completed ones without changing the snapshot',()=>{
  const items=[{candidate_id:'done',title:'Pronta',state:'ready',phase:'ready',processed_us:0,total_us:null},{candidate_id:'wait',title:'Pendente',state:'waiting',phase:'waiting',processed_us:0,total_us:null},{candidate_id:'active',title:'Ativa',state:'running',phase:'render',processed_us:1,total_us:10}]
  const w=mount(GenerationQueue,{props:{jobs:[{id:'j',project_id:'p',operation:'render',status:'running',created_at:'',requests_used:0,request_limit:null,events:[],progress:{stage:'render',steps:{},items}}]}})
- expect(w.findAll('li').map(li=>li.attributes('data-state'))).toEqual(['running','waiting','ready'])
+ expect(w.findAll('li').map(li=>li.attributes('data-state'))).toEqual(['running','waiting'])
  expect(items[0].candidate_id).toBe('done');w.unmount()
 })
 it('shows face tracking progress before encoding',()=>{
@@ -25,7 +25,7 @@ it('shows face tracking progress before encoding',()=>{
 it('distinguishes completed coding from readiness and retries only through the job snapshot',async()=>{
  const job={id:'j',project_id:'p',operation:'render',status:'running',created_at:'',requests_used:0,request_limit:null,events:[],progress:{stage:'render',steps:{},completed_items:1,total_items:3,items:[{candidate_id:'a',title:'Pronta',state:'ready',phase:'ready',processed_us:0,total_us:null},{candidate_id:'b',title:'Codificando',state:'running',phase:'render',processed_us:100,total_us:100},{candidate_id:'c',title:'Falha localizada',state:'failed',phase:'failed',processed_us:0,total_us:null,error_code:'RENDER_FAILED'}]}}
  const w=mount(GenerationQueue,{props:{jobs:[job]}})
- expect(w.text()).toContain('1/3 prontas');expect(w.text()).toContain('100% codificado · Verificação técnica a seguir')
+ expect(w.text()).toContain('2 pendente(s)');expect(w.text()).toContain('100% codificado · Verificação técnica a seguir')
  expect(w.find('[data-state=failed]').text()).toContain('outras prévias foram preservadas')
  await w.setProps({jobs:[{...job,status:'failed'}]});await w.get('button').trigger('click')
  expect(w.emitted('resume')?.[0]).toEqual(['j'])

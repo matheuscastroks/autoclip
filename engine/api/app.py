@@ -22,8 +22,9 @@ class AppConfig(Input):
     max_text_chars:int=Field(ge=1000,le=300000)
     ffmpeg:str
     ffprobe:str
-    clip_preferred_seconds:int=Field(default=60,ge=20,le=180)
-    clip_max_seconds:int=Field(default=180,ge=20,le=180)
+    clip_policy_version:int=Field(default=2,ge=2,le=2)
+    clip_preferred_seconds:int=Field(default=180,ge=60,le=300)
+    clip_max_seconds:int=Field(default=300,ge=60,le=300)
     pause_mode:Literal['preserve','conservative']='conservative'
     show_thought_summaries:bool=True
 

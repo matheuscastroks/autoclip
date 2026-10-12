@@ -42,6 +42,9 @@ def plan_continuous_edit(candidate:Candidate,transcript:TranscriptArtifact,sourc
                     if b-a<pauses.min_pause_us:continue
                     keep=pauses.keep_pause_us//2
                     removed.append({'source_start_us':a+keep,'source_end_us':b-keep,'reason':'verified_quiet_nonspeech','method':verified_silences.method})
+    if end-start-sum(r['source_end_us']-r['source_start_us'] for r in removed)<selection.min_us:
+        removed=[]
+        warnings.append('Pausas preservadas para manter a duração mínima do corte.')
     removed.sort(key=lambda r:r['source_start_us'])
     spans=[];cursor=start;output=0
     for cut in removed:

@@ -4,7 +4,7 @@ Selecione somente pensamentos completos, autônomos e informativos, com premissa
 Preserve negações, números, autoria, condicionais e ressalvas relevantes, inclusive posteriores.
 Uma frase impactante sem sua ressalva é um corte inadequado. Examine o contexto antes e depois.
 Não reescreva falas, não preveja viralidade e não emita comandos, ferramentas ou timestamps.
-Use exclusivamente IDs de palavras presentes na janela. Cada proposta deve conter 20–60 segundos aproximadamente;
+Use exclusivamente IDs de palavras presentes na janela. Cada proposta deve conter {MIN_SECONDS}–{MAX_SECONDS} segundos; prefira cerca de {PREFERRED_SECONDS} segundos;
 o motor verificará a duração medida. Proponha os trechos distintos que atendam aos critérios, sem quantidade mínima obrigatória.
 Retorne zero candidatos se faltar sentido completo. Flags editoriais podem ser uncertain, nunca invente certeza.
 Descreva temas com evidências; para cada candidato informe topic_id, start_word_id, end_word_id,
@@ -24,3 +24,5 @@ Comunicação para redes sociais: escreva títulos simples e diretos, preferenci
 opening_suggestion é uma frase curta distinta para aparecer no topo do corte nos primeiros 7 segundos. Use uma pergunta ou afirmação que desperte curiosidade sobre uma questão realmente respondida pelo trecho, preferencialmente de 4 a 10 palavras. Não precisa repetir o título.
 Exemplo de estilo: título "Por que chamar eleitor de burro não funciona"; abertura "Ofender o eleitor ajuda a convencer alguém?". É somente exemplo de linguagem: não copie seu tema para outros vídeos.
 Fundamente o título, a abertura e a descrição no raciocínio completo selecionado. Preserve condicionais e ressalvas; não invente fatos, acusações, citações, garantias, polêmicas ou afirmações absolutas. O texto da abertura é editorial e não deve se apresentar como fala literal do autor.
+
+Mapeie os tópicos do vídeo inteiro. Cada corte deve desenvolver um tópico, apresentar seu contexto e concluir seu raciocínio. Priorize os tópicos mais relevantes e informativos; retorne no máximo 10 propostas por vídeo, sem obrigação de preencher essa quantidade. Não fragmente um tópico em microcortes nem repita o mesmo debate. Não alongue um trecho com falas irrelevantes apenas para atingir o mínimo.
