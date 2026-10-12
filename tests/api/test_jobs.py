@@ -39,3 +39,33 @@ def test_job_polling_never_reorders_latest_analysis(client):
         store.save_job({'id':jid,'project_id':'fixture','status':'completed','operation':'analyze','created_at':date,'events':[]})
     for _ in range(4):
         assert [j['id'] for j in client.get('/api/v1/jobs').json()]==['new','old']
+
+def test_failed_import_is_consistent_and_retry_can_use_local_file(client,tmp_path):
+    from types import SimpleNamespace
+    jobs=client.app.state.jobs;store=client.app.state.store
+    row=store.create(tmp_path/'failed-import','Importação bloqueada')
+    jobs.spawn=lambda *a,**kw:SimpleNamespace(pid=0,poll=lambda:None)
+    old=jobs.start(row['id'],'prepare',{'source_input':'https://youtu.be/fixture'})
+    folder=jobs.root/old['id']
+    (folder/'result.json').write_text(json.dumps({'status':'failed','error':{'code':'SOURCE_UNAVAILABLE','message':'generic'}}))
+    (folder/'progress.json').write_text(json.dumps({'stage':'import','steps':{'import':'failed','transcribe':'pending','analyze':'pending'}}))
+    (folder/'stdout.log').write_text("ERROR: Sign in to confirm you're not a bot.")
+    detail=client.get('/api/v1/projects/'+row['id']).json()
+    assert detail['status']=='failed'
+    assert detail['error']['code']=='SOURCE_AUTH_REQUIRED'
+    assert client.get('/api/v1/projects').json()[0]['status']=='failed'
+    result=client.post('/api/v1/jobs/'+old['id']+'/resume',json={'source_input':str(tmp_path/'authorized.mp4')})
+    assert result.status_code==200
+    request=json.loads((jobs.root/result.json()['id']/'request.json').read_text())
+    assert request['source_input']==str(tmp_path/'authorized.mp4')
+    assert request['operation']=='prepare'
+    detail=client.get('/api/v1/projects/'+row['id']).json()
+    assert detail['status']=='processing' and detail['error'] is None
+
+def test_retry_cannot_replace_source_of_existing_project(client,tmp_path):
+    from types import SimpleNamespace
+    pid=client.post('/api/v1/projects/import',json={'path':str(source_folder(tmp_path))}).json()['id']
+    jobs=client.app.state.jobs;jobs.spawn=lambda *a,**kw:SimpleNamespace(pid=0,poll=lambda:None)
+    old=jobs.start(pid,'prepare',{})
+    (jobs.root/old['id']/'result.json').write_text(json.dumps({'status':'failed'}))
+    assert client.post('/api/v1/jobs/'+old['id']+'/resume',json={'source_input':'replacement.mp4'}).status_code==400

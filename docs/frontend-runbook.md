@@ -114,3 +114,14 @@ O rosto inicial é o maior com confiança suficiente; depois a seleção prioriz
 `crop.json` guarda posições em tempo de saída, detecções e hash do modelo, vinculado à revisão. A etapa possui cache incluindo fonte, EDL, configuração, modelo e versões do runtime. Modelo/runtime ausente ou nenhum rosto detectado resulta em recorte central e motivo registrado. Falhas de decodificação não publicam resultados parciais. `reframe.enabled=false` mantém o recorte central pela CLI/configuração. Prévias existentes são preservadas; gerar novamente cria nova revisão sem nova análise Gemini.
 
 Referências: https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector/python e o model card registrado em `engine/assets/models/UPSTREAM.json`. Evidência real curta: `poc-results/frontend/face-tracking-validation.json`; isso não substitui a revisão de um corte completo.
+
+
+### Falhas de importação e visão geral
+
+A visão geral prioriza **Preparar seus cortes**. O vídeo original é uma miniatura com controles no canto superior direito do cabeçalho. Etapas 1–3 ficam em Preparação automática; 4–7 em Seleção e entrega. A transcrição continua com seu próprio player para navegação por timestamps.
+
+Falhas de importação interrompem a barra e deixam as etapas seguintes pendentes. A biblioteca e o projeto derivam o estado da tarefa mais recente. O erro aparece junto à etapa afetada. **Tentar novamente** reaproveita a entrada e mantém o fluxo automático; **Usar arquivo local** escolhe outro arquivo pelo seletor nativo e continua no mesmo projeto antes de uma fonte ter sido importada. A fonte de projetos já importados não pode ser substituída por retry. Cancelar o seletor não mostra uma confirmação de sucesso.
+
+Erros do YouTube são classificados sem expor logs brutos: bloqueio de autenticação/bot, limite HTTP 429 e indisponibilidade genérica. Falhas antigas SOURCE_UNAVAILABLE também são classificadas na leitura de seus logs locais. Não há bypass de CAPTCHA, leitura automática de cookies ou repetição ilimitada. Link bloqueado pode continuar falhando; arquivo local é a alternativa. A publicação de source.json pela interface ocorre somente após validação de vídeo e áudio.
+
+Endpoint compatível: POST /api/v1/jobs/{id}/resume aceita opcionalmente {"source_input":"caminho local"}; requests antigos sem body continuam válidos.

@@ -6,7 +6,7 @@ def read_json(path:Path,default=None):
     try:return json.loads(path.read_text(encoding='utf-8'))
     except (OSError,ValueError):return default
 
-def project_detail(row:dict)->dict:
+def project_detail(row:dict,job=None)->dict:
     root=Path(row['path']);warnings=[];source=None;transcript=None;state=None
     for name,model in [('source',Source),('transcript',TranscriptArtifact),('project',ProjectRun)]:
         path=root/(name+'.json')
@@ -22,6 +22,10 @@ def project_detail(row:dict)->dict:
     if not source:status='pending_import'
     if source and not source.local_path.is_file():warnings.append('O vídeo original não foi encontrado no caminho registrado.')
     error=read_json(root/'last-error.json')
+    if job:
+        if job['status'] in ('running','pending','cancelling'):status='processing';error=None
+        elif job['status'] in ('failed','cancelled','interrupted'):status=job['status'];error=job.get('error')
+        else:error=None
     return {**row,'schema_version':'1.0','title':source.original_title if source else row['name'],
         'source':source.model_dump(mode='json') if source else None,'duration_us':source.duration_us if source else 0,
         'status':status,'has_transcript':transcript is not None,'word_count':len(transcript.words) if transcript else 0,

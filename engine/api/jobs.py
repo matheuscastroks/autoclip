@@ -39,6 +39,9 @@ class JobManager:
             # Never return raw process output or provider content to the UI.
             try:
                 lines=request_log.read_text(encoding='utf-8',errors='replace').splitlines()
+                if job.get('error',{}).get('code')=='SOURCE_UNAVAILABLE' and job.get('operation') in ('import','prepare'):
+                    from engine.media.source_errors import source_error
+                    job['error']=source_error('\n'.join(lines[-100:])).as_dict()
                 stages=[line[7:] for line in lines if line.startswith('Stage: ')]
                 if stages:job['stage']=stages[-1]
             except OSError:pass
@@ -105,14 +108,17 @@ class JobManager:
         threading.Thread(target=enforce,daemon=True).start()
         return job
 
-    def resume(self,job_id):
+    def resume(self,job_id,source_input=None):
         job=self.status(job_id)
         if job['status'] not in ('failed','cancelled','interrupted'):raise ValueError('Tarefa não pode ser retomada neste estado.')
-        if job['operation'] in ('prepare','analyze'):return self.start(job['project_id'],job['operation'],{'source_input':read_json(self.root/job_id/'request.json',{}).get('source_input')})
+        if source_input is not None:
+            root=Path(self.store.get(job['project_id'])['path'])
+            if job['operation'] not in ('import','prepare') or (root/'source.json').exists():raise ValueError('A fonte de um projeto já importado não pode ser substituída. Crie outro projeto.')
+        if job['operation'] in ('prepare','analyze'):return self.start(job['project_id'],job['operation'],{'source_input':source_input or read_json(self.root/job_id/'request.json',{}).get('source_input')})
         request=read_json(self.root/job_id/'request.json',{})
         selection=request.get('selection',{})
         if job['operation']=='render' and selection.get('candidate_ids'):
             ready={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='ready'}
             selection={**selection,'candidate_ids':[cid for cid in selection['candidate_ids'] if cid not in ready]}
             if not selection['candidate_ids']:raise ValueError('Todas as prévias já estão prontas.')
-        return self.start(job['project_id'],job['operation'],{'source_input':request.get('source_input'),**selection},persist_selection=False)
+        return self.start(job['project_id'],job['operation'],{'source_input':source_input or request.get('source_input'),**selection},persist_selection=False)

@@ -4,6 +4,19 @@ import ProjectWorkspace from '../src/components/ProjectWorkspace.vue'
 import ProjectLibrary from '../src/components/ProjectLibrary.vue'
 const project={id:'p',name:'Teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'processing',has_transcript:false,word_count:0,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'',updated_at:0,source:null,error:null}
 describe('workflow visibility',()=>{
+  it('shows failed import with recovery and places small video inside preparation',async()=>{
+    const w=mount(ProjectWorkspace,{props:{project:{...project,status:'failed'},transcript:null,revisions:[],jobs:[{id:'j',project_id:'p',operation:'prepare',status:'failed',created_at:'',requests_used:0,request_limit:null,events:[],error:{code:'SOURCE_AUTH_REQUIRED',message:'YouTube bloqueou o download. Use um arquivo local.'},progress:{stage:'import',steps:{import:'failed',transcribe:'pending',analyze:'pending'}}}],sourceUrl:'',previewUrl:'',busy:false}})
+    expect(w.text()).not.toContain('Importação em andamento')
+    expect(w.find('.original-column').exists()).toBe(false)
+    expect(w.find('.pipeline-panel .pipeline-video').exists()).toBe(true)
+    expect(w.get('[data-stage=import]').text()).toContain('YouTube bloqueou')
+    await w.get('[data-action=retry-import]').trigger('click')
+    expect(w.emitted('resume')?.[0]).toEqual(['j'])
+    await w.get('[data-action=replace-source]').trigger('click')
+    expect(w.emitted('replaceSource')?.[0]).toEqual(['j'])
+    expect(w.get('[data-stage=transcribe]').text()).toContain('Na fila')
+    w.unmount()
+  })
   it('keeps review pending while any ready preview still needs a human decision',()=>{
     const revisions=[{revision_id:'a',title:'A',technical_pass:true,review_status:'approved',warnings:[]},{revision_id:'b',title:'B',technical_pass:true,review_status:'needs_review',warnings:[]}]
     const w=mount(ProjectWorkspace,{props:{project,transcript:null,revisions,jobs:[],sourceUrl:'',previewUrl:'',busy:false}})

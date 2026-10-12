@@ -16,8 +16,9 @@ def test_url_download_failure_does_not_publish_partial(tmp_path, monkeypatch):
     from engine.contracts import PipelineError
     def fail(url, root): raise RuntimeError('network unavailable')
     monkeypatch.setattr(importer, '_download', fail)
-    with pytest.raises(PipelineError, match='import'):
+    with pytest.raises(PipelineError) as error:
         importer.import_source('https://www.youtube.com/watch?v=example', tmp_path)
+    assert error.value.code=='SOURCE_UNAVAILABLE'
     assert not (tmp_path/'source.json').exists()
 
 def test_artifact_path_is_content_addressed_and_validated(tmp_path):

@@ -43,6 +43,8 @@ class JobOptions(Input):
 class StartJob(Input):
     operation:str
     options:JobOptions=Field(default_factory=JobOptions)
+class RetryJob(Input):
+    source_input:str|None=Field(default=None,min_length=1,max_length=4000)
 class AnalysisSelection(Input):
     analysis_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
     candidate_ids:list[str]=Field(max_length=1000)
@@ -69,6 +71,10 @@ def create_app(workspace:Path,token:str)->FastAPI:
     gemini_connection=GeminiConnection();app.state.gemini_connection=gemini_connection
     from .jobs import JobManager
     jobs=JobManager(store,workspace);app.state.jobs=jobs
+    def describe(row):
+        rows=[j for j in store.jobs() if j['project_id']==row['id']]
+        latest=max(rows,key=lambda j:(j.get('created_at',''),j['id'])) if rows else None
+        return project_detail(row,jobs.status(latest['id']) if latest else None)
 
     @app.middleware('http')
     async def access(request:Request,call_next):
@@ -124,7 +130,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/config/gemini/test')
     def gemini_test():return gemini_connection.validate()
     @app.get('/api/v1/projects')
-    def projects():return [project_detail(row) for row in store.list_projects()]
+    def projects():return [describe(row) for row in store.list_projects()]
     @app.post('/api/v1/projects')
     def new_project(value:NewProject):
         import uuid
@@ -151,7 +157,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/projects/import')
     def register(value:ImportProject):return project_detail(store.register(Path(value.path),value.name))
     @app.get('/api/v1/projects/{pid}')
-    def detail(pid:str):return project_detail(store.get(pid))
+    def detail(pid:str):return describe(store.get(pid))
     @app.get('/api/v1/projects/{pid}/transcript')
     def transcript(pid:str):
         from engine.contracts import TranscriptArtifact
@@ -208,8 +214,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/jobs/{jid}/cancel')
     def cancel_job(jid:str):return jobs.cancel(jid)
     @app.post('/api/v1/jobs/{jid}/resume')
-    def resume_job(jid:str):
-        try:return jobs.resume(jid)
+    def resume_job(jid:str,value:RetryJob|None=None):
+        try:return jobs.resume(jid,value.source_input if value else None)
         except RuntimeError as exc:raise HTTPException(409,str(exc))
     @app.post('/api/v1/picker')
     def picker(value:Picker):

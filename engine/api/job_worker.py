@@ -43,6 +43,15 @@ class PreparedAnalysis:
             raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Complete validated analysis required before rendering.')
     def analyze(self,*args,**kwargs):return self.analysis
 
+def import_probed(input_value,root,ffprobe):
+    source=import_source(input_value,root,persist=False)
+    try:source=probe_source(source,ffprobe)
+    except PipelineError as exc:
+        from engine.media.source_errors import MESSAGES
+        raise PipelineError('SOURCE_INVALID','import',MESSAGES['SOURCE_INVALID']) from exc
+    atomic_json(root/'source.json',source)
+    return source
+
 def main(folder:Path):
     request=json.loads((folder/'request.json').read_text(encoding='utf-8'));root=Path(request['project_root']);settings=request['settings'];operation=request['operation']
     cancelled=lambda:(folder/'cancel').exists()
@@ -56,8 +65,7 @@ def main(folder:Path):
         if operation=='prepare':
             if not (root/'source.json').is_file():
                 stage('import','running')
-                source=import_source(request['source_input'],root)
-                source=probe_source(source,Path(settings['ffprobe']));atomic_json(root/'source.json',source)
+                source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
             stage('import','completed')
             source=Source.model_validate_json((root/'source.json').read_bytes())
             config=pipeline_config(settings,root)
@@ -73,8 +81,7 @@ def main(folder:Path):
             atomic_json(folder/'result.json',{'status':'completed','finished_at':now()});return 0
         stage(operation,'running')
         if operation=='import':
-            source=import_source(request['source_input'],root)
-            source=probe_source(source,Path(settings['ffprobe']));atomic_json(root/'source.json',source)
+            source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
         elif operation=='export':
             packages=export_approved(root)
             if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No approved clips available.')
@@ -96,13 +103,15 @@ def main(folder:Path):
         stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
     except BaseException as exc:
         code=getattr(exc,'code','JOB_FAILED')
-        if operation in ('prepare','analyze'):EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
+        if operation=='analyze' or operation=='prepare' and progress['steps'].get('analyze')=='running':EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
         messages={'RENDER_FAILED':'Uma ou mais prévias falharam. As prontas foram preservadas; retome somente as pendentes.','PROVIDER_TIMEOUT':'O Gemini excedeu o tempo de resposta. Continue a análise; janelas validadas serão reaproveitadas.',
             'PROVIDER_UNAVAILABLE':'Falha de comunicação com o Gemini. Continue a análise para tentar as janelas restantes.',
             'PROVIDER_INVALID_OUTPUT':'O Gemini não entregou uma resposta estruturada válida. As janelas já validadas foram preservadas.',
             'PROVIDER_OUTPUT_TRUNCATED':'A resposta do Gemini foi truncada antes de concluir o JSON. As janelas validadas foram preservadas.',
             'PROVIDER_AUTH':'O Gemini recusou a autenticação. Verifique a chave e o acesso ao modelo.'}
+        from engine.media.source_errors import MESSAGES
+        messages.update(MESSAGES)
         atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.')}})
         return 1
     return 0
