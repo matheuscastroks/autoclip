@@ -41,3 +41,8 @@
 @media(max-width:950px){.review-grid{grid-template-columns:160px max-content minmax(0,1fr)}.clip-information{max-height:500px}}
 @media(max-width:760px){.sidebar-session .app-context,.sidebar-session .session-info>.local-dot{display:none}.sidebar-session .session-info{font-size:0;justify-content:center}.review-grid{grid-template-columns:130px minmax(0,1fr)}.clip-information{grid-column:1/-1}.clip-preview{justify-self:center}}
 @media(max-width:500px){.review-grid{grid-template-columns:1fr}.clip-information{grid-column:1}.clip-list{max-height:240px}}
+/* Review toolbar occupies one row; the recovered height belongs to the portrait. */
+.cuts-filters{margin:0 0 20px;display:flex;align-items:center;gap:10px}.cuts-filters .cuts-trash{margin-left:0;font-size:12px;min-height:40px}
+@media(min-width:951px){.review-grid{grid-template-columns:150px max-content minmax(0,1fr);gap:20px}.clip-preview>video{height:clamp(280px,calc(var(--work-area-height) - 60px),520px)}.review-grid .clip-list{max-height:calc(var(--work-area-height) - 65px)}.clip-information{max-height:calc(var(--work-area-height) - 65px)}}
+@media(min-width:951px) and (max-width:1200px){.review-grid{grid-template-columns:125px max-content minmax(0,1fr);gap:14px}.clip-preview>video{height:clamp(280px,calc(var(--work-area-height) - 65px),430px)}}
+@media(max-width:760px){.cuts-filters .cuts-trash{margin-left:0}}
