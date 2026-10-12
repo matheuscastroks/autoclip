@@ -12,7 +12,8 @@ class Settings:
         try:ffmpeg,ffprobe=locate_tools()
         except PipelineError:ffmpeg=ffprobe=Path('')
         values={'asr_model_path':str(self.workspace/'research/models/whisper-small'),'gemini_model':'gemini-2.5-flash',
-            'max_calls':10,'window_seconds':600,'max_text_chars':60000,'ffmpeg':str(ffmpeg),'ffprobe':str(ffprobe)}
+            'max_calls':10,'window_seconds':600,'max_text_chars':60000,'ffmpeg':str(ffmpeg),'ffprobe':str(ffprobe),
+            'clip_preferred_seconds':60,'clip_max_seconds':180,'pause_mode':'conservative','show_thought_summaries':True}
         values.update(read_json(self.path,{}) or {})
         try:get_gemini_key();configured=True
         except PipelineError:configured=False

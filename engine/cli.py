@@ -17,6 +17,7 @@ def main(argv=None):
     sub.add_parser('doctor')
     auth=sub.add_parser('auth');auth.add_argument('action',choices=['set-gemini-key'])
     run=sub.add_parser('run');run.add_argument('source');run.add_argument('--project',type=Path,required=True);run.add_argument('--model',required=True);run.add_argument('--max-calls',type=int,required=True);run.add_argument('--offline',action='store_true');run.add_argument('--asr-model',type=Path,default=Path('research/models/whisper-small'))
+    run.add_argument('--preferred-seconds',type=int,default=60);run.add_argument('--max-clip-seconds',type=int,default=180);run.add_argument('--shorten-pauses',action='store_true')
     resume=sub.add_parser('resume');resume.add_argument('--project',type=Path,required=True);resume.add_argument('--model');resume.add_argument('--max-calls',type=int);resume.add_argument('--offline',action=argparse.BooleanOptionalAction,default=None)
     for name in ['review','export']:
         p=sub.add_parser(name);p.add_argument('--project',type=Path,required=True)
@@ -43,8 +44,10 @@ def main(argv=None):
                 elif requested!=source.local_path or file_hash(requested)!=source.sha256:
                     raise PipelineError('SOURCE_CHANGED','run','Use a new project for a changed source.')
             else:source=import_source(a.source,root)
-            config=PipelineConfig(asr=ASRConfig(model_path=a.asr_model.resolve()),analysis=AnalysisConfig(model=a.model,max_calls=a.max_calls,offline=a.offline),export=ExportConfig(output_root=root/'previews'),ffmpeg=ffmpeg,ffprobe=ffprobe)
-            state=run_project(source,config,root);print(f'Project: {root}\nStatus: {state.status}')
+            config=PipelineConfig(asr=ASRConfig(model_path=a.asr_model.resolve()),analysis=AnalysisConfig(model=a.model,max_calls=a.max_calls,offline=a.offline,clip_preferred_seconds=a.preferred_seconds,clip_max_seconds=a.max_clip_seconds),selection=SelectionConfig(max_us=a.max_clip_seconds*1_000_000),pauses=PauseConfig(enabled=a.shorten_pauses),export=ExportConfig(output_root=root/'previews'),ffmpeg=ffmpeg,ffprobe=ffprobe)
+            from engine.adapters.gemini.analyzer import GeminiAnalyzer
+            analyzer=GeminiAnalyzer(work_root=root/'work',events_path=root/'analysis-events.jsonl')
+            state=run_project(source,config,root,analyzer=analyzer);print(f'Project: {root}\nStatus: {state.status}')
             if state.revisions: print('Review report:',create_report(root))
             return 0 if state.status!='failed' else 1
         if a.command=='resume':

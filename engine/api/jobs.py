@@ -29,6 +29,8 @@ class JobManager:
         elif job['status'] in ACTIVE and not self.owned_alive(job):
             job['status']='interrupted';job['error']={'code':'INTERRUPTED','message':'Tarefa interrompida. Retome explicitamente pela interface.'}
         job['events']=read_json(folder/'events.json',[]) or []
+        from engine.pipeline.analysis_events import read_events
+        job['events']+=read_events(folder/'analysis-events.jsonl',limit=100)
         job['progress']=read_json(folder/'progress.json')
         request_log=folder/'stdout.log'
         if request_log.exists():

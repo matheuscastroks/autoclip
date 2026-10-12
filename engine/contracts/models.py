@@ -284,17 +284,47 @@ class AnalysisConfig(Contract):
     max_calls: int = Field(ge=1)
     window_seconds: int = Field(default=180,ge=60,le=1800)
     max_text_chars: int = Field(default=12000,ge=1000,le=300000)
+    clip_preferred_seconds: int = Field(default=60,ge=20,le=180)
+    clip_max_seconds: int = Field(default=60,ge=20,le=180)
+    show_thought_summaries: bool = True
+
+    @model_validator(mode='after')
+    def clip_durations(self):
+        if self.clip_preferred_seconds>self.clip_max_seconds:raise ValueError('preferred duration exceeds maximum')
+        return self
 
 
 class SelectionConfig(Contract):
     min_us: int = Field(default=20_000_000, gt=0)
-    max_us: int = Field(default=60_000_000, le=60_000_000)
+    max_us: int = Field(default=60_000_000, gt=0, le=180_000_000)
     max_clips: int = Field(default=3, ge=1, le=3)
 
     @model_validator(mode='after')
     def durations(self):
         if self.min_us > self.max_us: raise ValueError('min exceeds max')
         return self
+
+
+class PauseConfig(Contract):
+    enabled: bool = False
+    min_pause_us: int = Field(default=1_200_000,ge=1_000_000)
+    keep_pause_us: int = Field(default=400_000,ge=300_000)
+    margin_us: int = Field(default=150_000,ge=100_000)
+    noise_db: int = Field(default=-40,ge=-60,le=-35)
+
+    @model_validator(mode='after')
+    def safe_margins(self):
+        if self.keep_pause_us>=self.min_pause_us:raise ValueError('retained pause must be shorter than threshold')
+        return self
+
+
+class PauseVerification(Contract):
+    source_id: UUID
+    source_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    audio_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    silences: list[Interval] = Field(default_factory=list)
+    method: str = 'silero-vad-and-quiet-peak'
+    warnings: list[str] = Field(default_factory=list)
 
 
 class CaptionConfig(Contract):
@@ -316,6 +346,7 @@ class PipelineConfig(Contract):
     asr: ASRConfig
     analysis: AnalysisConfig
     selection: SelectionConfig = Field(default_factory=SelectionConfig)
+    pauses: PauseConfig = Field(default_factory=PauseConfig)
     captions: CaptionConfig = Field(default_factory=CaptionConfig)
     export: ExportConfig
     ffmpeg: Path

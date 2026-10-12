@@ -8,9 +8,9 @@ def test_worker_uses_json_schema_field(monkeypatch,tmp_path):
     seen=[]
     def generate(**kw):
         seen.append(kw['config'])
-        return SimpleNamespace(text='{"topics":[],"candidates":[]}',model_version='fixture',usage_metadata=None)
+        yield SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[SimpleNamespace(text='{"topics":[],"candidates":[]}',thought=False)]))],model_version='fixture',usage_metadata=None)
     monkeypatch.setattr(worker,'get_gemini_key',lambda:'fixture-secret')
-    monkeypatch.setattr(worker.genai,'Client',lambda **kw:SimpleNamespace(models=SimpleNamespace(generate_content=generate),close=lambda:None))
+    monkeypatch.setattr(worker.genai,'Client',lambda **kw:SimpleNamespace(models=SimpleNamespace(generate_content_stream=generate,get=lambda **kw:SimpleNamespace(thinking=False)),close=lambda:None))
     monkeypatch.setattr(worker.sys,'argv',['worker',str(request),str(out)])
     assert worker.main()==0
     assert 'response_schema' not in seen[0]

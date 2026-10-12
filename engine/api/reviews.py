@@ -34,7 +34,9 @@ def list_revisions(root:Path):
             result.append({'revision_id':rid,'title':candidate.title_suggestion or 'Corte para revisar','rationale':candidate.rationale,
                 'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
-                'warnings':qa.warnings,'content_hash':fingerprint,'notes':decision.get('notes','')})
+                'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.get('notes',''),
+                'removed_silence_us':sum(r['source_end_us']-r['source_start_us'] for r in edl.removed),
+                'pause_removals':edl.removed})
         except (OSError,ValueError,PipelineError,HTTPException):
             result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.']})
     return result

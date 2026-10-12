@@ -6,6 +6,7 @@ from engine.contracts import PipelineError
 ROOT=Path(__file__).resolve().parents[2]
 FILES={
  'audio':['engine/media/audio.py','engine/pipeline/cancellation.py'],
+ 'pauses':['engine/media/pauses.py'],
  'transcribe':['engine/adapters/openshorts/transcriber.py','engine/worker.py','vendor/openshorts/transcribe_backends.py','vendor/openshorts/subtitles.py'],
  'analyze':['engine/adapters/gemini/analyzer.py','engine/adapters/gemini/request_worker.py','engine/adapters/openshorts/windows.py','vendor/openshorts/clip_selection.py'],
  'select':['engine/editorial/select.py'],
@@ -13,14 +14,20 @@ FILES={
  'captions':['engine/adapters/openshorts/captions.py','vendor/openshorts/subtitles.py','vendor/openshorts/ffmpeg_utils.py'],
  'render':['engine/render/ffmpeg.py','engine/pipeline/cancellation.py'],
  'verify':['engine/render/verify.py','engine/media/probe.py']}
-PACKAGES={'transcribe':['faster-whisper','ctranslate2','av','tokenizers','onnxruntime'],'analyze':['google-genai','pydantic'],'captions':['pydantic']}
+PACKAGES={'transcribe':['faster-whisper','ctranslate2','av','tokenizers','onnxruntime'],'pauses':['faster-whisper','onnxruntime','numpy'],'analyze':['google-genai','pydantic'],'captions':['pydantic']}
 
 def stage_dependencies(stage:str) -> dict:
     packages={}
     for name in PACKAGES.get(stage,[]):
         try:packages[name]=importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:packages[name]='missing'
-    return {'files':{name:file_hash(ROOT/name) for name in FILES[stage]},'packages':packages,'contracts':file_hash(ROOT/'engine/contracts/models.py')}
+    assets={}
+    if stage=='pauses':
+        try:
+            from faster_whisper.utils import get_assets_path
+            assets={p.name:file_hash(p) for p in Path(get_assets_path()).glob('*.onnx')}
+        except ImportError:pass
+    return {'files':{name:file_hash(ROOT/name) for name in FILES[stage]},'packages':packages,'contracts':file_hash(ROOT/'engine/contracts/models.py'),**({'vad_assets':assets} if stage=='pauses' else {})}
 
 def tool_fingerprint(path:Path):
     return {'sha256':file_hash(path),'path':str(path.resolve())}

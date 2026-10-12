@@ -14,8 +14,8 @@ def select_candidates(analysis:AnalysisArtifact,transcript:TranscriptArtifact,co
             if b<a: reason='reversed boundaries'
             elif not all(v=='yes' for v in candidate.editorial.model_dump(exclude={'schema_version'}).values()): reason='editorial flags require review'
             else:
-                start,end=transcript.words[a].start_us,transcript.words[b].end_us
-                if not config.min_us<=end-start<=config.max_us: reason='duration outside 20–60 seconds'
+                start,end=transcript.words[a].start_us,max(w.end_us for w in transcript.words[a:b+1])
+                if not config.min_us<=end-start<=config.max_us: reason=f'duration outside {config.min_us/1e6:g}–{config.max_us/1e6:g} seconds'
                 elif any(max(0,min(end,y)-max(start,x))/(max(end,y)-min(start,x))>=.5 for x,y in ranges): reason='duplicate overlapping candidate'
                 elif len(kept)>=config.max_clips: reason='maximum candidates reached'
                 else: kept.append(candidate);ranges.append((start,end))

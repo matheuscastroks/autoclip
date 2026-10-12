@@ -22,4 +22,11 @@ describe('workflow visibility',()=>{
     expect(w.get('[data-stage=transcribe]').text()).toContain('Cancelado')
     expect(w.get('[data-stage=transcribe] .stage-progress').classes()).not.toContain('indeterminate')
   })
+  it('does not mark completed or pending stages as failed after an analysis failure',()=>{
+    const imported={...project,has_transcript:true,source:{local_path:'/fixture',original_title:'Fixture',channel:'',attribution:'',sha256:'a'.repeat(64)}}
+    const w=mount(ProjectWorkspace,{props:{project:imported,transcript:null,revisions:[],jobs:[{id:'j',project_id:'p',operation:'analyze',status:'failed',created_at:'',requests_used:0,request_limit:1,events:[],progress:{stage:'analyze',steps:{import:'pending',transcribe:'pending',analyze:'failed',render:'pending'}}}],sourceUrl:'',previewUrl:'',busy:false}})
+    expect(w.get('[data-stage=import]').text()).toContain('Concluído')
+    expect(w.get('[data-stage=transcribe]').text()).toContain('Concluído')
+    expect(w.get('[data-stage=render]').text()).toContain('Na fila');w.unmount()
+  })
 })

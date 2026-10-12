@@ -1,9 +1,10 @@
 import secrets
 from pathlib import Path
-from fastapi import FastAPI,HTTPException,Request
+from fastapi import FastAPI,HTTPException,Request,Query
 from fastapi.responses import JSONResponse,FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel,ConfigDict,Field,SecretStr
+from pydantic import BaseModel,ConfigDict,Field,SecretStr,model_validator
+from typing import Literal
 from engine.contracts import PipelineError,EditorialChecks
 from .store import ProjectStore
 from .projects import discover,project_detail
@@ -21,6 +22,15 @@ class AppConfig(Input):
     max_text_chars:int=Field(ge=1000,le=300000)
     ffmpeg:str
     ffprobe:str
+    clip_preferred_seconds:int=Field(default=60,ge=20,le=180)
+    clip_max_seconds:int=Field(default=180,ge=20,le=180)
+    pause_mode:Literal['preserve','conservative']='conservative'
+    show_thought_summaries:bool=True
+
+    @model_validator(mode='after')
+    def durations(self):
+        if self.clip_preferred_seconds>self.clip_max_seconds:raise ValueError('Preferred exceeds maximum')
+        return self
 
 class JobOptions(Input):
     authorize_text:bool=False
@@ -144,6 +154,14 @@ def create_app(workspace:Path,token:str)->FastAPI:
         path=Path(store.get(pid)['path'])/'transcript.json'
         if not path.is_file():raise HTTPException(404,'Transcrição ainda não disponível.')
         return TranscriptArtifact.model_validate_json(path.read_bytes()).model_dump(mode='json')
+    @app.get('/api/v1/projects/{pid}/analysis-events')
+    def analysis_events(pid:str,job_id:str,offset:int=Query(default=0,ge=0,le=1_000_000),limit:int=Query(default=100,ge=1,le=200)):
+        store.get(pid);job=store.job(job_id)
+        if job['project_id']!=pid:raise HTTPException(404,'Histórico não encontrado neste projeto.')
+        from engine.pipeline.analysis_events import read_events
+        from engine.pipeline.artifacts import confined
+        rows=read_events(confined(jobs.root,job_id+'/analysis-events.jsonl'),limit+1,offset)
+        return {'schema_version':'1.0','events':rows[:limit],'next_offset':offset+min(limit,len(rows)),'has_more':len(rows)>limit}
     @app.get('/api/v1/projects/{pid}/media/{asset}/ticket')
     def ticket(pid:str,asset:str):
         root=Path(store.get(pid)['path'])

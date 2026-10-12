@@ -8,6 +8,13 @@ from engine.adapters.gemini.analyzer import GeminiAnalyzer
 from engine.media.importer import import_source
 from engine.media.probe import probe_source
 from .store import now
+from engine.pipeline.analysis_events import EventWriter
+
+def pipeline_config(settings,root):
+    return PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),
+        analysis=AnalysisConfig(model=settings['gemini_model'],max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',60),clip_max_seconds=settings.get('clip_max_seconds',180),show_thought_summaries=settings.get('show_thought_summaries',True)),
+        selection=SelectionConfig(max_us=settings.get('clip_max_seconds',180)*1_000_000),pauses=PauseConfig(enabled=settings.get('pause_mode','conservative')=='conservative'),
+        export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
 
 class PreparedTranscript:
     def __init__(self,source,root):
@@ -42,13 +49,13 @@ def main(folder:Path):
                 source=probe_source(source,Path(settings['ffprobe']));atomic_json(root/'source.json',source)
             stage('import','completed')
             source=Source.model_validate_json((root/'source.json').read_bytes())
-            config=PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),analysis=AnalysisConfig(model=settings['gemini_model'],max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars']),export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
+            config=pipeline_config(settings,root)
             stage('transcribe','running')
             transcriber=PreparedTranscript(source,root) if (root/'transcript.json').is_file() else None
             run_project(source,config,root,cancelled,transcriber=transcriber,stop_after='transcribe')
             stage('transcribe','completed');stage('analyze','running')
             transcriber=PreparedTranscript(source,root)
-            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls))
+            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl')
             run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after='analyze')
             stage('analyze','completed')
             atomic_json(folder/'result.json',{'status':'completed','finished_at':now()});return 0
@@ -63,17 +70,17 @@ def main(folder:Path):
         else:
             source=Source.model_validate_json((root/'source.json').read_bytes())
             if file_hash(source.local_path)!=source.sha256:raise PipelineError('SOURCE_CHANGED','job','Source changed.')
-            config=PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),analysis=AnalysisConfig(model=settings['gemini_model'],max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars']),
-                export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
+            config=pipeline_config(settings,root)
             transcriber=PreparedTranscript(source,root) if (root/'transcript.json').is_file() else None
             if operation in ('analyze','render') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
             precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation=='render' else None
-            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls)) if operation=='analyze' else None
+            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl') if operation=='analyze' else None
             state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation,precomputed_analysis=precomputed)
             if state.status=='failed':raise PipelineError('RENDER_FAILED','job','One or more previews failed technical QA.')
         stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
     except BaseException as exc:
         code=getattr(exc,'code','JOB_FAILED')
+        if operation in ('prepare','analyze'):EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
         atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.'}})
         return 1
