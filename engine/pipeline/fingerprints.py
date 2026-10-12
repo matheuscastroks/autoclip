@@ -11,7 +11,7 @@ FILES={
  'analyze':['engine/adapters/gemini/analyzer.py','engine/adapters/gemini/request_worker.py','engine/adapters/gemini/checkpoints.py','engine/adapters/openshorts/windows.py','vendor/openshorts/clip_selection.py'],
  'select':['engine/editorial/select.py'],
  'edit_plan':['engine/editorial/edl.py','vendor/openshorts/recut.py','vendor/openshorts/clip_selection.py'],
- 'captions':['engine/adapters/openshorts/captions.py','vendor/openshorts/subtitles.py','vendor/openshorts/ffmpeg_utils.py'],
+ 'captions':['engine/render/opening.py','engine/adapters/openshorts/captions.py','vendor/openshorts/subtitles.py','vendor/openshorts/ffmpeg_utils.py'],
  'reframe':['engine/media/face_tracking.py','engine/pipeline/cancellation.py'],
  'render':['engine/media/face_tracking.py','engine/render/ffmpeg.py','engine/pipeline/cancellation.py'],
  'verify':['engine/render/verify.py','engine/media/probe.py']}

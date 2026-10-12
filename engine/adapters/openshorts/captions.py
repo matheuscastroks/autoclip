@@ -28,4 +28,9 @@ class OpenShortsCaptionBuilder:
         if not payload: raise PipelineError('INVALID_CAPTION','captions','No caption words.')
         generate_ass_from_captions(payload,str(ass),max_chars=32,max_duration=2.0,font_name=config.font_name,fontsize=22,effect='none',font_color=config.font_color,highlight_color=config.highlight_color,border_color=config.border_color,border_width=config.border_width,max_words=config.max_words)
         generate_srt_from_captions(payload,str(srt),max_chars=32,max_duration=2.0,max_words=config.max_words)
-        return CaptionArtifact(transcript_id=transcript.transcript_id,edl_revision_id=edl.revision_id,revision_id=revision.revision_id,words=words,ass_path=ass.resolve(),srt_path=srt.resolve(),font=str(config.font_path) if config.font_path else config.font_name,style_id=config.style_id)
+        from engine.render.opening import add_opening,normalize_opening
+        opening_text=normalize_opening(config.opening_text)
+        opening_duration=min(edl.duration_us,config.opening_seconds*1_000_000) if opening_text else 0
+        if opening_duration:
+            add_opening(ass,opening_text,opening_duration,config.font_name)
+        return CaptionArtifact(transcript_id=transcript.transcript_id,edl_revision_id=edl.revision_id,revision_id=revision.revision_id,words=words,ass_path=ass.resolve(),srt_path=srt.resolve(),font=str(config.font_path) if config.font_path else config.font_name,style_id=config.style_id,opening_text=opening_text,opening_duration_us=opening_duration)

@@ -11,6 +11,7 @@ from engine.editorial.select import select_candidates,validate_explicit_candidat
 from engine.editorial.edl import plan_continuous_edit
 from engine.adapters.openshorts.captions import OpenShortsCaptionBuilder
 from engine.render.ffmpeg import FFmpegRenderer
+from engine.render.opening import opening_for
 from engine.media.face_tracking import track_faces,model_path as face_model_path
 from engine.render.verify import verify_render
 from engine.editorial.review import review_fingerprint
@@ -101,7 +102,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan'),'presentation_recipe':object_hash(recipe)},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
-                caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name)})
+                caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name),'opening_text':config.captions.opening_text or opening_for(candidate)})
                 font=font_fingerprint(caption_config.font_path,caption_config.font_name)
                 caps=stage('captions',{'edl':object_hash(edl),'transcript':object_hash(transcript),'config':caption_config.model_dump(mode='json'),'font':font,'runtime':stage_dependencies('captions')},lambda:OpenShortsCaptionBuilder(root/'captions').build(transcript,edl,CaptionRevision(),caption_config),CaptionArtifact)
                 atomic_json(revision_dir/'captions.json',caps)
@@ -175,7 +176,7 @@ def export_approved(project_root:Path):
             if not dest.exists(): shutil.copyfile(src,dest)
             if file_hash(src)!=file_hash(dest): raise PipelineError('EXPORT_INVALID','export','Export checksum mismatch.')
         atomic_json(target/'words.json',caps.words)
-        atomic_json(target/'metadata.json',{'schema_version':'1.0','source':state.source,'review':decision,'candidate':json.loads((folder/'candidate.json').read_text(encoding='utf-8')),'caption_revision_id':str(caps.revision_id),'transcript_id':str(edl.transcript_id),'render':rendered,'qa':qa})
+        atomic_json(target/'metadata.json',{'schema_version':'1.0','source':state.source,'review':decision,'candidate':json.loads((folder/'candidate.json').read_text(encoding='utf-8')),'opening':{'text':caps.opening_text,'duration_us':caps.opening_duration_us},'caption_revision_id':str(caps.revision_id),'transcript_id':str(edl.transcript_id),'render':rendered,'qa':qa})
         atomic_json(target/'manifest.json',{'schema_version':'1.0','revision_id':revision['revision_id'],'package_hash':package_hash,'files':{p.name:{'sha256':file_hash(p),'bytes':p.stat().st_size} for p in target.iterdir() if p.is_file() and p.name!='manifest.json'}})
         exported.append(str(target))
     if not exported: raise PipelineError('REVIEW_REQUIRED','export','No human-approved revisions available.')

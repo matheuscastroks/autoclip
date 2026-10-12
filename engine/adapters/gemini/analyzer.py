@@ -38,7 +38,8 @@ class ResponseCandidate(BaseModel):
     editorial:ResponseFlags
     context_before_word_ids:list[str]=Field(default_factory=list,max_length=8)
     context_after_word_ids:list[str]=Field(default_factory=list,max_length=8)
-    title_suggestion:str=Field(default='',max_length=160)
+    title_suggestion:str=Field(min_length=1,max_length=80)
+    opening_suggestion:str=Field(default='',max_length=72)
     description_suggestion:str=Field(default='',max_length=400)
 
 class GeminiResponse(BaseModel):

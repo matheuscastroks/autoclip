@@ -6,6 +6,7 @@ from engine.editorial.select import select_candidates
 from engine.pipeline.artifacts import object_hash,atomic_json
 from fastapi import HTTPException
 from .projects import read_json
+from engine.render.opening import opening_for
 
 def normalized(label):
     return ' '.join(''.join(c for c in unicodedata.normalize('NFKD',label.casefold()) if not unicodedata.combining(c)).split())
@@ -45,7 +46,7 @@ def analysis_view(root,job=None,job_folder=None,max_seconds=180):
         checked=select_candidates(a.model_copy(update={'complete':True,'candidates':[c]}),t,SelectionConfig(max_us=max_seconds*1_000_000))
         translations={'editorial flags require review':'O modelo indicou incerteza sobre integridade ou contexto.','unknown boundary IDs':'Referências de início ou fim inválidas.','unknown evidence/context IDs':'Referências de evidência ou contexto inválidas.','reversed boundaries':'Limites do trecho invertidos.'}
         reasons=[f'Duração fora da faixa de 20 a {max_seconds} segundos.' if r['reason'].startswith('duration outside') else translations.get(r['reason'],r['reason']) for r in checked.rejected]
-        proposals.append({'candidate_id':str(c.id),'topic_ids':[c.topic_id],'group_id':topic_group.get(c.topic_id,''),'title':c.title_suggestion or 'Trecho sugerido','rationale':c.rationale,'start_us':start,'end_us':stop,'duration_us':stop-start,'start_word_id':c.start_word_id,'end_word_id':c.end_word_id,'evidence_word_ids':c.evidence_word_ids,'editorial':c.editorial.model_dump(mode='json'),'warnings':c.warnings,'eligible':not reasons,'reasons':reasons,'text':' '.join(w.text for w in t.words[begin:end+1]),'context_before':' '.join(w.text for w in t.words[max(0,begin-12):begin]),'context_after':' '.join(w.text for w in t.words[end+1:end+13])})
+        proposals.append({'candidate_id':str(c.id),'topic_ids':[c.topic_id],'group_id':topic_group.get(c.topic_id,''),'title':c.title_suggestion or 'Trecho sugerido','opening_text':opening_for(c),'description':c.description_suggestion,'rationale':c.rationale,'start_us':start,'end_us':stop,'duration_us':stop-start,'start_word_id':c.start_word_id,'end_word_id':c.end_word_id,'evidence_word_ids':c.evidence_word_ids,'editorial':c.editorial.model_dump(mode='json'),'warnings':c.warnings,'eligible':not reasons,'reasons':reasons,'text':' '.join(w.text for w in t.words[begin:end+1]),'context_before':' '.join(w.text for w in t.words[max(0,begin-12):begin]),'context_after':' '.join(w.text for w in t.words[end+1:end+13])})
     return {**empty,'state':'completed' if complete else 'partial' if empty['state']=='running' else empty['state'],'analysis_hash':object_hash(a) if complete else None,'model':a.model,'completed_windows':done,'total_windows':total,'topic_groups':list(groups.values()),'proposals':proposals}
 
 def validate_selection(root,analysis_hash,candidate_ids,max_seconds=180):

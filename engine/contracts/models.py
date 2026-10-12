@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 from uuid import UUID, uuid4
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, model_serializer
 
 
 class Contract(BaseModel):
@@ -100,8 +100,15 @@ class Candidate(Contract):
     context_after_word_ids: list[str] = Field(default_factory=list)
     editorial: EditorialFlags
     title_suggestion: str = ''
+    opening_suggestion: str = Field(default='',max_length=72)
     description_suggestion: str = ''
     warnings: list[str] = Field(default_factory=list)
+
+    @model_serializer(mode='wrap')
+    def serialize_compatible(self,handler):
+        value=handler(self)
+        if not self.opening_suggestion:value.pop('opening_suggestion',None)
+        return value
 
 
 class Topic(Contract):
@@ -212,6 +219,8 @@ class CaptionArtifact(Contract):
     srt_path: Path
     font: str
     style_id: str = 'karaoke'
+    opening_text: str = ''
+    opening_duration_us: int = Field(default=0,ge=0)
 
 
 class EditorialChecks(Contract):
@@ -354,6 +363,8 @@ class CaptionConfig(Contract):
     highlight_color: str = Field(default='#FFCC00',pattern=r'^#[0-9A-Fa-f]{6}$')
     border_color: str = Field(default='#000000',pattern=r'^#[0-9A-Fa-f]{6}$')
     border_width: int = Field(default=3,ge=1,le=10)
+    opening_text: str = Field(default='',max_length=100)
+    opening_seconds: int = Field(default=7,ge=5,le=10)
 
 
 class ExportConfig(Contract):

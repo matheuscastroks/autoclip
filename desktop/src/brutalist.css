@@ -88,3 +88,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:1000px){.preparation-header{grid-template-columns:minmax(0,1fr) 200px;gap:20px}.preparation-groups{grid-template-columns:1fr;gap:22px}.preparation-group>header{min-height:0}.preparation-group .pipeline-step{min-height:76px}}
 @media(max-width:680px){.workspace-overview>.pipeline-panel{padding:18px}.preparation-header{grid-template-columns:minmax(0,1fr) 140px;gap:14px}.preparation-intro h2{font-size:23px}.preparation-intro .pipeline-title{flex-wrap:wrap;gap:10px}.preparation-intro .preparation-summary{margin-top:12px}.step-heading{flex-wrap:wrap;gap:4px}.pipeline-panel .analysis-overview{align-items:flex-start;flex-direction:column}}
 @media(max-width:450px){.preparation-header{grid-template-columns:1fr}.pipeline-video{width:180px;justify-self:end}.section-eyebrow{margin-bottom:8px}}
+
+.opening-copy{border-left:3px solid var(--accent);padding:10px 14px;margin:16px 0;background:var(--soft)}.opening-copy small{font-size:11px;color:var(--muted)}.opening-copy p{margin-top:6px;font-size:14px;line-height:1.6;color:var(--ink)}

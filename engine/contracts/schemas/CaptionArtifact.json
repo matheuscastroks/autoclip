@@ -86,6 +86,17 @@
       "default": "karaoke",
       "title": "Style Id",
       "type": "string"
+    },
+    "opening_text": {
+      "default": "",
+      "title": "Opening Text",
+      "type": "string"
+    },
+    "opening_duration_us": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Opening Duration Us",
+      "type": "integer"
     }
   },
   "required": [

@@ -31,7 +31,7 @@ def list_revisions(root:Path):
             decision=read_json(folder/'review.json',{}) or {};fingerprint=review_fingerprint(root,edl.revision_id)
             status=decision.get('decision','needs_review')
             if status=='approved' and decision.get('content_hash')!=fingerprint:status='stale_review'
-            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':any((root/'exports'/rid).glob('*/manifest.json')),'title':candidate.title_suggestion or 'Corte para revisar','rationale':candidate.rationale,
+            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':any((root/'exports'/rid).glob('*/manifest.json')),'title':candidate.title_suggestion or 'Corte para revisar','rationale':candidate.rationale,'description':candidate.description_suggestion,'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
                 'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
                 'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.get('notes',''),

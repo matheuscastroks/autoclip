@@ -59,6 +59,12 @@
           "title": "Title Suggestion",
           "type": "string"
         },
+        "opening_suggestion": {
+          "default": "",
+          "maxLength": 72,
+          "title": "Opening Suggestion",
+          "type": "string"
+        },
         "description_suggestion": {
           "default": "",
           "title": "Description Suggestion",
