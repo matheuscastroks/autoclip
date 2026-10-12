@@ -8,13 +8,17 @@ O atalho pode ser copiado para um local conveniente. Ele aponta para este checko
 
 ## Biblioteca e projetos
 
-Os projetos em `poc-projects` são registrados automaticamente. A biblioteca mostra os três projetos existentes, inclusive a transcrição completa, o teste Gemini com falha e a prévia manual. **Importar projeto** abre um seletor de pasta. **Novo projeto** aceita arquivo local ou URL YouTube suportada. Importar não dispara transcrição/análise.
+Os projetos em `poc-projects` são registrados automaticamente. A biblioteca mostra os três projetos existentes, inclusive a transcrição completa, o teste Gemini com falha e a prévia manual. **Importar projeto** abre um seletor de pasta. **Novo projeto** aceita arquivo local ou URL YouTube suportada. Abrir uma pasta de projeto existente preserva o estado e não dispara processamento. Novos vídeos seguem importação → transcrição → análise automaticamente após a confirmação do envio de texto e do orçamento no formulário de criação.
 
 Abra um projeto para ver o original, etapas e atividade. A aba **Transcrição** permite consultar e navegar pelos timestamps existentes. O vídeo indicado mantém as 5.414 palavras já processadas; abrir/consultar não repete ASR. **Abrir pasta** mostra os artefatos no Explorer.
 
 **Transcrever vídeo** usa Whisper local. **Configurar análise** abre o formulário Gemini, com modelo, janelas e limite de tentativas. É necessário confirmar envio somente de texto; a API pode gerar custos. O orçamento de cada trabalho é persistido antes de cada chamada, incluindo retries/repair. O botão não deve ser usado para repetir o ensaio antigo sem novo orçamento consciente.
 
-**Gerar prévias** usa somente análise completa existente; não chama Gemini implicitamente. Transcrição/análise/render são ações separadas. Um trabalho pesado por vez, com cancelamento; **Retomar** disponível para tarefas locais interrompidas. Análise interrompida exige um novo orçamento explícito e não é retomada automaticamente. Fechar a aba não cancela uma tarefa: use **Cancelar**. **Encerrar serviço** fica disponível quando não há tarefa ativa; o próximo duplo clique inicia nova sessão.
+**Gerar prévias** usa somente análise completa existente; não chama Gemini implicitamente. Transcrição/análise/render são ações separadas. Um trabalho pesado por vez, com cancelamento. O painel ao lado do vídeo mostra o estado e uma barra em cada etapa iniciada; animação indica atividade, sem percentual inventado. **Retomar** disponível para tarefas locais interrompidas. Análise e sequência automática interrompidas exigem um novo orçamento explícito e não é retomada automaticamente. Fechar a aba não cancela uma tarefa: use **Cancelar**. **Encerrar serviço** fica disponível quando não há tarefa ativa; o próximo duplo clique inicia nova sessão.
+
+## Capas e lixeira
+
+A biblioteca mostra capas extraídas localmente por FFmpeg e armazenadas por hash do original. O ícone de lixeira permite excluir um projeto, com confirmação; **Lixeira de projetos** permite restaurar. Na aba **Cortes**, **Excluir corte** remove o corte das revisões e das novas exportações; **Lixeira de cortes** permite restaurar. A exclusão é reversível: mídia, artefatos e pacotes já exportados continuam no disco. Um projeto com tarefa ativa não pode ser excluído; os demais continuam administráveis. Não há exclusão definitiva nesta versão.
 
 ## Configurações e revisão
 

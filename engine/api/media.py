@@ -14,6 +14,7 @@ def asset_path(root:Path,asset:str)->Path:
             if not (root/'manual-check.json').is_file():raise HTTPException(404,'Prévia manual indisponível.')
             options=list((root/'previews').glob('*.mp4'));path=options[0].resolve() if options else root/'missing'
         else:
+            if (root/'revisions'/asset/'deleted.json').is_file():raise HTTPException(404,'Corte na lixeira.')
             state=read_json(root/'project.json',{}) or {}
             item=next((i for i in state.get('revisions',[]) if i.get('revision_id')==asset),None)
             if not item:raise HTTPException(404,'Prévia indisponível.')

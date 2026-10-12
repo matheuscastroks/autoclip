@@ -21,6 +21,7 @@ def list_revisions(root:Path):
         rid=row.get('revision_id','')
         try:
             folder=revision_folder(root,rid)
+            if (folder/'deleted.json').is_file():continue
             edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
             qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
             candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
@@ -37,6 +38,31 @@ def list_revisions(root:Path):
         except (OSError,ValueError,PipelineError,HTTPException):
             result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.']})
     return result
+
+def list_deleted(root):
+    result=[]
+    directory=root/'revisions'
+    for path in directory.iterdir() if directory.is_dir() else []:
+        try:folder=revision_folder(root,path.name)
+        except HTTPException:continue
+        if (folder/'deleted.json').is_file():result.append({'revision_id':folder.name,'title':(read_json(folder/'candidate.json',{}) or {}).get('title_suggestion') or 'Corte excluído'})
+    return result
+
+def set_deleted(root,revision,deleted):
+    folder=revision_folder(root,revision)
+    state=read_json(root/'project.json',{}) or {}
+    row=next((r for r in state.get('revisions',[]) if r.get('revision_id')==revision),None)
+    if deleted:
+        if row is None:raise HTTPException(404,'Corte não encontrado.')
+        from .store import now
+        atomic_json(folder/'deleted.json',{'deleted_at':now(),'revision':row})
+    else:
+        if row is None:
+            stored=(read_json(folder/'deleted.json',{}) or {}).get('revision')
+            if not stored or stored.get('revision_id')!=revision:raise HTTPException(409,'Os dados desta revisão não estão disponíveis para restauração.')
+            state.setdefault('revisions',[]).append(stored);atomic_json(root/'project.json',state)
+        (folder/'deleted.json').unlink(missing_ok=True)
+    return {'deleted':deleted}
 
 def decide(root,revision,decision,checks,notes,content_hash):
     root=Path(root);folder=revision_folder(root,revision)

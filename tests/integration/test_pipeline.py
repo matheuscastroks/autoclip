@@ -37,6 +37,12 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
     packages=export_approved(root)
     assert (Path(packages[0])/'manifest.json').exists()
     assert (Path(packages[0])/'edl.json').exists()
+    from engine.api.reviews import set_deleted
+    set_deleted(root,revision,True)
+    with pytest.raises(PipelineError) as deleted:export_approved(root)
+    assert deleted.value.code=='REVIEW_REQUIRED'
+    set_deleted(root,revision,False)
+    assert export_approved(root)==packages
     cap_file=root/'revisions'/revision/'captions.json'
     altered=json.loads(cap_file.read_text(encoding='utf-8'));altered['words'][0]['display_text']='Alterado depois da aprovação'
     atomic_json(cap_file,altered)

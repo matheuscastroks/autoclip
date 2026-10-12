@@ -12,6 +12,7 @@ class ProjectStore:
             c.executescript('''PRAGMA journal_mode=WAL;
                 CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,path TEXT UNIQUE,name TEXT,created_at TEXT);
                 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,project_id TEXT,status TEXT,data TEXT);
+                CREATE TABLE IF NOT EXISTS project_trash(project_id TEXT PRIMARY KEY,deleted_at TEXT);
             ''')
 
     @contextmanager
@@ -36,7 +37,16 @@ class ProjectStore:
         return self.get(pid)
 
     def list_projects(self)->list[dict]:
-        with self.connect() as c:return [dict(r) for r in c.execute('SELECT * FROM projects ORDER BY created_at DESC')]
+        with self.connect() as c:return [dict(r) for r in c.execute('SELECT * FROM projects WHERE id NOT IN (SELECT project_id FROM project_trash) ORDER BY created_at DESC')]
+
+    def trash(self):
+        with self.connect() as c:return [dict(r) for r in c.execute('SELECT p.*,t.deleted_at FROM projects p JOIN project_trash t ON p.id=t.project_id ORDER BY t.deleted_at DESC')]
+
+    def set_deleted(self,project_id,deleted):
+        self.get(project_id)
+        with self.connect() as c:
+            if deleted:c.execute('INSERT OR REPLACE INTO project_trash VALUES(?,?)',(project_id,now()))
+            else:c.execute('DELETE FROM project_trash WHERE project_id=?',(project_id,))
 
     def get(self,project_id:str)->dict:
         with self.connect() as c:r=c.execute('SELECT * FROM projects WHERE id=?',(project_id,)).fetchone()

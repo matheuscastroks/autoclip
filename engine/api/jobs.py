@@ -29,6 +29,7 @@ class JobManager:
         elif job['status'] in ACTIVE and not self.owned_alive(job):
             job['status']='interrupted';job['error']={'code':'INTERRUPTED','message':'Tarefa interrompida. Retome explicitamente pela interface.'}
         job['events']=read_json(folder/'events.json',[]) or []
+        job['progress']=read_json(folder/'progress.json')
         request_log=folder/'stdout.log'
         if request_log.exists():
             # Never return raw process output or provider content to the UI.
@@ -44,8 +45,9 @@ class JobManager:
         self.store.save_job(job);return job
 
     def start(self,project_id,operation,options):
-        if operation not in ('import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
-        if operation=='analyze' and options.get('authorize_text') is not True:raise ValueError('Confirme o envio de texto e o limite de tentativas.')
+        if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
+        if operation in ('prepare','analyze') and options.get('authorize_text') is not True:raise ValueError('Confirme o envio de texto e o limite de tentativas.')
+        if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')
         row=self.store.get(project_id)
         if (Path(row['path'])/'manual-check.json').exists():raise ValueError('Projeto manual disponível apenas para consulta nesta fase.')
         with self.lock:
@@ -95,6 +97,6 @@ class JobManager:
     def resume(self,job_id):
         job=self.status(job_id)
         if job['status'] not in ('failed','cancelled','interrupted'):raise ValueError('Tarefa não pode ser retomada neste estado.')
-        if job['operation']=='analyze':raise ValueError('Análise exige novo orçamento explícito; inicie novamente pelo formulário de análise.')
+        if job['operation'] in ('prepare','analyze'):raise ValueError('Análise exige novo orçamento explícito; inicie novamente pelo formulário de análise.')
         request=read_json(self.root/job_id/'request.json',{})
         return self.start(job['project_id'],job['operation'],{'source_input':request.get('source_input')})

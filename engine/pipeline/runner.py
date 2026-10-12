@@ -123,6 +123,7 @@ def export_approved(project_root:Path):
     exported=[]
     for revision in state.revisions:
         folder=root/'revisions'/revision['revision_id']
+        if (folder/'deleted.json').is_file():continue
         decision_path=folder/'review.json'
         if not decision_path.exists(): continue
         decision=ReviewDecision.model_validate_json(decision_path.read_bytes())

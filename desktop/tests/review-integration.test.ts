@@ -15,6 +15,18 @@ function setup(){
 }
 async function open(){const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click');await flushPromises();return w}
 describe('review identity across refresh and failures',()=>{
+  it('loads original as soon as automatic import finishes while the job is still running',async()=>{
+    setup()
+    const pending={...project,source:null,has_transcript:false,has_analysis:false,status:'pending_import'}
+    vi.mocked(api.projects).mockResolvedValue([pending]);vi.mocked(api.project).mockResolvedValue(pending)
+    vi.mocked(api.revisions).mockResolvedValue([])
+    vi.mocked(api.jobs).mockResolvedValue([{id:'j',project_id:'p',operation:'prepare',status:'running',created_at:'',requests_used:0,request_limit:2,events:[]}])
+    const w=await open();expect(w.find('video').exists()).toBe(false)
+    const imported={...pending,source:project.source,status:'processing'}
+    vi.mocked(api.projects).mockResolvedValue([imported]);vi.mocked(api.project).mockResolvedValue(imported)
+    await w.get('[title="Atualizar projetos"]').trigger('click');await flushPromises()
+    expect(w.get('video').attributes('src')).toBe('/media/source');w.unmount()
+  })
   it('preserves selected B video and target after a review refresh',async()=>{
     setup();const w=await open();await w.get('[role=tablist] button:nth-child(3)').trigger('click');await flushPromises()
     await w.findAll('.clip-item')[1].trigger('click');await flushPromises()

@@ -34,6 +34,9 @@ class StartJob(Input):
 class NewProject(Input):
     name:str=Field(min_length=1,max_length=100)
     source_input:str=Field(min_length=1)
+    automatic:bool=False
+    authorize_text:bool=False
+    max_calls:int|None=Field(default=None,ge=1,le=100)
 class Picker(Input):
     kind:str
 class Decision(Input):
@@ -110,10 +113,27 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/projects')
     def new_project(value:NewProject):
         import uuid
+        if value.automatic and not value.authorize_text:raise HTTPException(400,'Confirme a análise automática e seu limite de tentativas.')
+        if value.automatic and not settings.get()['gemini_key_configured']:raise HTTPException(400,'Configure a chave Gemini antes de iniciar a sequência automática.')
         row=store.create(workspace/'.autoclip/projects'/str(uuid.uuid4()),value.name.strip() or 'Novo projeto')
-        try:job=jobs.start(row['id'],'import',{'source_input':value.source_input})
+        try:job=jobs.start(row['id'],'prepare' if value.automatic else 'import',{'source_input':value.source_input,'authorize_text':value.authorize_text,**({'max_calls':value.max_calls} if value.max_calls else {})})
         except RuntimeError as exc:raise HTTPException(409,str(exc))
         return {'project':project_detail(row),'job':job}
+    def editable(pid):
+        store.get(pid)
+        if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs() if j['project_id']==pid):raise HTTPException(409,'Aguarde ou cancele a tarefa antes de excluir ou restaurar.')
+    @app.delete('/api/v1/projects/{pid}')
+    def delete_project(pid:str):
+        with jobs.lock:
+            editable(pid);store.set_deleted(pid,True)
+        return {'deleted':True}
+    @app.get('/api/v1/trash')
+    def trash():return store.trash()
+    @app.post('/api/v1/trash/{pid}/restore')
+    def restore_project(pid:str):
+        with jobs.lock:
+            editable(pid);store.set_deleted(pid,False)
+        return project_detail(store.get(pid))
     @app.post('/api/v1/projects/import')
     def register(value:ImportProject):return project_detail(store.register(Path(value.path),value.name))
     @app.get('/api/v1/projects/{pid}')
@@ -126,10 +146,16 @@ def create_app(workspace:Path,token:str)->FastAPI:
         return TranscriptArtifact.model_validate_json(path.read_bytes()).model_dump(mode='json')
     @app.get('/api/v1/projects/{pid}/media/{asset}/ticket')
     def ticket(pid:str,asset:str):
-        asset_path(Path(store.get(pid)['path']),asset)
+        root=Path(store.get(pid)['path'])
+        if asset!='thumbnail':asset_path(root,asset)
         return {'url':make_ticket(token,pid,asset)}
     @app.get('/api/v1/projects/{pid}/media/{asset}')
-    def media(pid:str,asset:str):return FileResponse(asset_path(Path(store.get(pid)['path']),asset),media_type='video/mp4')
+    def media(pid:str,asset:str):
+        root=Path(store.get(pid)['path'])
+        if asset=='thumbnail':
+            from .thumbnails import thumbnail
+            return FileResponse(thumbnail(root,settings.get()['ffmpeg']),media_type='image/jpeg')
+        return FileResponse(asset_path(root,asset),media_type='video/mp4')
 
     @app.get('/api/v1/jobs')
     def list_jobs():return [jobs.status(j['id']) for j in store.jobs()]
@@ -156,6 +182,16 @@ def create_app(workspace:Path,token:str)->FastAPI:
     from . import reviews
     @app.get('/api/v1/projects/{pid}/revisions')
     def revisions(pid:str):return reviews.list_revisions(Path(store.get(pid)['path']))
+    @app.get('/api/v1/projects/{pid}/deleted-revisions')
+    def deleted_revisions(pid:str):return reviews.list_deleted(Path(store.get(pid)['path']))
+    @app.delete('/api/v1/projects/{pid}/revisions/{rid}')
+    def delete_revision(pid:str,rid:str):
+        with jobs.lock:
+            editable(pid);return reviews.set_deleted(Path(store.get(pid)['path']),rid,True)
+    @app.post('/api/v1/projects/{pid}/revisions/{rid}/restore')
+    def restore_revision(pid:str,rid:str):
+        with jobs.lock:
+            editable(pid);return reviews.set_deleted(Path(store.get(pid)['path']),rid,False)
     @app.post('/api/v1/projects/{pid}/revisions/{rid}/decision')
     def decide(pid:str,rid:str,value:Decision):
         return reviews.decide(Path(store.get(pid)['path']),rid,value.decision,value.checks,value.notes,value.content_hash)

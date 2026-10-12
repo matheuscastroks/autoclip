@@ -3,7 +3,7 @@ export interface Project {id:string;name:string;title:string;path:string;status:
 export interface Config {asr_model_path:string;gemini_model:string;max_calls:number;window_seconds:number;max_text_chars:number;ffmpeg:string;ffprobe:string;asr_available:boolean;tools_available:boolean;gemini_key_configured:boolean}
 export interface GeminiModel {id:string;name:string;display_name:string}
 export interface GeminiConnection {status:'missing'|'untested'|'valid'|'invalid'|'unavailable';configured:boolean;checked_at:string|null;message:string;models:GeminiModel[]}
-export interface Job {id:string;project_id:string;operation:string;status:string;created_at:string;requests_used:number;request_limit:number;stage?:string;error?:{code:string;message:string};events:unknown[];exports?:string[]}
+export interface Job {id:string;project_id:string;operation:string;status:string;created_at:string;requests_used:number;request_limit:number;stage?:string;progress?:{stage:string;steps:Record<string,string>}|null;error?:{code:string;message:string};events:unknown[];exports?:string[]}
 export interface Word {id:string;text:string;start_us:number;end_us:number}
 export interface Transcript {words:Word[];segments:{id:string;text:string;start_us:number;end_us:number}[]}
 export interface Checks {completeness:boolean;context:boolean;qualifications:boolean;words_and_boundaries:boolean;audiovisual:boolean}
