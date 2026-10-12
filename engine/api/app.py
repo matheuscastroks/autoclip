@@ -4,7 +4,7 @@ from fastapi import FastAPI,HTTPException,Request
 from fastapi.responses import JSONResponse,FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel,ConfigDict,Field,SecretStr
-from engine.contracts import PipelineError
+from engine.contracts import PipelineError,EditorialChecks
 from .store import ProjectStore
 from .projects import discover,project_detail
 from .settings import Settings
@@ -37,6 +37,11 @@ class NewProject(Input):
     source_input:str=Field(min_length=1)
 class Picker(Input):
     kind:str
+class Decision(Input):
+    decision:str
+    checks:EditorialChecks
+    notes:str=Field(default='',max_length=10000)
+    content_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
 
 def create_app(workspace:Path,token:str)->FastAPI:
     workspace=Path(workspace).resolve();store=ProjectStore(workspace/'.autoclip/library.sqlite');settings=Settings(workspace)
@@ -82,6 +87,12 @@ def create_app(workspace:Path,token:str)->FastAPI:
 
     @app.get('/api/v1/health')
     def health():return {'schema_version':'1.0','status':'ok','application':'autoclip-editor'}
+    @app.post('/api/v1/shutdown')
+    def shutdown():
+        if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs()):raise HTTPException(409,'Cancele ou aguarde a tarefa antes de encerrar o serviço.')
+        callback=getattr(app.state,'shutdown',None)
+        if callback:callback()
+        return {'stopped':True}
     @app.get('/api/v1/config')
     def config():return settings.get()
     @app.put('/api/v1/config')
@@ -137,6 +148,14 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def open_folder(pid:str):
         from .native import open_directory
         open_directory(Path(store.get(pid)['path']));return {'opened':True}
+    from . import reviews
+    @app.get('/api/v1/projects/{pid}/revisions')
+    def revisions(pid:str):return reviews.list_revisions(Path(store.get(pid)['path']))
+    @app.post('/api/v1/projects/{pid}/revisions/{rid}/decision')
+    def decide(pid:str,rid:str,value:Decision):
+        return reviews.decide(Path(store.get(pid)['path']),rid,value.decision,value.checks,value.notes,value.content_hash)
+    @app.post('/api/v1/projects/{pid}/exports')
+    def export(pid:str):return reviews.export(Path(store.get(pid)['path']))
 
     dist=workspace/'desktop/dist'
     if dist.is_dir():app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')

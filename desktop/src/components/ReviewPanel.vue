@@ -1,0 +1,28 @@
+<script setup lang="ts">
+import {computed,reactive,ref,watch,nextTick} from 'vue'
+import {Scissors,Check,RotateCcw,Play,Info} from '@lucide/vue'
+import type {Revision,Checks,Decision} from '../types'
+import {time,labels} from '../format'
+const props=defineProps<{revisions:Revision[];manual:boolean;mediaUrl:string;sourceUrl:string;busy?:boolean}>()
+const emit=defineEmits<{select:[id:string];decision:[value:Decision];export:[]}>()
+const selected=ref(''),notes=ref(''),sourcePlayer=ref<HTMLVideoElement>()
+const criteria:{key:keyof Checks;label:string}[]=[{key:'completeness',label:'O pensamento está completo'},{key:'context',label:'O trecho faz sentido fora do vídeo'},{key:'qualifications',label:'Negações, números e ressalvas estão preservados'},{key:'words_and_boundaries',label:'Nenhuma palavra ou argumento foi cortado'},{key:'audiovisual',label:'Revisei áudio, enquadramento e legendas'}]
+const checks=reactive<Checks>({completeness:false,context:false,qualifications:false,words_and_boundaries:false,audiovisual:false})
+const current=computed(()=>props.revisions.find(r=>r.revision_id===selected.value)||props.revisions[0])
+const ready=computed(()=>current.value?.technical_pass&&criteria.every(c=>checks[c.key])&&!props.busy)
+watch(()=>props.revisions,async rows=>{if(!rows.some(r=>r.revision_id===selected.value)&&rows.length){selected.value=rows[0].revision_id;emit('select',selected.value)}},{immediate:true})
+watch(()=>current.value?.revision_id,()=>{for(const c of criteria)checks[c.key]=false;notes.value=current.value?.notes||''})
+function choose(id:string){selected.value=id;emit('select',id)}
+function decide(decision:'approved'|'rejected'){if(!current.value?.content_hash||(decision==='approved'&&!ready.value))return;emit('decision',{revision_id:current.value.revision_id,decision,checks:{...checks},notes:notes.value,content_hash:current.value.content_hash})}
+function context(){if(sourcePlayer.value){sourcePlayer.value.currentTime=Math.max(0,(current.value?.start_us||0)/1e6-30);sourcePlayer.value.play().catch(()=>{})}}
+</script>
+<template>
+  <div v-if="manual" class="manual-review"><div class="notice"><Info :size="19"/><div><strong>Prévia manual de renderização</strong><p>Este trecho é um teste técnico. Não foi selecionado pelo Gemini e não está aprovado editorialmente.</p></div></div><video v-if="mediaUrl" class="manual-player" :src="mediaUrl" controls preload="metadata" playsinline></video></div>
+  <div v-else-if="!revisions.length" class="empty-state cuts-empty"><span class="empty-icon"><Scissors :size="28"/></span><h2>Nenhum corte disponível</h2><p>A transcrição pode ser consultada. Quando uma análise terminar, os trechos elegíveis aparecerão aqui para revisão.</p><span class="subtle">Nenhuma seleção é aprovada automaticamente.</span></div>
+  <div v-else class="review-grid">
+    <aside class="clip-list"><h3>Cortes <span>{{revisions.length}}</span></h3><button v-for="(r,index) in revisions" :key="r.revision_id" class="clip-item" :class="{selected:current?.revision_id===r.revision_id}" @click="choose(r.revision_id)"><span class="clip-number">{{index+1}}</span><div><strong>{{r.title}}</strong><small>{{time(r.start_us)}} – {{time(r.end_us)}} · {{time(r.duration_us)}}</small><span class="status-pill" :data-status="r.review_status"><i></i>{{labels[r.review_status]||r.review_status}}</span></div></button><button class="button secondary full" :disabled="busy||!revisions.some(r=>r.review_status==='approved')" @click="$emit('export')">Exportar aprovados</button></aside>
+    <div class="clip-preview"><video v-if="mediaUrl" :src="mediaUrl" controls preload="metadata" playsinline></video><div v-else class="video-unavailable">Prévia indisponível</div><p class="preview-label">{{current?.title}}</p><p class="subtle">{{current?.rationale}}</p><details><summary>Conferir no original</summary><video ref="sourcePlayer" :src="sourceUrl" controls preload="none"></video><button class="button small secondary" @click="context"><Play :size="13"/>Ouvir com 30 s de contexto</button></details></div>
+    <form class="review-checks" @submit.prevent="decide('approved')"><h3>Revisão editorial</h3><p>Ouça o corte e confira o contexto antes de aprovar.</p><div v-if="!current?.technical_pass" class="notice error">A verificação técnica falhou. Gere a prévia novamente.</div><label v-for="criterion in criteria" :key="criterion.key" class="check-row"><input type="checkbox" v-model="checks[criterion.key]"/><span>{{criterion.label}}</span></label><label class="field">Notas<textarea v-model="notes" rows="3" placeholder="Observações desta revisão"/></label><button type="button" @click="decide('approved')" data-action="approve" class="button primary full" :disabled="!ready"><Check :size="17"/>Aprovar corte</button><button type="button" class="button secondary full" :disabled="busy||!current?.technical_pass" @click="decide('rejected')"><RotateCcw :size="16"/>Rejeitar corte</button></form>
+  </div>
+</template>
+
