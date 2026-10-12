@@ -7,7 +7,7 @@ from engine.pipeline.artifacts import atomic_json,file_hash,object_hash
 from engine.pipeline.manifest import StageCache
 from engine.pipeline.cancellation import run_process
 from engine.adapters.gemini.analyzer import GeminiAnalyzer
-from engine.editorial.select import select_candidates
+from engine.editorial.select import select_candidates,validate_explicit_candidates
 from engine.editorial.edl import plan_continuous_edit
 from engine.adapters.openshorts.captions import OpenShortsCaptionBuilder
 from engine.render.ffmpeg import FFmpegRenderer
@@ -29,10 +29,11 @@ def _asr_worker(audio,config,root,cancelled):
         raise PipelineError('ASR_FAILED','transcribe','Local worker failed; check model and runtime.')
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())
 
-def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render',precomputed_analysis:AnalysisArtifact|None=None) -> ProjectRun:
+def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render',precomputed_analysis:AnalysisArtifact|None=None,candidate_ids=None,analysis_hash=None,progress=None) -> ProjectRun:
     if stop_after not in ('transcribe','analyze','render'):raise ValueError('Unknown stage boundary')
     root=Path(project_root).resolve();root.mkdir(parents=True,exist_ok=True)
     state_path=root/'project.json'
+    previous=None
     if state_path.exists():
         previous=ProjectRun.model_validate_json(state_path.read_bytes())
         if previous.source.sha256!=source.sha256: raise PipelineError('SOURCE_CHANGED','run','Source changed; create another project.')
@@ -42,13 +43,20 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
     if file_hash(source.local_path)!=source.sha256: raise PipelineError('SOURCE_CHANGED','run','Source bytes changed; relink or create a new project.')
     source=probe_source(source,config.ffprobe)
     atomic_json(root/'source.json',source);atomic_json(root/'config.json',config)
-    state=ProjectRun(project_id=project_id,source=source,status='processing')
+    state=ProjectRun(project_id=project_id,source=source,status='processing',revisions=list(previous.revisions) if previous else [])
     atomic_json(state_path,state)
     cache=StageCache(root)
+    items=[];current=None
+    def report(phase,processed_us=0,total_us=None):
+        if not progress:return
+        from engine.pipeline.progress import activity_time
+        if current:current['phase']=phase;current['state']='running';current['processed_us']=processed_us;current['total_us']=total_us
+        progress({'schema_version':'1.0','operation':'render','phase':phase,'current_candidate_id':current['candidate_id'] if current else None,'current_index':items.index(current)+1 if current else 0,'total_items':len(items),'completed_items':sum(i['state']=='ready' for i in items),'failed_items':sum(i['state']=='failed' for i in items),'processed_us':processed_us,'total_us':total_us,'activity_at':activity_time(),'items':[dict(i) for i in items]})
     def check():
         if cancelled(): raise PipelineError('CANCELLED','run','Cancellation requested.')
     def stage(name,inputs,produce,model):
         check();print(f'Stage: {name}',flush=True)
+        if items:report(name)
         result=cache.run(name,inputs,produce,model)
         check();return result
     try:
@@ -74,17 +82,22 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         atomic_json(root/'analysis.json',analysis)
         if stop_after=='analyze':
             state.status='analyzed';atomic_json(state_path,state);return state
-        candidates=stage('select',{'analysis':object_hash(analysis),'config':config.selection.model_dump(mode='json'),'runtime':stage_dependencies('select')},lambda:select_candidates(analysis,transcript,config.selection),CandidateArtifact)
+        if candidate_ids is not None and analysis_hash!=object_hash(analysis):raise PipelineError('STALE_ANALYSIS','select','Analysis changed; reselect proposals.')
+        candidates=stage('select',{'analysis':object_hash(analysis),'selection':candidate_ids,'config':config.selection.model_dump(mode='json'),'runtime':stage_dependencies('select')},lambda:validate_explicit_candidates(analysis,transcript,config.selection,candidate_ids) if candidate_ids is not None else select_candidates(analysis,transcript,config.selection),CandidateArtifact)
         atomic_json(root/'candidates.json',candidates);state.candidates_path=root/'candidates.json'
         verified_silences=None
+        items=[{'candidate_id':str(c.id),'title':c.title_suggestion,'state':'pending','phase':'waiting','processed_us':0,'total_us':None} for c in candidates.candidates];report('pauses' if config.pauses.enabled else 'edit_plan')
         if config.pauses.enabled:
             from engine.media.pauses import detect_verified_silences
             verified_silences=stage('pauses',{'audio':audio.sha256,'source':source.sha256,'config':config.pauses.model_dump(mode='json'),'runtime':stage_dependencies('pauses')},lambda:detect_verified_silences(audio,config.pauses,cancelled=cancelled),PauseVerification)
             atomic_json(root/'pause-verification.json',verified_silences)
         failures=[]
         for candidate in candidates.candidates:
+            current=next(i for i in items if i['candidate_id']==str(candidate.id))
             try:
-                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan')},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
+                # A changed presentation creates a new revision, retaining the old render and its review.
+                recipe={'captions':config.captions,'export':config.export,'crop':'center-crop','render_runtime':stage_dependencies('render'),'caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
+                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan'),'presentation_recipe':object_hash(recipe)},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
                 caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name)})
@@ -97,15 +110,26 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 def render():
                     existing=export_config.output_root/(str(edl.revision_id)+'.mp4')
                     if existing.exists(): existing.replace(existing.with_suffix('.corrupt-'+uuid.uuid4().hex))
-                    return FFmpegRenderer(config.ffmpeg,run=lambda cmd,**kw:run_process(cmd,cancelled=cancelled,**kw)).render(source,edl,crop,caps,export_config)
+                    return FFmpegRenderer(config.ffmpeg,run=lambda cmd,**kw:run_process(cmd,cancelled=cancelled,**kw),progress=(lambda done,total:report('render',done,total)) if progress else None).render(source,edl,crop,caps,export_config)
+                reused_before=cache.reused.count('render')
                 rendered=stage('render',{'profile':profile},render,RenderArtifact)
+                reused_render=cache.reused.count('render')>reused_before
                 qa=stage('verify',{'render':object_hash(rendered),'edl':object_hash(edl),'ffmpeg':ffmpeg_identity,'ffprobe':tool_fingerprint(config.ffprobe),'runtime':stage_dependencies('verify')},lambda:verify_render(rendered,source,edl,config.ffprobe,config.ffmpeg,cancelled),ExportValidation)
                 atomic_json(revision_dir/'render.json',rendered);atomic_json(revision_dir/'qa.json',qa)
                 if not qa.technical_pass: raise PipelineError('EXPORT_INVALID','verify','Technical QA failed; inspect revision QA.')
-                state.revisions.append({'revision_id':str(edl.revision_id),'candidate_id':str(candidate.id),'render_path':str(rendered.path),'review_status':'needs_review'})
-            except PipelineError as exc:
+                row={'revision_id':str(edl.revision_id),'candidate_id':str(candidate.id),'render_path':str(rendered.path),'review_status':'needs_review'}
+                if not any(r['revision_id']==row['revision_id'] for r in state.revisions):state.revisions.append(row)
+                atomic_json(state_path,state)
+                current.update(state='ready',phase='ready',revision_id=str(edl.revision_id),reused=reused_render)
+                current=None;report('next')
+            except (PipelineError,OSError,ValueError) as exc:
+                if not isinstance(exc,PipelineError):
+                    import traceback
+                    (root/(str(candidate.id)+'.error.log')).write_text(traceback.format_exc(),encoding='utf-8')
+                    exc=PipelineError('ITEM_FAILED','render','Local preview failed; retry this item.')
                 if exc.code=='CANCELLED': raise
                 failures.append({'candidate_id':str(candidate.id),'error':exc.as_dict()})
+                current.update(state='failed',phase='failed',error_code=exc.code);current=None;report('next')
                 atomic_json(root/'item-errors.json',failures)
         state.status='failed' if failures else ('needs_review' if state.revisions else 'no_candidates')
         atomic_json(root/'last-run.json',{'reused':cache.reused,'failures':failures})

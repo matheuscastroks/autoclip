@@ -1,4 +1,5 @@
 import json,time,sys,tempfile
+from uuid import uuid5,NAMESPACE_URL
 import httpx
 from types import SimpleNamespace
 from email.utils import parsedate_to_datetime
@@ -87,6 +88,7 @@ class GeminiAnalyzer:
         self.checkpoint_root=Path(work_root)/'analysis-checkpoints' if work_root is not None else None
 
     def publish_cached(self,analysis):
+        if self.events_path:atomic_json(self.events_path.parent/'analysis-preview.json',{'analysis':analysis.model_dump(mode='json'),'completed_windows':len(analysis.responses),'total_windows':len(analysis.responses)})
         EventWriter(self.events_path).emit('analysis_cache_reused','Análise existente reaproveitada. Não houve nova chamada nem novos resumos Gemini.',model=analysis.model,topics=[t.model_dump(mode='json') for t in analysis.topics],candidates=[c.model_dump(mode='json') for c in analysis.candidates])
 
     def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig,cancelled=lambda:False) -> AnalysisArtifact:
@@ -190,8 +192,13 @@ class GeminiAnalyzer:
             domain_topics=[Topic.model_validate(t.model_dump()) for t in parsed.topics]
             domain_candidates=[Candidate.model_validate(c.model_dump()) for c in parsed.candidates]
             for topic in domain_topics:topic.id=prefix+topic.id
-            for candidate in domain_candidates:candidate.topic_id=prefix+candidate.topic_id
+            for ordinal,candidate in enumerate(domain_candidates):
+                candidate.topic_id=prefix+candidate.topic_id
+                candidate.id=uuid5(NAMESPACE_URL,'autoclip:'+key+':'+str(ordinal))
             topics.extend(domain_topics);candidates.extend(domain_candidates);covered.update(w.id for w in window['words']);responses.append(provenance)
+            if self.events_path:
+                preview=AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,complete=False,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
+                atomic_json(self.events_path.parent/'analysis-preview.json',{'analysis':preview.model_dump(mode='json'),'completed_windows':index,'total_windows':len(windows)})
             writer.emit('window_validated','Janela validada e salva para retomada; propostas aguardam revisão.',**self.context,topics=[t.model_dump(mode='json') for t in domain_topics],candidates=[{**c.model_dump(mode='json'),'start_us':next(w.start_us for w in window['words'] if w.id==c.start_word_id),'end_us':max(w.end_us for w in window['words'][next(i for i,w in enumerate(window['words']) if w.id==c.start_word_id):next(i for i,w in enumerate(window['words']) if w.id==c.end_word_id)+1])} for c in domain_candidates],usage=provenance['usage'])
         if covered!={w.id for w in transcript.words}:raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Some transcript words were not covered.')
         writer.emit('analysis_completed','Todas as janelas foram analisadas e validadas.',requests_used=calls,reused_windows=len(windows)-missing,topics_count=len(topics),candidates_count=len(candidates))

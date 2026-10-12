@@ -18,13 +18,16 @@
       "type": "string"
     },
     "mode": {
-      "const": "fit-blur",
-      "default": "fit-blur",
+      "default": "center-crop",
+      "enum": [
+        "fit-blur",
+        "center-crop"
+      ],
       "title": "Mode",
       "type": "string"
     },
     "fallback_reason": {
-      "default": "Face tracking deferred to M2; full frame preserved.",
+      "default": "Static central 9:16 crop; face tracking is not enabled.",
       "title": "Fallback Reason",
       "type": "string"
     }

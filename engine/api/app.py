@@ -33,6 +33,8 @@ class AppConfig(Input):
         return self
 
 class JobOptions(Input):
+    analysis_hash:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
+    candidate_ids:list[str]|None=Field(default=None,max_length=1000)
     authorize_text:bool=False
     max_calls:int|None=Field(default=None,ge=1,le=100)
     window_seconds:int|None=Field(default=None,ge=60,le=1800)
@@ -41,6 +43,9 @@ class JobOptions(Input):
 class StartJob(Input):
     operation:str
     options:JobOptions=Field(default_factory=JobOptions)
+class AnalysisSelection(Input):
+    analysis_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
+    candidate_ids:list[str]=Field(max_length=1000)
 class NewProject(Input):
     name:str=Field(min_length=1,max_length=100)
     source_input:str=Field(min_length=1)
@@ -153,6 +158,24 @@ def create_app(workspace:Path,token:str)->FastAPI:
         path=Path(store.get(pid)['path'])/'transcript.json'
         if not path.is_file():raise HTTPException(404,'Transcrição ainda não disponível.')
         return TranscriptArtifact.model_validate_json(path.read_bytes()).model_dump(mode='json')
+    @app.get('/api/v1/projects/{pid}/analysis')
+    def analysis(pid:str):
+        from .analysis_view import analysis_view
+        root=Path(store.get(pid)['path']);rows=[j for j in store.jobs() if j['project_id']==pid and j['operation'] in ('analyze','prepare')]
+        latest=None
+        # Store ordering is chronological; completed artifacts are independent of event retention.
+        if rows:latest=jobs.status(max(rows,key=lambda j:(j.get('created_at',''),j['id']))['id'])
+        return analysis_view(root,latest,jobs.root/latest['id'] if latest else None,settings.get().get('clip_max_seconds',180))
+    @app.get('/api/v1/projects/{pid}/analysis-selection')
+    def selection(pid:str):
+        from .projects import read_json
+        return read_json(Path(store.get(pid)['path'])/'analysis-selection.json',{'schema_version':'1.0','analysis_hash':None,'candidate_ids':[]})
+    @app.put('/api/v1/projects/{pid}/analysis-selection')
+    def update_selection(pid:str,value:AnalysisSelection):
+        from .analysis_view import save_selection
+        with jobs.lock:
+            editable(pid)
+            return save_selection(Path(store.get(pid)['path']),value.analysis_hash,value.candidate_ids,settings.get().get('clip_max_seconds',180))
     @app.get('/api/v1/projects/{pid}/analysis-events')
     def analysis_events(pid:str,job_id:str,offset:int=Query(default=0,ge=0,le=1_000_000),limit:int=Query(default=100,ge=1,le=200)):
         store.get(pid);job=store.job(job_id)

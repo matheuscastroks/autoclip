@@ -1,6 +1,20 @@
 from engine.contracts import AnalysisArtifact,TranscriptArtifact,SelectionConfig,CandidateArtifact,PipelineError
 
 
+def validate_explicit_candidates(analysis,transcript,config,candidate_ids):
+    if not candidate_ids or len(candidate_ids)!=len(set(candidate_ids)):
+        raise PipelineError('INVALID_SELECTION','select','Select distinct proposals.')
+    available={str(c.id):c for c in analysis.candidates};kept=[]
+    for cid in candidate_ids:
+        if cid not in available:raise PipelineError('INVALID_SELECTION','select','Unknown proposal.')
+        single=analysis.model_copy(update={'candidates':[available[cid]]})
+        checked=select_candidates(single,transcript,config)
+        if checked.rejected:raise PipelineError('UNSAFE_SELECTION','select',checked.rejected[0]['reason'])
+        kept.extend(checked.candidates)
+    # Explicit variants are intentional; overlap and automatic batch limits do not discard them.
+    return CandidateArtifact(transcript_id=transcript.transcript_id,candidates=kept)
+
+
 def select_candidates(analysis:AnalysisArtifact,transcript:TranscriptArtifact,config:SelectionConfig) -> CandidateArtifact:
     if not analysis.complete or analysis.transcript_id!=transcript.transcript_id:
         raise PipelineError('INCOMPLETE_ANALYSIS','select','Complete analysis of this transcript is required.')

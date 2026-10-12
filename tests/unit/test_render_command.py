@@ -18,6 +18,9 @@ def test_render_uses_cpu_and_no_shell(tmp_path):
     result=FFmpegRenderer(Path('ffmpeg'),run=fake).render(*setup_render(tmp_path))
     assert result.size_bytes>0 and 'libx264' in seen[0][0] and 'h264_nvenc' not in seen[0][0]
     assert seen[0][1].get('shell',False) is False
+    graph=seen[0][0][seen[0][0].index('-filter_complex')+1]
+    assert 'boxblur' not in graph and 'overlay' not in graph and 'split=2' not in graph
+    assert 'crop=1080:1920' in graph and 'ass=' in graph
 
 def test_partial_render_is_never_completed(tmp_path):
     from engine.render.ffmpeg import FFmpegRenderer

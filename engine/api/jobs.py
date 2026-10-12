@@ -48,7 +48,7 @@ class JobManager:
             with sqlite3.connect(budget) as c:job['requests_used']=c.execute('SELECT count(*) FROM attempts').fetchone()[0]
         self.store.save_job(job);return job
 
-    def start(self,project_id,operation,options):
+    def start(self,project_id,operation,options,*,persist_selection=True):
         if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
         if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')
         row=self.store.get(project_id)
@@ -57,6 +57,10 @@ class JobManager:
             for prior in self.store.jobs():
                 if self.status(prior['id'])['status'] in ACTIVE:raise RuntimeError('Uma tarefa já está em execução. Aguarde ou cancele antes de iniciar outra.')
             settings=Settings(self.workspace).get()
+            if operation=='render' and options.get('candidate_ids') is not None:
+                from .analysis_view import save_selection,validate_selection
+                (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',180))
+                if not options['candidate_ids']:raise ValueError('Selecione pelo menos um trecho.')
             values={k:v for k,v in settings.items() if k not in ('gemini_key_configured','schema_version','tools_available','asr_available')}
             # Only typed request options are accepted by the API; no arbitrary command.
             values.update({k:options[k] for k in ('max_calls','window_seconds','max_text_chars') if k in options})
@@ -66,6 +70,7 @@ class JobManager:
             jid=str(uuid.uuid4());folder=self.root/jid;folder.mkdir()
             job={'id':jid,'project_id':project_id,'operation':operation,'status':'running','created_at':now(),'requests_used':0,'request_mode':'automatic' if automatic else 'manual','request_limit':None if automatic else values['max_calls'],'events':[]}
             request={'job_id':jid,'project_id':project_id,'project_root':row['path'],'workspace':str(self.workspace),'operation':operation,'settings':values,'source_input':options.get('source_input')}
+            request['selection']={k:options[k] for k in ('analysis_hash','candidate_ids') if options.get(k) is not None}
             atomic_json(folder/'request.json',request)
             with self.store.connect() as c:
                 c.execute('BEGIN IMMEDIATE')
@@ -105,4 +110,9 @@ class JobManager:
         if job['status'] not in ('failed','cancelled','interrupted'):raise ValueError('Tarefa não pode ser retomada neste estado.')
         if job['operation'] in ('prepare','analyze'):return self.start(job['project_id'],job['operation'],{'source_input':read_json(self.root/job_id/'request.json',{}).get('source_input')})
         request=read_json(self.root/job_id/'request.json',{})
-        return self.start(job['project_id'],job['operation'],{'source_input':request.get('source_input')})
+        selection=request.get('selection',{})
+        if job['operation']=='render' and selection.get('candidate_ids'):
+            ready={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='ready'}
+            selection={**selection,'candidate_ids':[cid for cid in selection['candidate_ids'] if cid not in ready]}
+            if not selection['candidate_ids']:raise ValueError('Todas as prévias já estão prontas.')
+        return self.start(job['project_id'],job['operation'],{'source_input':request.get('source_input'),**selection},persist_selection=False)

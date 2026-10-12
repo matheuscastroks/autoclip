@@ -1,0 +1,38 @@
+from uuid import uuid4
+from test_projects import client,source_folder
+from engine.contracts import TranscriptArtifact,Word,AnalysisArtifact,Candidate,EditorialFlags,Topic
+from engine.pipeline.artifacts import atomic_json
+
+def test_analysis_selection_and_worker_snapshot(client,tmp_path):
+    root=source_folder(tmp_path)
+    t=TranscriptArtifact.model_validate_json((root/'transcript.json').read_bytes())
+    t.words=[Word(id='start',text='Primeira',start_us=0,end_us=1_000_000),Word(id='end',text='Conclusão',start_us=29_000_000,end_us=30_000_000)]
+    c=Candidate(topic_id='t',start_word_id='start',end_word_id='end',evidence_word_ids=['start','end'],rationale='Argumento completo',editorial=EditorialFlags(completeness='yes',standalone_context='yes',qualification_preserved='yes'))
+    other=c.model_copy(update={'id':uuid4()})
+    a=AnalysisArtifact(transcript_id=t.transcript_id,topics=[Topic(id='t',label='Tema',summary='Resumo',evidence_word_ids=['start'])],candidates=[c,other],complete=True,covered_word_ids=['start','end'],model='fixture',prompt_hash='fixture',payload_hashes=[])
+    atomic_json(root/'transcript.json',t);atomic_json(root/'analysis.json',a)
+    pid=client.post('/api/v1/projects/import',json={'path':str(root)}).json()['id']
+    view=client.get(f'/api/v1/projects/{pid}/analysis').json()
+    assert len(view['proposals'])==2 and view['proposals'][0]['duration_us']==30_000_000
+    choice={'analysis_hash':view['analysis_hash'],'candidate_ids':[str(c.id),str(other.id)]}
+    assert client.put(f'/api/v1/projects/{pid}/analysis-selection',json=choice).status_code==200
+    assert client.get(f'/api/v1/projects/{pid}/analysis-selection').json()['candidate_ids']==choice['candidate_ids']
+    invalid={**choice,'analysis_hash':'0'*64}
+    assert client.put(f'/api/v1/projects/{pid}/analysis-selection',json=invalid).status_code==409
+    class Process:
+        pid=0
+        def poll(self):return None
+    client.app.state.jobs.spawn=lambda *a,**kw:Process()
+    response=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':'render','options':choice})
+    assert response.status_code==200
+    import json
+    request=json.loads((client.app.state.jobs.root/response.json()['id']/'request.json').read_bytes())
+    assert request['selection']==choice
+    folder=client.app.state.jobs.root/response.json()['id']
+    atomic_json(folder/'result.json',{'status':'failed'})
+    atomic_json(folder/'progress.json',{'items':[{'candidate_id':str(c.id),'state':'ready'},{'candidate_id':str(other.id),'state':'failed'}]})
+    resumed=client.post('/api/v1/jobs/'+response.json()['id']+'/resume')
+    assert resumed.status_code==200
+    retry=json.loads((client.app.state.jobs.root/resumed.json()['id']/'request.json').read_bytes())
+    assert retry['selection']['candidate_ids']==[str(other.id)]
+    assert client.get(f'/api/v1/projects/{pid}/analysis-selection').json()['candidate_ids']==choice['candidate_ids']

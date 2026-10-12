@@ -1,4 +1,4 @@
-import hashlib, json, os, uuid
+import hashlib, json, os, uuid, time
 from pathlib import Path
 from pydantic import BaseModel
 from engine.contracts import ArtifactRef, PipelineError
@@ -29,7 +29,13 @@ def atomic_bytes(path: Path, data: bytes):
     try:
         with temp.open('xb') as f:
             f.write(data); f.flush(); os.fsync(f.fileno())
-        os.replace(temp,path)
+        # Windows readers/antivirus can temporarily deny replacement of a file
+        # opened by polling. Preserve atomicity and fail boundedly on real errors.
+        for attempt in range(10):
+            try:os.replace(temp,path);break
+            except PermissionError as exc:
+                if getattr(exc,'winerror',None) not in (5,32) or attempt==9:raise
+                time.sleep(min(.01*2**attempt,.1))
     finally:
         temp.unlink(missing_ok=True)
 

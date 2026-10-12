@@ -172,8 +172,8 @@ class EDLArtifact(Contract):
 class CropArtifact(Contract):
     source_id: UUID
     edl_revision_id: UUID
-    mode: Literal['fit-blur'] = 'fit-blur'
-    fallback_reason: str = 'Face tracking deferred to M2; full frame preserved.'
+    mode: Literal['fit-blur','center-crop'] = 'center-crop'
+    fallback_reason: str = 'Static central 9:16 crop; face tracking is not enabled.'
 
 
 class CaptionRevision(Contract):

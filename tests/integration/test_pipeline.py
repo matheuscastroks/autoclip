@@ -24,8 +24,15 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
             c=Candidate(topic_id='topic',start_word_id='w0',end_word_id='w20',evidence_word_ids=['w0','w20'],rationale='Synthetic fixture, not editorial evaluation.',editorial=EditorialFlags(completeness='yes',standalone_context='yes',qualification_preserved='yes'))
             return AnalysisArtifact(transcript_id=t.transcript_id,complete=True,covered_word_ids=[w.id for w in t.words],model='fixture',prompt_hash='fixture',payload_hashes=[],candidates=[c])
     config=PipelineConfig(asr=ASRConfig(model_path=tmp_path/'fake-model'),analysis=AnalysisConfig(model='fixture',max_calls=1),export=ExportConfig(output_root=root/'previews'),ffmpeg=ffmpeg,ffprobe=ffprobe)
-    state=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber())
+    progress=[];published=[]
+    def report(value):
+        progress.append(value)
+        if value['completed_items']:published.append(json.loads((root/'project.json').read_text(encoding='utf-8'))['revisions'])
+    state=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber(),progress=report)
     assert state.status=='needs_review' and len(state.revisions)==1
+    assert published and published[-1]==state.revisions
+    assert any(p['phase']=='render' and p['processed_us']>0 for p in progress)
+    assert any(p['phase']=='verify' and p['completed_items']==0 for p in progress)
     assert create_report(root).exists()
     with pytest.raises(PipelineError) as e:export_approved(root)
     assert e.value.code=='REVIEW_REQUIRED'
@@ -37,6 +44,13 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
     packages=export_approved(root)
     assert (Path(packages[0])/'manifest.json').exists()
     assert (Path(packages[0])/'edl.json').exists()
+    # Presentation changes add a revision; they do not replace an approved preview.
+    old_fingerprint=review_fingerprint(root,__import__('uuid').UUID(revision))
+    config.export.crf+=1
+    next_batch=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber())
+    assert len(next_batch.revisions)==2
+    assert review_fingerprint(root,__import__('uuid').UUID(revision))==old_fingerprint
+    assert export_approved(root)==packages
     from engine.api.reviews import set_deleted
     set_deleted(root,revision,True)
     with pytest.raises(PipelineError) as deleted:export_approved(root)
