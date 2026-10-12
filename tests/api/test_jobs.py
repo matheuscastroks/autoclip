@@ -32,3 +32,10 @@ def test_analysis_starts_without_text_checkbox(client,tmp_path):
     r=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':'analyze','options':{}})
     assert r.status_code==200 and r.json()['request_mode']=='automatic'
     assert len(client.get('/api/v1/jobs').json())==1
+
+def test_job_polling_never_reorders_latest_analysis(client):
+    store=client.app.state.store
+    for jid,date in [('old','2026-10-12T10:00:00+00:00'),('new','2026-10-12T11:00:00+00:00')]:
+        store.save_job({'id':jid,'project_id':'fixture','status':'completed','operation':'analyze','created_at':date,'events':[]})
+    for _ in range(4):
+        assert [j['id'] for j in client.get('/api/v1/jobs').json()]==['new','old']

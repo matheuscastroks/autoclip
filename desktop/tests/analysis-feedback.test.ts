@@ -4,6 +4,36 @@ import SettingsPanel from '../src/components/SettingsPanel.vue'
 import AnalysisFeedback from '../src/components/AnalysisFeedback.vue'
 const config={asr_model_path:'/model',gemini_model:'fixture',max_calls:3,window_seconds:600,max_text_chars:60000,ffmpeg:'/ffmpeg',ffprobe:'/probe',asr_available:true,tools_available:true,gemini_key_configured:true}
 describe('editorial controls and Gemini feedback',()=>{
+  it('keeps the latest completed analysis selected when polling returns a different order',async()=>{
+    const old={id:'old',project_id:'p',operation:'analyze',status:'failed',created_at:'2026-10-12T10:00:00Z',request_limit:1,requests_used:0,error:{code:'PROVIDER_BUDGET',message:'Limite'},events:[]}
+    const recent={id:'new',project_id:'p',operation:'analyze',status:'completed',created_at:'2026-10-12T11:00:00Z',request_limit:4,requests_used:1,events:[{id:'s',at:'',kind:'thought_summary',message:'Conclusão validada.',window_id:'w',attempt:1}]}
+    const w=mount(AnalysisFeedback,{props:{jobs:[recent,old]}})
+    await w.setProps({jobs:[old,recent]})
+    expect(w.text()).toContain('Conclusão validada.');expect(w.text()).not.toContain('insuficiente');w.unmount()
+  })
+  it('retains received summary chunks when the API tail advances and supports pausing autoscroll',async()=>{
+    const job={id:'j',project_id:'p',operation:'analyze',status:'running',created_at:'',request_limit:4,requests_used:1,events:[{id:'s',at:'',kind:'thought_summary',message:'Conteúdo recebido.',window_id:'w',attempt:1}]}
+    const w=mount(AnalysisFeedback,{props:{jobs:[job]}})
+    await w.setProps({jobs:[{...job,events:[{id:'v',at:'',kind:'window_validated',message:'Validado.',window_id:'w',attempt:1}]}]})
+    expect(w.text()).toContain('Conteúdo recebido.')
+    const region=w.get('[aria-label="Resumo da análise atual"]');expect(region.attributes('tabindex')).toBe('0')
+    await w.get('[data-action=toggle-follow]').trigger('click')
+    expect(w.get('[data-action=toggle-follow]').attributes('aria-pressed')).toBe('false');w.unmount()
+  })
+  it('scrolls new chunks to the bottom until the user scrolls up, then resumes on demand',async()=>{
+    const job={id:'j',project_id:'p',operation:'analyze',status:'running',created_at:'',request_limit:4,requests_used:1,events:[{id:'s',at:'',kind:'thought_summary',message:'Começo.',window_id:'w',attempt:1}]}
+    const w=mount(AnalysisFeedback,{props:{jobs:[job]}})
+    const region=w.get('[aria-label="Resumo da análise atual"]'),element=region.element as HTMLElement
+    Object.defineProperty(element,'scrollHeight',{configurable:true,value:800})
+    Object.defineProperty(element,'clientHeight',{configurable:true,value:200})
+    await w.setProps({jobs:[{...job,events:[...job.events,{...job.events[0],id:'s2',message:' Continuação.'}]}]});await flushPromises()
+    expect(element.scrollTop).toBe(800)
+    element.scrollTop=100;await region.trigger('scroll')
+    await w.setProps({jobs:[{...job,events:[{...job.events[0],id:'s3',message:' Fim.'}]}]});await flushPromises()
+    expect(element.scrollTop).toBe(100)
+    await w.get('[data-action=toggle-follow]').trigger('click');await flushPromises()
+    expect(element.scrollTop).toBe(800);w.unmount()
+  })
   it('saves duration, pause policy and summary visibility from settings',async()=>{
     const save=vi.fn().mockResolvedValue({});const w=mount(SettingsPanel,{props:{config,saveConfig:save,saveKey:vi.fn(),pick:vi.fn()}})
     await w.get('[data-field=clip-preferred]').setValue(90)

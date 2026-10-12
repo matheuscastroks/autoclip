@@ -50,3 +50,14 @@ Testes automatizados do provedor usam fixtures. A conexão real ao catálogo foi
 ### Chamadas automáticas e compatibilidade
 
 A interface não expõe limite de tentativas nem checkbox de envio de texto. O limite antigo salvo nas configurações não restringe novas análises da interface. Trabalhos antigos e seus logs são preservados. Clientes CLI/API que enviam explicitamente `max_calls` ainda usam limite manual; a CLI conserva suas opções. A contagem real continua na sidebar e no histórico. O cancelamento interrompe a sequência. Nenhuma falha autoriza uma repetição infinita.
+
+
+### Painel equilibrado e leitura da análise
+
+A visão geral divide vídeo e painel em duas colunas iguais; abaixo de 1000 px, usa uma coluna. As quatro etapas ficam em uma grade compacta e o resumo tem sua própria área. O painel mantém o trabalho ativo ou mais recente por data, independentemente da ordem de atualização. Resumos já recebidos não desaparecem quando o lote de eventos consultado avança.
+
+O resumo acompanha novas mensagens automaticamente. Rolar para cima ou usar **Pausar acompanhamento** suspende o movimento; **Acompanhar atualizações** volta ao fim. A barra fica oculta, mas mouse, toque e teclado continuam disponíveis. O histórico permanece paginado.
+
+**Janela de análise:** intervalo de tempo da transcrição enviado por solicitação; 600 segundos correspondem a 10 minutos de conteúdo original. O motor usa sobreposição de 30 segundos nas divisões para preservar contexto. **Máximo de caracteres:** teto aproximado do texto com IDs de palavras em cada janela; textos densos são subdivididos mesmo dentro do intervalo de tempo. Não inclui todo o prompt e não equivale a tokens ou à capacidade exata do modelo. Valores maiores dão mais contexto por chamada; menores reduzem o tamanho de cada solicitação e podem aumentar o número de chamadas. Nenhum define a duração dos cortes. Os padrões 600 s / 60.000 caracteres podem ser mantidos; controles ficam em ajustes avançados.
+
+Referências de UX consultadas antes da alteração: [NN/g — visibilidade do estado](https://www.nngroup.com/articles/visibility-system-status/), [W3C — status acessíveis](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA22.html), [W3C — pausa da rolagem automática](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR33).

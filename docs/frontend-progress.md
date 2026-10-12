@@ -47,3 +47,12 @@ Task 5: complete — final Python76 passed/1 skipped in144.33s; Vue10 passed; vu
 - Retomada de análise cria um novo trabalho/ledger automático; histórico e tarefas antigas são preservados. Planejamento e consumo real aparecem na sidebar e no histórico.
 - Verificação: 27 testes Vue e build passaram; suíte Python final teve 107 passes, 1 skip (Gemini real opt-in) e 1 PermissionError temporário de Windows em test_failed_producer_does_not_become_checkpoint. Reexecução desse teste e das duas suítes API modificadas: 16 passes. Relatórios python-tests.xml e automatic-confirm.xml preservam ambos os resultados.
 - Serviço atualizado e saudável; formulário real inspecionado no navegador, sem checkbox ou limite. Nenhuma geração Gemini foi disparada durante a validação.
+
+
+## 2026-10-12 — Layout 50/50 e feedback estável
+
+- Causa reproduzida: INSERT OR REPLACE alterava rowid, e ORDER BY rowid mudava o trabalho considerado mais recente em cada consulta. Corrigido com UPSERT e ordenação por created_at/id; interface também seleciona por data.
+- Conteúdo mantém chunks recebidos ao avançar o tail de 100 eventos da API, com cache de sessão limitado a 2.000 eventos. Novas tentativas permanecem separadas; histórico completo continua paginado.
+- Autoscroll pausável, scrollbar oculta, região focável para teclado e indicação de status separada do texto. Etapas compactas e colunas 50/50, responsivas. Parâmetros de janela/chars em ajustes avançados com explicação.
+- Regressões RED/GREEN: ordenação após quatro consultas, seleção diante de respostas reordenadas, retenção de chunks, autoscroll e pausa/retomada. Verificação final: 30 testes Vue, 16 testes API jobs/workflow e 2 de feedback/histórico passaram; vue-tsc e Vite build passaram.
+- Inspeção real: 606,4 px por coluna; nenhum overflow horizontal; scrollbar-width none; scrollTop acompanhando o fim. Serviço atualizado e saudável. Nenhuma chamada de geração disparada na verificação; a falha PROVIDER_UNAVAILABLE da análise anterior é preservada, sem confundi-la com erros antigos de orçamento.

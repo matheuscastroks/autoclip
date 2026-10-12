@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import {computed} from 'vue'
-import type {Job} from '../types'
-import {active,labels} from '../format'
+import {computed,ref,watch,nextTick} from 'vue'
+import type {Job,AnalysisEvent} from '../types'
+import {active,labels,latestJob} from '../format'
 const props=defineProps<{jobs:Job[]}>()
 defineEmits<{history:[id:string]}>()
-const job=computed(()=>props.jobs.find(j=>['analyze','prepare'].includes(j.operation)&&active(j.status))||props.jobs.find(j=>['analyze','prepare'].includes(j.operation)))
-const events=computed(()=>job.value?.events.filter(e=>e?.kind)||[])
+const job=computed(()=>latestJob(props.jobs.filter(j=>['analyze','prepare'].includes(j.operation))))
+const events=ref<AnalysisEvent[]>([]),scrollArea=ref<HTMLElement>(),following=ref(true)
+let retainedJob=''
+watch(job,current=>{
+  if(current?.id!==retainedJob){retainedJob=current?.id||'';events.value=[];following.value=true}
+  // Polling returns a bounded tail. Keep already received chunks instead of erasing them.
+  const received=new Map(events.value.map(e=>[e.id,e]))
+  for(const event of current?.events||[])if(event?.kind)received.set(event.id,event)
+  events.value=[...received.values()].slice(-2000)
+},{immediate:true})
 const latest=computed(()=>events.value.at(-1))
 const context=computed(()=>events.value.filter(e=>e.window_id).at(-1))
 const scoped=computed(()=>context.value?events.value.filter(e=>e.window_id===context.value?.window_id&&e.attempt===context.value?.attempt):events.value)
@@ -20,11 +28,14 @@ const budgetNotice=computed(()=>{
   if(job.value?.requests_used===0&&(job.value.error?.code==='PROVIDER_BUDGET'||(planned&&job.value.request_limit!=null&&planned>job.value.request_limit)))return `Limite de ${job.value.request_limit} tentativa(s) insuficiente${planned?' para '+planned+' janelas':''}. Nenhuma solicitação de análise foi enviada. Inicie uma nova análise para usar o planejamento automático de chamadas.`
   return ''
 })
+watch(summary,async()=>{await nextTick();if(following.value&&scrollArea.value)scrollArea.value.scrollTop=scrollArea.value.scrollHeight},{immediate:true})
+function onScroll(){if(scrollArea.value&&scrollArea.value.scrollHeight-scrollArea.value.clientHeight-scrollArea.value.scrollTop>32)following.value=false}
+async function toggleFollow(){following.value=!following.value;await nextTick();if(following.value&&scrollArea.value)scrollArea.value.scrollTop=scrollArea.value.scrollHeight}
 </script>
 <template>
   <section v-if="job" class="analysis-feedback" aria-label="Análise do Gemini">
-    <h4>Análise do Gemini</h4><small v-if="context?.window_index">Janela {{context.window_index}} · tentativa {{context.attempt||job.requests_used}}</small>
-    <template v-if="summary"><small class="feedback-origin">Resumo enviado pelo Gemini</small><p class="thought-text">{{summary}}</p></template>
+    <div class="feedback-heading"><h4>Análise do Gemini</h4><span class="feedback-state" role="status">{{labels[job.status]||job.status}}</span></div><small v-if="context?.window_index">Janela {{context.window_index}} · tentativa {{context.attempt||job.requests_used}}</small>
+    <template v-if="summary"><div class="summary-toolbar"><small class="feedback-origin">Resumo enviado pelo Gemini</small><button type="button" class="text-button" data-action="toggle-follow" :aria-pressed="following" @click="toggleFollow">{{following?'Pausar acompanhamento':'Acompanhar atualizações'}}</button></div><div ref="scrollArea" class="thought-scroll hidden-scrollbar" role="region" aria-label="Resumo da análise atual" tabindex="0" @scroll="onScroll"><p class="thought-text">{{summary}}</p></div></template>
     <p v-else class="feedback-status">{{budgetNotice||unavailable?.message||status}}</p>
     <p v-if="summary&&latest?.kind!=='thought_summary'" class="feedback-status">Aplicativo: {{status}}</p>
     <p v-else-if="!summary&&unavailable&&latest?.id!==unavailable.id" class="feedback-status">Aplicativo: {{status}}</p>

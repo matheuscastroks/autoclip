@@ -54,7 +54,7 @@ class ProjectStore:
         return dict(r)
 
     def jobs(self)->list[dict]:
-        with self.connect() as c:return [json.loads(r['data']) for r in c.execute('SELECT data FROM jobs ORDER BY rowid DESC')]
+        with self.connect() as c:return [json.loads(r['data']) for r in c.execute("SELECT data FROM jobs ORDER BY json_extract(data,'$.created_at') DESC,id DESC")]
 
     def job(self,job_id):
         with self.connect() as c:r=c.execute('SELECT data FROM jobs WHERE id=?',(job_id,)).fetchone()
@@ -62,4 +62,4 @@ class ProjectStore:
         return json.loads(r['data'])
 
     def save_job(self,job):
-        with self.connect() as c:c.execute('INSERT OR REPLACE INTO jobs VALUES(?,?,?,?)',(job['id'],job['project_id'],job['status'],json.dumps(job,ensure_ascii=False)))
+        with self.connect() as c:c.execute('INSERT INTO jobs VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,status=excluded.status,data=excluded.data',(job['id'],job['project_id'],job['status'],json.dumps(job,ensure_ascii=False)))
