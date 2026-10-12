@@ -9,6 +9,12 @@ import {notify,resetNotifications} from '../src/notifications'
 const project={id:'p',name:'Projeto de teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'failed',has_transcript:true,word_count:100,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'2026-10-12T12:00:00Z',updated_at:0,source:null,error:null}
 const config={asr_model_path:'/model',gemini_model:'gemini-2.5-flash',max_calls:10,window_seconds:600,max_text_chars:60000,ffmpeg:'/ffmpeg',ffprobe:'/ffprobe',asr_available:true,tools_available:true,gemini_key_configured:true}
 describe('workspace interactions',()=>{
+  it('places copy and editorial review beside the portrait player',()=>{
+    const w=mount(ReviewPanel,{props:{revisions:[{revision_id:'r',title:'Corte',technical_pass:true,review_status:'needs_review',warnings:[]}],manual:false,mediaUrl:'/r.mp4',sourceUrl:''}})
+    expect(w.get('.clip-preview').find('.preview-label').exists()).toBe(false)
+    expect(w.get('.clip-information .preview-label').text()).toBe('Corte')
+    expect(w.find('.clip-information .review-editorial').exists()).toBe(true);w.unmount()
+  })
   it('aligns the reviewed cut with an external sidebar selection outside the filter',async()=>{
     const rows=[{revision_id:'a',title:'Para conferir',technical_pass:true,review_status:'needs_review',warnings:[],content_hash:'a'},{revision_id:'b',title:'Aprovada',technical_pass:true,review_status:'approved',warnings:[],content_hash:'b'}]
     const w=mount(ReviewPanel,{props:{revisions:rows,manual:false,mediaUrl:'/a.mp4',sourceUrl:'',selectedRevision:'a'}})

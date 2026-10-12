@@ -16,6 +16,14 @@ function setup(){
 }
 async function open(){const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click');await flushPromises();return w}
 describe('review identity across refresh and failures',()=>{
+  it('keeps session and refresh in the sidebar without a top header',async()=>{
+    setup();const w=mount(App);await flushPromises()
+    expect(w.find('.topbar').exists()).toBe(false)
+    expect(w.get('.sidebar-bottom .sidebar-session').text()).toContain('Sessão local')
+    const before=vi.mocked(api.projects).mock.calls.length
+    await w.get('.sidebar-bottom button[title="Atualizar projetos"]').trigger('click');await flushPromises()
+    expect(vi.mocked(api.projects).mock.calls.length).toBe(before+1);w.unmount()
+  })
   it('does not reopen a project when navigation abandons an in-flight load',async()=>{
     setup();let resolveProject:(value:typeof project)=>void=()=>{}
     vi.mocked(api.project).mockImplementation(()=>new Promise(resolve=>resolveProject=resolve))
