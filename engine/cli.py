@@ -17,7 +17,7 @@ def main(argv=None):
     sub.add_parser('doctor')
     auth=sub.add_parser('auth');auth.add_argument('action',choices=['set-gemini-key'])
     run=sub.add_parser('run');run.add_argument('source');run.add_argument('--project',type=Path,required=True);run.add_argument('--model',required=True);run.add_argument('--max-calls',type=int,required=True);run.add_argument('--offline',action='store_true');run.add_argument('--asr-model',type=Path,default=Path('research/models/whisper-small'))
-    resume=sub.add_parser('resume');resume.add_argument('--project',type=Path,required=True);resume.add_argument('--model');resume.add_argument('--max-calls',type=int)
+    resume=sub.add_parser('resume');resume.add_argument('--project',type=Path,required=True);resume.add_argument('--model');resume.add_argument('--max-calls',type=int);resume.add_argument('--offline',action=argparse.BooleanOptionalAction,default=None)
     for name in ['review','export']:
         p=sub.add_parser(name);p.add_argument('--project',type=Path,required=True)
     approve=sub.add_parser('approve');approve.add_argument('revision');approve.add_argument('--project',type=Path,required=True)
@@ -51,6 +51,7 @@ def main(argv=None):
             config=PipelineConfig.model_validate_json((root/'config.json').read_bytes())
             if a.model:config.analysis.model=a.model
             if a.max_calls:config.analysis.max_calls=a.max_calls
+            if a.offline is not None:config.analysis.offline=a.offline
             state=resume_project(root,config);print('Status:',state.status)
             if state.revisions:print('Review report:',create_report(root))
             return 0 if state.status!='failed' else 1

@@ -1,58 +1,128 @@
-import json,time
+import json,time,sys,tempfile
+import httpx
+from types import SimpleNamespace
+from email.utils import parsedate_to_datetime
+from datetime import datetime,timezone
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol,Literal
 from pydantic import BaseModel,ConfigDict,Field
 from engine.contracts import TranscriptArtifact,AnalysisConfig,AnalysisArtifact,Topic,Candidate,PipelineError
-from engine.pipeline.artifacts import object_hash
+from engine.pipeline.artifacts import object_hash,atomic_json
+from engine.pipeline.cancellation import run_process
 from engine.adapters.openshorts.windows import build_windows
 from .credentials import get_gemini_key
 
 
+class ResponseFlags(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    completeness:Literal['yes','no','uncertain']
+    standalone_context:Literal['yes','no','uncertain']
+    qualification_preserved:Literal['yes','no','uncertain']
+
+class ResponseTopic(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    id:str
+    label:str
+    summary:str
+    evidence_word_ids:list[str]
+
+class ResponseCandidate(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    topic_id:str
+    start_word_id:str
+    end_word_id:str
+    evidence_word_ids:list[str]
+    rationale:str
+    editorial:ResponseFlags
+    context_before_word_ids:list[str]=Field(default_factory=list)
+    context_after_word_ids:list[str]=Field(default_factory=list)
+    title_suggestion:str=''
+    description_suggestion:str=''
+
 class GeminiResponse(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    topics:list[Topic]=Field(default_factory=list)
-    candidates:list[Candidate]=Field(default_factory=list)
+    topics:list[ResponseTopic]
+    candidates:list[ResponseCandidate]
+
+def retry_delay(error):
+    raw=getattr(getattr(error,'response',None),'headers',{}).get('Retry-After')
+    if raw is None:return 2
+    try:return max(0,min(30,float(raw)))
+    except (ValueError,TypeError):
+        try:return max(0,min(30,(parsedate_to_datetime(raw)-datetime.now(timezone.utc)).total_seconds()))
+        except (ValueError,TypeError):return 2
+
+class WorkerRequestError(Exception):
+    def __init__(self,data):
+        self.code=data.get('code');self.transport=data.get('transport',False)
+        self.response=SimpleNamespace(headers={'Retry-After':data['retry_after']} if data.get('retry_after') else {})
+        super().__init__('Isolated Gemini request failed; no secret details exposed.')
+
+def isolated_request(root,cancelled,timeout,**kwargs):
+    root.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='gemini-',dir=root) as folder:
+        folder=Path(folder);request=folder/'request.json';response=folder/'response.json'
+        atomic_json(request,{'model':kwargs['model'],'contents':kwargs['contents'],'timeout_s':timeout})
+        r=run_process([sys.executable,'-X','utf8','-m','engine.adapters.gemini.request_worker',str(request),str(response)],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
+        if not response.exists():raise WorkerRequestError({'transport':True})
+        data=json.loads(response.read_text(encoding='utf-8'))
+        if 'error' in data:
+            atomic_json(root/'last-request-error.json',data['error'])
+            raise WorkerRequestError(data['error'])
+        usage=data.get('usage')
+        return SimpleNamespace(text=data['text'],model_version=data.get('model_version'),usage_metadata=SimpleNamespace(model_dump=lambda **kw:usage) if usage else None)
 
 class Analyzer(Protocol):
-    def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig) -> AnalysisArtifact: ...
+    def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig,cancelled=lambda:False) -> AnalysisArtifact: ...
 
 class GeminiAnalyzer:
-    def __init__(self,request=None,sleep=time.sleep):
-        self.request=request;self.sleep=sleep
+    def __init__(self,request=None,sleep=time.sleep,work_root=None):
+        self.request=request;self.sleep=sleep;self.work_root=Path(work_root) if work_root else Path.cwd()/'.runtime-tmp'
 
-    def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig) -> AnalysisArtifact:
+    def analyze(self,transcript:TranscriptArtifact,config:AnalysisConfig,cancelled=lambda:False) -> AnalysisArtifact:
         if config.offline: raise PipelineError('OFFLINE_PROVIDER','analyze','Gemini requires internet; local stages and review remain available.')
         if not transcript.words: raise PipelineError('NO_SPEECH','analyze','No transcript; never upload silent video.')
-        request=self.request;client=None
+        request=self.request
         if request is None:
-            from google import genai
-            from google.genai import types
-            # Disable SDK's own retry layer: this engine owns the request budget.
-            options=types.HttpOptions(timeout=config.timeout_s*1000,retry_options=types.HttpRetryOptions(attempts=1))
-            client=genai.Client(api_key=get_gemini_key(),http_options=options)
-            request=client.models.generate_content
+            get_gemini_key()
+            request=lambda **kw:isolated_request(self.work_root,cancelled,config.timeout_s,**kw)
+        def check_cancelled():
+            if cancelled():raise PipelineError('CANCELLED','analyze','Cancelled; no further Gemini requests.')
         prompt=(Path(__file__).resolve().parents[2]/'prompts/analysis_v1.txt').read_text(encoding='utf-8')
         topics=[];candidates=[];covered=set();hashes=[];responses=[];calls=0
+        windows=build_windows(transcript,config.window_seconds,config.max_text_chars)
+        if len(windows)>config.max_calls:
+            raise PipelineError('PROVIDER_BUDGET','analyze','Request budget cannot cover all windows; no request made.')
         try:
-            for window in build_windows(transcript):
+            for window in windows:
+                check_cancelled()
                 text=prompt+'\n<TRANSCRICAO>\n'+window['text']+'\n</TRANSCRICAO>'
                 valid_ids={w.id for w in window['words']};repair=False
                 while True:
                     response=None
                     for attempt in range(2):
+                        check_cancelled()
                         if calls>=config.max_calls:
                             raise PipelineError('PROVIDER_BUDGET','analyze','Gemini request budget exhausted; analysis not complete.')
                         calls+=1;hashes.append(object_hash({'model':config.model,'contents':text,'prompt_version':config.prompt_version}))
                         try:
-                            response=request(model=config.model,contents=text,config={'temperature':0,'response_mime_type':'application/json','response_schema':GeminiResponse})
+                            response=request(model=config.model,contents=text,config={'temperature':0,'response_mime_type':'application/json','response_json_schema':GeminiResponse.model_json_schema()})
                             break
+                        except PipelineError:raise
                         except Exception as exc:
                             code=getattr(exc,'code',None) or getattr(exc,'status_code',None)
                             if code in (401,403): raise PipelineError('PROVIDER_AUTH','analyze','Gemini authentication/permission failed.') from None
-                            retryable=code in (429,500,502,503,504) or isinstance(exc,(TimeoutError,ConnectionError))
+                            transport_types=(TimeoutError,ConnectionError,httpx.TimeoutException,httpx.NetworkError)
+                            try:
+                                import httpx2
+                                transport_types+=(httpx2.TimeoutException,httpx2.NetworkError)
+                            except ImportError:pass
+                            retryable=code in (429,500,502,503,504) or isinstance(exc,transport_types) or getattr(exc,'transport',False)
                             if not retryable or attempt==1:
                                 raise PipelineError('PROVIDER_UNAVAILABLE','analyze','Gemini request failed; no provider fallback.',retryable) from None
-                            self.sleep(2)
+                            delay=retry_delay(exc)
+                            while delay>0:
+                                check_cancelled();step=min(.2,delay);self.sleep(step);delay-=step
                     try:
                         parsed=GeminiResponse.model_validate_json(getattr(response,'text','') or '')
                         for topic in parsed.topics:
@@ -66,9 +136,11 @@ class GeminiAnalyzer:
                         repair=True;text+='\nA resposta anterior não respeitou o schema ou IDs. Retorne JSON válido usando somente os IDs da transcrição.'
                         continue
                     prefix=window['id']+':'
-                    for topic in parsed.topics: topic.id=prefix+topic.id
-                    for candidate in parsed.candidates: candidate.topic_id=prefix+candidate.topic_id
-                    topics.extend(parsed.topics);candidates.extend(parsed.candidates);covered.update(valid_ids)
+                    domain_topics=[Topic.model_validate(t.model_dump()) for t in parsed.topics]
+                    domain_candidates=[Candidate.model_validate(c.model_dump()) for c in parsed.candidates]
+                    for topic in domain_topics:topic.id=prefix+topic.id
+                    for candidate in domain_candidates:candidate.topic_id=prefix+candidate.topic_id
+                    topics.extend(domain_topics);candidates.extend(domain_candidates);covered.update(valid_ids)
                     usage=getattr(response,'usage_metadata',None)
                     responses.append({'window_id':window['id'],'model_version':getattr(response,'model_version',None),'usage':usage.model_dump(mode='json') if hasattr(usage,'model_dump') else None})
                     break
@@ -76,4 +148,4 @@ class GeminiAnalyzer:
                 raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Some transcript words were not covered.')
             return AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,complete=True,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
         finally:
-            if client: client.close()
+            pass

@@ -1,7 +1,7 @@
 import importlib.metadata,sys
 from pathlib import Path
 from engine.contracts import AudioArtifact,ASRConfig,TranscriptArtifact,Word,Segment,PipelineError
-from engine.pipeline.artifacts import file_hash
+from engine.pipeline.artifacts import file_hash,object_hash
 from vendor.openshorts.transcribe_backends import transcribe_explicit
 
 
@@ -11,6 +11,12 @@ def configure_utf8():
             try: stream.reconfigure(encoding='utf-8',errors='replace')
             except (ValueError,AttributeError): pass
 
+def model_fingerprint(folder:Path) -> str:
+    required=['model.bin','config.json','tokenizer.json','vocabulary.txt']
+    missing=[name for name in required if not (folder/name).is_file() or (folder/name).stat().st_size==0]
+    if missing: raise PipelineError('MODEL_MISSING','transcribe','Incomplete local Whisper model; provision weights, config, tokenizer and vocabulary before offline processing.')
+    return object_hash({name:file_hash(folder/name) for name in required})
+
 class OpenShortsTranscriber:
     def __init__(self,model_factory=None): self.model_factory=model_factory
 
@@ -18,12 +24,11 @@ class OpenShortsTranscriber:
         configure_utf8()
         factory=self.model_factory
         if factory is None:
-            if not (config.model_path/'model.bin').is_file():
-                raise PipelineError('MODEL_MISSING','transcribe','Whisper model.bin missing; provision the multilingual small model.')
+            digest=model_fingerprint(config.model_path)
             from faster_whisper import WhisperModel
             factory=WhisperModel
         try:
-            model=factory(str(config.model_path),device=config.device,compute_type=config.compute_type)
+            model=factory(str(config.model_path),device=config.device,compute_type=config.compute_type,local_files_only=True)
             raw=transcribe_explicit(str(audio.path),model,language=config.language)
         except Exception as exc:
             raise PipelineError('ASR_FAILED','transcribe','ASR failed locally; check model/runtime compatibility.') from exc
@@ -44,4 +49,5 @@ class OpenShortsTranscriber:
         if not words: raise PipelineError('NO_SPEECH','transcribe','No usable speech; no remote media fallback.')
         record={'provider':'faster-whisper','name':'small','path':str(config.model_path),'device':'cpu','compute_type':'int8','version':importlib.metadata.version('faster-whisper')}
         if (config.model_path/'model.bin').exists(): record['digest']='sha256:'+file_hash(config.model_path/'model.bin')
+        if self.model_factory is None: record['assets_digest']='sha256:'+digest
         return TranscriptArtifact(source_id=audio.source_id,source_sha256=audio.source_sha256,language=raw['language'],model=record,words=words,segments=segments)

@@ -13,6 +13,8 @@ from engine.adapters.openshorts.captions import OpenShortsCaptionBuilder
 from engine.render.ffmpeg import FFmpegRenderer
 from engine.render.verify import verify_render
 from engine.editorial.review import review_fingerprint
+from engine.pipeline.fingerprints import stage_dependencies,tool_fingerprint,font_fingerprint,resolve_font
+from engine.adapters.openshorts.transcriber import model_fingerprint
 
 CODE_ROOT=Path(__file__).resolve().parents[1]
 
@@ -49,32 +51,37 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         result=cache.run(name,inputs,produce,model)
         check();return result
     try:
-        audio=stage('audio',{'source':source.sha256,'probe':source.probe,'code':code_hash('media/audio.py')},lambda:extract_audio(source,config.ffmpeg,root),AudioArtifact)
+        ffmpeg_identity=tool_fingerprint(config.ffmpeg)
+        audio=stage('audio',{'source':source.sha256,'probe':source.probe,'runtime':stage_dependencies('audio'),'ffmpeg':ffmpeg_identity},lambda:extract_audio(source,config.ffmpeg,root,cancelled),AudioArtifact)
         model_file=config.asr.model_path/'model.bin'
         if not model_file.exists() and transcriber is None: raise PipelineError('MODEL_MISSING','transcribe','Local multilingual Whisper model missing.')
-        transcript=stage('transcribe',{'audio':audio.sha256,'source_id':str(source.id),'config':config.asr.model_dump(mode='json'),'model_digest':file_hash(model_file) if model_file.exists() else 'injected-test','code':code_hash('adapters/openshorts/transcriber.py')},lambda:transcriber.transcribe(audio,config.asr) if transcriber else _asr_worker(audio,config.asr,root,cancelled),TranscriptArtifact)
+        assets=model_fingerprint(config.asr.model_path) if transcriber is None else 'injected:'+str(getattr(transcriber,'cache_identity',type(transcriber).__qualname__))
+        transcript=stage('transcribe',{'audio':audio.sha256,'source_id':str(source.id),'config':config.asr.model_dump(mode='json'),'model_digest':assets,'runtime':stage_dependencies('transcribe')},lambda:transcriber.transcribe(audio,config.asr) if transcriber else _asr_worker(audio,config.asr,root,cancelled),TranscriptArtifact)
         atomic_json(root/'transcript.json',transcript);state.transcript_path=root/'transcript.json';atomic_json(state_path,state)
-        analysis=stage('analyze',{'transcript':object_hash(transcript),'config':config.analysis.model_dump(mode='json'),'prompt_hash':file_hash(CODE_ROOT/'prompts/analysis_v1.txt'),'code':code_hash('adapters/gemini/analyzer.py','adapters/openshorts/windows.py')},lambda:(analyzer or GeminiAnalyzer()).analyze(transcript,config.analysis),AnalysisArtifact)
+        semantic={'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars}
+        analysis=stage('analyze',{'transcript':object_hash(transcript),'config':semantic,'prompt_hash':file_hash(CODE_ROOT/'prompts/analysis_v1.txt'),'runtime':stage_dependencies('analyze')},lambda:(analyzer or GeminiAnalyzer(work_root=root/'work')).analyze(transcript,config.analysis,cancelled=cancelled),AnalysisArtifact)
         atomic_json(root/'analysis.json',analysis)
-        candidates=stage('select',{'analysis':object_hash(analysis),'config':config.selection.model_dump(mode='json'),'code':code_hash('editorial/select.py')},lambda:select_candidates(analysis,transcript,config.selection),CandidateArtifact)
+        candidates=stage('select',{'analysis':object_hash(analysis),'config':config.selection.model_dump(mode='json'),'runtime':stage_dependencies('select')},lambda:select_candidates(analysis,transcript,config.selection),CandidateArtifact)
         atomic_json(root/'candidates.json',candidates);state.candidates_path=root/'candidates.json'
         failures=[]
         for candidate in candidates.candidates:
             try:
-                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'code':code_hash('editorial/edl.py')},lambda:plan_continuous_edit(candidate,transcript,source),EDLArtifact)
+                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'runtime':stage_dependencies('edit_plan')},lambda:plan_continuous_edit(candidate,transcript,source),EDLArtifact)
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
-                caps=stage('captions',{'edl':object_hash(edl),'transcript':object_hash(transcript),'config':config.captions.model_dump(mode='json'),'code':code_hash('adapters/openshorts/captions.py')},lambda:OpenShortsCaptionBuilder(root/'captions').build(transcript,edl,CaptionRevision(),config.captions),CaptionArtifact)
+                caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name)})
+                font=font_fingerprint(caption_config.font_path,caption_config.font_name)
+                caps=stage('captions',{'edl':object_hash(edl),'transcript':object_hash(transcript),'config':caption_config.model_dump(mode='json'),'font':font,'runtime':stage_dependencies('captions')},lambda:OpenShortsCaptionBuilder(root/'captions').build(transcript,edl,CaptionRevision(),caption_config),CaptionArtifact)
                 atomic_json(revision_dir/'captions.json',caps)
                 crop=CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id)
-                profile=object_hash({'edl':edl,'caps':caps,'profile':config.export,'code':code_hash('render/ffmpeg.py')})
+                profile=object_hash({'edl':edl,'caps':caps,'crop':crop,'profile':config.export,'font':font,'ffmpeg':ffmpeg_identity,'runtime':stage_dependencies('render')})
                 export_config=config.export.model_copy(update={'output_root':root/'previews'/profile})
                 def render():
                     existing=export_config.output_root/(str(edl.revision_id)+'.mp4')
                     if existing.exists(): existing.replace(existing.with_suffix('.corrupt-'+uuid.uuid4().hex))
                     return FFmpegRenderer(config.ffmpeg,run=lambda cmd,**kw:run_process(cmd,cancelled=cancelled,**kw)).render(source,edl,crop,caps,export_config)
                 rendered=stage('render',{'profile':profile},render,RenderArtifact)
-                qa=stage('verify',{'render':object_hash(rendered),'edl':object_hash(edl),'code':code_hash('render/verify.py')},lambda:verify_render(rendered,source,edl,config.ffprobe,config.ffmpeg),ExportValidation)
+                qa=stage('verify',{'render':object_hash(rendered),'edl':object_hash(edl),'ffmpeg':ffmpeg_identity,'ffprobe':tool_fingerprint(config.ffprobe),'runtime':stage_dependencies('verify')},lambda:verify_render(rendered,source,edl,config.ffprobe,config.ffmpeg,cancelled),ExportValidation)
                 atomic_json(revision_dir/'render.json',rendered);atomic_json(revision_dir/'qa.json',qa)
                 if not qa.technical_pass: raise PipelineError('EXPORT_INVALID','verify','Technical QA failed; inspect revision QA.')
                 state.revisions.append({'revision_id':str(edl.revision_id),'candidate_id':str(candidate.id),'render_path':str(rendered.path),'review_status':'needs_review'})

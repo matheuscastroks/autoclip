@@ -1,6 +1,6 @@
 # AutoClip Editor — investigação e definição técnica
 
-Aplicação proposta: desktop open source, local-first, para cortes informativos em português brasileiro. Esta entrega contém pesquisa e especificações; não contém a aplicação desktop nem uma PoC de produto validada.
+Projeto desktop open source, local-first, para cortes informativos em português brasileiro. A pesquisa, especificações e primeira PoC do motor por CLI estão implementadas. A interface desktop permanece no roadmap; aprovação editorial dos cortes reais continua humana.
 
 ## Documentos
 
@@ -14,6 +14,8 @@ Aplicação proposta: desktop open source, local-first, para cortes informativos
 8. [Estado de validação](docs/08-validacao.md): verificações executadas e pendências para a PoC.
 9. [Configuração Gemini](docs/09-gemini.md): análise por API escolhida pelo usuário, com mídia processada localmente.
 10. [Plano detalhado da PoC](docs/superpowers/plans/2026-10-12-poc-openshorts-gemini.md): tarefas, interfaces, testes e aceite para implementação.
+11. [Executar e revisar a PoC](docs/poc-runbook.md): instalação, credencial local, retomada, revisão e exportação.
+12. [Registro de execução e decisões](docs/poc-progress.md): testes, revisão independente e limites observados.
 
 ## Evidências reproduzíveis
 
@@ -25,4 +27,4 @@ Scripts em `research/` são instrumentos de investigação dos candidatos. Não 
 
 ## Próximo gate
 
-A arquitetura OpenShorts + Gemini foi aprovada pelo usuário em 12/10/2026. O plano detalhado da PoC está preparado para revisão e escolha do método de execução; a implementação ainda não começou. O usuário informou que seu notebook não comporta LLM local e escolheu análise pela API Gemini; transcrição, edição e renderização permanecem locais. O comparativo de qualidade semântica só pode ser concluído com seleção e revisão de cortes reais, usando o protocolo documentado.
+A arquitetura e o plano OpenShorts + Gemini foram aprovados e implementados. Transcrição, edição e renderização permanecem locais. O vídeo integral produziu 5.414 palavras em CPU; o teste remoto usa Gemini 2.5 Flash, somente texto, com até 20 tentativas autorizadas. Consulte o estado de validação para o resultado atual. O comparativo editorial dos cinco projetos ainda exige a rubrica humana documentada.

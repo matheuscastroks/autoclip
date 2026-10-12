@@ -2,6 +2,7 @@ import json, os, shutil, subprocess
 from pathlib import Path
 from fractions import Fraction
 from engine.contracts import Source, PipelineError
+from engine.pipeline.cancellation import run_process
 
 
 def locate_tools():
@@ -13,8 +14,8 @@ def locate_tools():
         if ffmpeg.is_file() and ffprobe.is_file(): return ffmpeg,ffprobe
     raise PipelineError('TOOL_MISSING','doctor','FFmpeg/ffprobe not found; pass explicit paths.')
 
-def probe_json(path: Path,ffprobe: Path):
-    r=subprocess.run([str(ffprobe),'-v','error','-show_format','-show_streams','-of','json',str(path)],capture_output=True,text=True,encoding='utf-8',timeout=30)
+def probe_json(path: Path,ffprobe: Path,cancelled=lambda:False):
+    r=run_process([str(ffprobe),'-v','error','-show_format','-show_streams','-of','json',str(path)],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8',timeout_s=30)
     if r.returncode: raise PipelineError('SOURCE_UNAVAILABLE','probe','ffprobe could not decode media.')
     return json.loads(r.stdout)
 

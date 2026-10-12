@@ -47,11 +47,21 @@ Esses tempos não incluem download do modelo e não estabelecem superioridade: e
 ## Ainda pendente
 
 1. ASR da amostra concluído em Autoclip/OpenShorts/Steezy; preparar jameselle/auto-editor se necessário para completar os cinco ensaios aplicáveis. Métricas de execução não equivalem a WER.
-2. Configurar Gemini API escolhido pelo usuário; executar a seleção do vídeo integral usando a versão permissiva do OpenShorts, com texto apenas. Nenhuma chave foi solicitada no chat ou chamada real Gemini executada.
+2. Seleção real pelo Gemini ainda pendente: chave configurada e listagem de modelos funcionou; tentativas textuais com Gemini 2.5 Flash encontraram HTTP400 (schema corrigido) e HTTP504 (timeout). Limite de 20 tentativas tratado conservadoramente como esgotado; não repetir sem novo orçamento autorizado.
 3. Avaliar cortes reais de todos os candidatos aplicáveis com a rubrica editorial; jameselle e auto-editor não receberam benchmark completo Windows nesta rodada.
 4. Ground truth humano, WER/timing, cortes de pausas, tracking/reframe, ASS burn, áudio e QA audiovisual do resultado.
 5. Conferir a stack mínima MIT sem cloud/Ultralytics/Remotion obrigatórios; pacote público ainda exige SBOM/licença aprovada.
-6. Arquitetura OpenShorts + Gemini aprovada pelo usuário em 12/10/2026; plano detalhado escrito em `docs/superpowers/plans/2026-10-12-poc-openshorts-gemini.md`. Falta revisar o plano e escolher execução antes de implementar CLI/motor. PoC de produto ainda não foi construída.
+6. PoC CLI/motor implementada após aprovação: contratos, importação, ASR CPU, análise textual configurável, EDL protegida, captions, render 9:16 fit-blur, QA, retomada e exportação com aprovação humana. Interface desktop permanece fora desta fase.
+
+## Validação da PoC implementada
+
+Suite final: **52 passed, 1 skipped**, 71,92 s; JUnit em `poc-results/tests.xml`. O skip é o teste opt-in de seleção Gemini real, pois não existe análise integral bem-sucedida. Regressões exercitam VFR, silêncio digital, cancelamento, cache, referências, payload textual, schema e orçamento. Não medem qualidade editorial automaticamente.
+
+ASR integral do vídeo indicado: **5.414 palavras**, **2.841,406 s** (~47 min), CPU/int8, small multilíngue. Relógio do vídeo: 1773,183 s; duração de container: 1773,194 s. ASR e mídia ficam locais e ignorados no Git. Reuso no ensaio Gemini identifica explicitamente o artefato e a proveniência, sem repetir inferência.
+
+Preview manual de 25,67 s com legendas e fit-blur passou QA técnica e inspeção de frames. Ele não foi escolhido pelo Gemini nem recebeu aprovação editorial. A comparação semântica dos cinco projetos, WER/timing humanos e aceitação de cortes reais continuam pendentes.
+
+Google documenta `response_json_schema` para saída estruturada ([referência oficial](https://ai.google.dev/gemini-api/docs/structured-output)). A tentativa anterior via `response_schema` foi rejeitada por `additional_properties`; regressão de wire observada RED -> GREEN. A análise de toda a fonte em uma única chamada encontrou timeout HTTP504 de 60 s. Nenhum corte semântico real foi aprovado ou exportado.
 
 ## Como reproduzir os ensaios
 

@@ -12,6 +12,8 @@ __pycache__/
 .render-test-tmp/
 .pipeline-test-tmp/
 .full-test-tmp/
+.review-test-tmp/
+.runtime-tmp/
 .superpowers/
 research/*pytest-temp/
 research/pytest-temp/
@@ -27,3 +29,4 @@ dist/
 *.key
 *.pem
 *.log
+.wire-test-tmp/

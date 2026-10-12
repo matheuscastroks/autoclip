@@ -19,7 +19,7 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
             words=[Word(id=f'w{i}',text=('Não' if i==0 else 'palavra.'),start_us=i*1_000_000,end_us=i*1_000_000+900_000) for i in range(21)]
             return TranscriptArtifact(source_id=audio.source_id,source_sha256=audio.source_sha256,words=words)
     class Analyzer:
-        def analyze(self,t,config):
+        def analyze(self,t,config,**kw):
             counts['llm']+=1
             c=Candidate(topic_id='topic',start_word_id='w0',end_word_id='w20',evidence_word_ids=['w0','w20'],rationale='Synthetic fixture, not editorial evaluation.',editorial=EditorialFlags(completeness='yes',standalone_context='yes',qualification_preserved='yes'))
             return AnalysisArtifact(transcript_id=t.transcript_id,complete=True,covered_word_ids=[w.id for w in t.words],model='fixture',prompt_hash='fixture',payload_hashes=[],candidates=[c])

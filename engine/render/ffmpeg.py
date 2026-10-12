@@ -17,7 +17,7 @@ class FFmpegRenderer:
         filters=[];inputs=[]
         for i,span in enumerate(edl.spans):
             start=origin+span.source_start_us/1e6;end=origin+span.source_end_us/1e6
-            filters.append(f'[0:{vf}]trim=start={start:.6f}:end={end:.6f},setpts=PTS-STARTPTS[v{i}]')
+            filters.append(f'[0:{vf}]fps=30:start_time={origin:.6f},trim=start={start:.6f}:end={end:.6f},setpts=PTS-{start:.6f}/TB[v{i}]')
             filters.append(f'[0:{af}]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-{start:.6f}/TB,aresample=48000:async=1:first_pts=0,apad,atrim=duration={(span.output_end_us-span.output_start_us)/1e6:.6f}[a{i}]')
             inputs.append(f'[v{i}][a{i}]')
         filters.append(''.join(inputs)+f'concat=n={len(edl.spans)}:v=1:a=1[vbase][aout]')

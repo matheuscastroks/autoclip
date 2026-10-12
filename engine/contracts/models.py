@@ -282,6 +282,8 @@ class AnalysisConfig(Contract):
     timeout_s: int = Field(default=60, ge=1, le=60)
     offline: bool = False
     max_calls: int = Field(ge=1)
+    window_seconds: int = Field(default=180,ge=60,le=1800)
+    max_text_chars: int = Field(default=12000,ge=1000,le=300000)
 
 
 class SelectionConfig(Contract):
