@@ -7,7 +7,7 @@ it('displays an action failure in the single toaster inside the still-open dialo
  HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','')}
  HTMLDialogElement.prototype.close=function(){this.removeAttribute('open')}
  const wrapper=mount(App,{attachTo:document.body});await flushPromises()
- await wrapper.get('.sidebar-create').trigger('click');await flushPromises()
+ await wrapper.get('.new-project-action').trigger('click');await flushPromises()
  await wrapper.get('.file-drop button').trigger('click');await flushPromises()
  await wrapper.get('dialog[open] form').trigger('submit');await flushPromises()
  const host=document.querySelector('dialog[open] [data-sonner-toaster]')

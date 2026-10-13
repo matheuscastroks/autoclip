@@ -35,3 +35,12 @@ it('keeps the topic and inspected proposal when partial analysis completes',asyn
  expect(w.get('.proposal-detail h3').text()).toBe('Outra proposta')
  expect(w.get('.topic-list button.selected').text()).toContain('Tema')
 })
+it('distinguishes failed analysis from not started and offers no synthetic selection',()=>{
+ const w=mount(AnalysisPanel,{props:{analysis:{...view,state:'failed',model:null,analysis_hash:null,proposals:[],topic_groups:[]},selection:null,jobs:[],sourceUrl:'',busy:false}})
+ expect(w.get('.analysis-heading').text()).toContain('Análise precisa de atenção')
+ expect(w.get('.analysis-heading').text()).not.toContain('Análise ainda não iniciada')
+ expect(w.find('[data-action=select-focused]').exists()).toBe(false)
+ expect(w.get('.proposal-empty').text()).toContain('Os trechos aparecerão aqui')
+ expect(w.get('[data-action=generate-selected]').attributes('disabled')).toBeDefined()
+ w.unmount()
+})

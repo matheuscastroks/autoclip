@@ -10,7 +10,7 @@ function update(value:unknown){if(typeof value==='string')emit('update:modelValu
 </script>
 <template>
  <SelectRoot :model-value="modelValue" :disabled="disabled" :required="required" @update:model-value="update">
-  <SelectTrigger v-bind="$attrs" data-slot="select-trigger" class="app-select-trigger physical-control" :aria-label="label" type="button"><span>{{selected}}</span><ChevronDown :size="17" aria-hidden="true"/></SelectTrigger>
+  <SelectTrigger v-bind="$attrs" data-slot="select-trigger" class="app-select-trigger ui-control" :aria-label="label" type="button"><span>{{selected}}</span><ChevronDown :size="17" aria-hidden="true"/></SelectTrigger>
   <SelectPortal><SelectContent class="app-select-content" position="popper" :side-offset="8" :collision-padding="12" :body-lock="false">
    <SelectScrollUpButton class="app-select-scroll" aria-label="Opções anteriores"><ChevronUp :size="16"/></SelectScrollUpButton>
    <SelectViewport class="app-select-viewport"><SelectItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" class="app-select-item" :text-value="option.label"><SelectItemText>{{option.label}}</SelectItemText><SelectItemIndicator class="app-select-check"><Check :size="16" aria-hidden="true"/></SelectItemIndicator></SelectItem></SelectViewport>

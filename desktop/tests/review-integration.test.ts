@@ -16,12 +16,12 @@ function setup(){
 }
 async function open(){const w=mount(App);await flushPromises();await w.get('[data-project-id=p]').trigger('click');await flushPromises();return w}
 describe('review identity across refresh and failures',()=>{
-  it('keeps session and refresh in the sidebar without a top header',async()=>{
+  it('keeps engine session and refresh in the top navigation disclosure',async()=>{
     setup();const w=mount(App);await flushPromises()
     expect(w.find('.topbar').exists()).toBe(false)
-    expect(w.get('.sidebar-bottom .sidebar-session').text()).toContain('Sessão local')
+    expect(w.get('.engine-popover .sidebar-session').text()).toContain('Sessão local')
     const before=vi.mocked(api.projects).mock.calls.length
-    await w.get('.sidebar-bottom button[title="Atualizar projetos"]').trigger('click');await flushPromises()
+    await w.get('.engine-popover button[title="Atualizar projetos"]').trigger('click');await flushPromises()
     expect(vi.mocked(api.projects).mock.calls.length).toBe(before+1);w.unmount()
   })
   it('does not reopen a project when navigation abandons an in-flight load',async()=>{
@@ -51,7 +51,7 @@ describe('review identity across refresh and failures',()=>{
     Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:vi.fn()})
     Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:vi.fn()})
     vi.spyOn(api,'create').mockResolvedValue({project,job:{} as any})
-    const w=mount(App);await flushPromises();await w.get('.sidebar-create').trigger('click')
+    const w=mount(App);await flushPromises();await w.get('.new-project-action').trigger('click')
     const dialog=w.findAll('dialog').find(d=>d.text().includes('Nome do projeto'))!
     expect(dialog.find('input[type=checkbox]').exists()).toBe(false)
     expect(dialog.text()).not.toContain('Limite de tentativas')
