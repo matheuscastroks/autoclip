@@ -44,3 +44,37 @@ it('distinguishes failed analysis from not started and offers no synthetic selec
  expect(w.get('[data-action=generate-selected]').attributes('disabled')).toBeDefined()
  w.unmount()
 })
+it('disables overlapping proposals and prevents simultaneous selection',async()=>{
+ const propA={...proposal,candidate_id:'prop-a',title:'Corte A',start_us:10000000,end_us:50000000,duration_us:40000000}
+ const propB={...proposal,candidate_id:'prop-b',title:'Corte B',start_us:30000000,end_us:70000000,duration_us:40000000}
+ const overlapView={...view,proposals:[propA,propB]}
+ const w=mount(AnalysisPanel,{props:{analysis:overlapView,selection:null,jobs:[],sourceUrl:'',busy:false}})
+ const boxes=w.findAll('input[type=checkbox]')
+ expect(boxes[0].attributes('disabled')).toBeUndefined()
+ expect(boxes[1].attributes('disabled')).toBeUndefined()
+ // Select proposal A
+ await boxes[0].setValue(true)
+ expect(w.emitted('selection')?.[0]?.[0]).toMatchObject({candidate_ids:['prop-a']})
+ // Proposal B should now be disabled because it overlaps with A
+ expect(boxes[1].attributes('disabled')).toBeDefined()
+ expect(w.text()).toContain('Sobrepõe seleção')
+ // Selecting B in inspection panel should also be disabled
+ await w.findAll('.proposal-open')[1].trigger('click')
+ expect(w.get('[data-action=select-focused]').attributes('disabled')).toBeDefined()
+ expect(w.text()).toContain('Este trecho se sobrepõe a um corte já selecionado')
+ // Unselect A: B becomes selectable again
+ await w.findAll('.proposal-open')[0].trigger('click')
+ await w.get('[data-action=select-focused]').trigger('click')
+ expect(boxes[1].attributes('disabled')).toBeUndefined()
+ w.unmount()
+})
+it('shows 1-click resume button for partial analysis and emits resume on click',async()=>{
+ const partialView={...view,state:'partial',analysis_hash:null,completed_windows:1,total_windows:3}
+ const w=mount(AnalysisPanel,{props:{analysis:partialView,selection:null,jobs:[],sourceUrl:'',busy:false}})
+ expect(w.find('[data-action=resume-analysis]').exists()).toBe(true)
+ expect(w.text()).toContain('Faltam 2 janelas')
+ await w.get('[data-action=resume-analysis]').trigger('click')
+ expect(w.emitted('resume')).toHaveLength(1)
+ w.unmount()
+})
+

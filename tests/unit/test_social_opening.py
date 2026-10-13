@@ -21,9 +21,9 @@ def test_opening_is_separate_from_speech_and_expires_at_seven_seconds(tmp_path):
 
 def test_opening_cannot_inject_ass_commands(tmp_path):
     from engine.render.opening import add_opening
-    p=tmp_path/'subtitle.ass';p.write_text('[V4+ Styles]\n[Events]\n')
+    p=tmp_path/'subtitle.ass';p.write_text('[V4+ Styles]\n[Events]\n',encoding='utf-8')
     add_opening(p,r'{\pos(0,0)} Olá\N mundo',7_000_000,'Montserrat ExtraBold')
-    text=p.read_text()
+    text=p.read_text(encoding='utf-8')
     assert r'{\pos(0,0)}' not in text
     assert r'\POS(0,0)' not in text
 

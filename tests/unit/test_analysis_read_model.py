@@ -23,6 +23,17 @@ def test_complete_view_measures_words_and_groups_conservatively(tmp_path):
     with pytest.raises(HTTPException):save_selection(tmp_path,'a'*64,[str(a.candidates[0].id)])
     with pytest.raises(HTTPException):save_selection(tmp_path,view['analysis_hash'],[str(uuid4())])
 
+def test_save_selection_rejects_overlapping_candidates(tmp_path):
+    t=transcript();c=Candidate.model_validate(payload(t)['candidates'][0])
+    c1=c.model_copy(update={'id':uuid4()});c2=c.model_copy(update={'id':uuid4()})
+    a=AnalysisArtifact(transcript_id=t.transcript_id,complete=True,covered_word_ids=[w.id for w in t.words],model='fixture',prompt_hash='fixture',payload_hashes=[],candidates=[c1,c2],topics=[Topic(id=c.topic_id,label='Tema',summary='Resumo',evidence_word_ids=[t.words[0].id])])
+    atomic_json(tmp_path/'transcript.json',t);atomic_json(tmp_path/'analysis.json',a)
+    view=analysis_view(tmp_path)
+    with pytest.raises(HTTPException) as exc:
+        save_selection(tmp_path,view['analysis_hash'],[str(c1.id),str(c2.id)])
+    assert exc.value.status_code==422
+    assert 'sobrepõem' in str(exc.value.detail)
+
 def test_active_job_never_shows_previous_complete_analysis(tmp_path):
     t,a=fixture(tmp_path);folder=tmp_path/'job';folder.mkdir()
     job={'id':'new','status':'running','operation':'analyze'}

@@ -142,12 +142,12 @@ def test_deleted_cut_survives_new_analysis_state(tmp_path):
     from uuid import uuid4
     root=source_folder(tmp_path);rid=str(uuid4());(root/'revisions'/rid).mkdir(parents=True)
     row={'revision_id':rid,'render_path':str(root/'preview.mp4')}
-    (root/'project.json').write_text(json.dumps({'revisions':[row]}))
+    (root/'project.json').write_text(json.dumps({'revisions':[row]}),encoding='utf-8')
     set_deleted(root,rid,True)
-    (root/'project.json').write_text(json.dumps({'revisions':[]}))
+    (root/'project.json').write_text(json.dumps({'revisions':[]}),encoding='utf-8')
     assert list_deleted(root)[0]['revision_id']==rid
     set_deleted(root,rid,False)
-    assert json.loads((root/'project.json').read_text())['revisions']==[row]
+    assert json.loads((root/'project.json').read_text(encoding='utf-8'))['revisions']==[row]
 
 
 def test_thumbnail_is_generated_once_locally(tmp_path,monkeypatch):

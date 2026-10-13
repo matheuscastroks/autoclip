@@ -189,7 +189,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
                 snapshot=read_json(jobs.root/row['id']/'analysis-preview.json')
                 if snapshot:
                     atomic_json(root/'work'/'analysis-preview.json',snapshot);break
-        return analysis_view(root,latest,jobs.root/latest['id'] if latest else None,settings.get().get('clip_max_seconds',180))
+        return analysis_view(root,latest,jobs.root/latest['id'] if latest else None,settings.get().get('clip_max_seconds',300))
     @app.get('/api/v1/projects/{pid}/analysis-selection')
     def selection(pid:str):
         from .projects import read_json
@@ -199,7 +199,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
         from .analysis_view import save_selection
         with jobs.lock:
             editable(pid)
-            return save_selection(Path(store.get(pid)['path']),value.analysis_hash,value.candidate_ids,settings.get().get('clip_max_seconds',180))
+            return save_selection(Path(store.get(pid)['path']),value.analysis_hash,value.candidate_ids,settings.get().get('clip_max_seconds',300))
     @app.get('/api/v1/projects/{pid}/analysis-events')
     def analysis_events(pid:str,job_id:str,offset:int=Query(default=0,ge=0,le=1_000_000),limit:int=Query(default=100,ge=1,le=200)):
         store.get(pid);job=store.job(job_id)

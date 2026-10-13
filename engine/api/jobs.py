@@ -88,7 +88,7 @@ class JobManager:
             settings=Settings(self.workspace).get()
             if operation=='render' and options.get('candidate_ids') is not None:
                 from .analysis_view import save_selection,validate_selection
-                (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',180))
+                (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',300))
                 if not options['candidate_ids']:raise ValueError('Selecione pelo menos um trecho.')
             values={k:v for k,v in settings.items() if k not in ('gemini_key_configured','schema_version','tools_available','asr_available')}
             # Only typed request options are accepted by the API; no arbitrary command.
