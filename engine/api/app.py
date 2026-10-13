@@ -27,6 +27,13 @@ class AppConfig(Input):
     clip_max_seconds:int=Field(default=300,ge=60,le=300)
     pause_mode:Literal['preserve','conservative']='conservative'
     show_thought_summaries:bool=True
+    ai_provider:Literal['gemini','openrouter']='gemini'
+    openrouter_model:str=Field(default='openrouter/free',min_length=1,max_length=120)
+    openrouter_key_configured:bool|None=Field(default=None,exclude=True)
+    gemini_key_configured:bool|None=Field(default=None,exclude=True)
+    asr_available:bool|None=Field(default=None,exclude=True)
+    tools_available:bool|None=Field(default=None,exclude=True)
+    schema_version:str|None=Field(default=None,exclude=True)
 
     @model_validator(mode='after')
     def durations(self):
@@ -135,6 +142,11 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.put('/api/v1/config/credential')
     def update_credential(value:Credential):
         return gemini_connection.validate(value.key.get_secret_value())
+    @app.put('/api/v1/config/openrouter-credential')
+    def update_openrouter_credential(value:Credential):
+        from engine.adapters.openrouter.credentials import set_openrouter_key
+        set_openrouter_key(value.key.get_secret_value().strip())
+        return {'configured':True}
     @app.get('/api/v1/config/gemini')
     def gemini_status():return gemini_connection.status()
     @app.post('/api/v1/config/gemini/test')
@@ -144,7 +156,13 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/projects')
     def new_project(value:NewProject):
         import uuid
-        if value.automatic and not settings.get()['gemini_key_configured']:raise HTTPException(400,'Configure a chave Gemini antes de iniciar a sequência automática.')
+        cfg=settings.get()
+        if value.automatic:
+            provider=cfg.get('ai_provider','gemini')
+            if provider=='gemini' and not cfg.get('gemini_key_configured'):
+                raise HTTPException(400,'Configure a chave Gemini antes de iniciar a sequência automática.')
+            elif provider=='openrouter' and not cfg.get('openrouter_key_configured'):
+                raise HTTPException(400,'Configure a chave OpenRouter antes de iniciar a sequência automática.')
         row=store.create(workspace/'.autoclip/projects'/str(uuid.uuid4()),value.name.strip() or 'Novo projeto')
         try:job=jobs.start(row['id'],'prepare' if value.automatic else 'import',{'source_input':value.source_input,'authorize_text':value.authorize_text,**({'max_calls':value.max_calls} if value.max_calls else {})})
         except RuntimeError as exc:raise HTTPException(409,str(exc))

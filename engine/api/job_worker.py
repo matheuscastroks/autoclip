@@ -5,6 +5,7 @@ from engine.pipeline.artifacts import atomic_json,file_hash,object_hash
 from engine.pipeline.runner import run_project,export_approved
 from engine.pipeline.request_budget import RequestBudget
 from engine.adapters.gemini.analyzer import GeminiAnalyzer
+from engine.adapters.openrouter.analyzer import OpenRouterAnalyzer
 from engine.media.importer import import_source
 from engine.media.probe import probe_source
 from .store import now
@@ -22,10 +23,19 @@ def configure_analysis_requests(config,transcript,settings,folder):
     EventWriter(folder/'analysis-events.jsonl').emit('requests_planned','Chamadas dimensionadas automaticamente pela transcrição; novas tentativas apenas em falhas recuperáveis.',windows=windows,request_limit=config.analysis.max_calls)
 
 def pipeline_config(settings,root):
+    ai_provider = settings.get('ai_provider', 'gemini')
+    model = settings.get('openrouter_model', 'openrouter/free') if ai_provider == 'openrouter' else settings['gemini_model']
     return PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),
-        analysis=AnalysisConfig(clip_min_seconds=60,model=settings['gemini_model'],max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',180),clip_max_seconds=settings.get('clip_max_seconds',300),show_thought_summaries=settings.get('show_thought_summaries',True)),
+        analysis=AnalysisConfig(clip_min_seconds=60,model=model,max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',180),clip_max_seconds=settings.get('clip_max_seconds',300),show_thought_summaries=settings.get('show_thought_summaries',True)),
         selection=SelectionConfig(max_us=settings.get('clip_max_seconds',300)*1_000_000),pauses=PauseConfig(enabled=settings.get('pause_mode','conservative')=='conservative'),
         export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
+
+def make_analyzer(settings,root,folder,config):
+    budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls)
+    events_path=folder/'analysis-events.jsonl'
+    if settings.get('ai_provider','gemini')=='openrouter':
+        return OpenRouterAnalyzer(work_root=root/'work',budget=budget,events_path=events_path)
+    return GeminiAnalyzer(work_root=root/'work',budget=budget,events_path=events_path)
 
 class PreparedTranscript:
     def __init__(self,source,root):
@@ -75,7 +85,7 @@ def main(folder:Path):
             stage('transcribe','completed');stage('analyze','running')
             transcriber=PreparedTranscript(source,root)
             configure_analysis_requests(config,transcriber.transcript,settings,folder)
-            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl')
+            analyzer=make_analyzer(settings,root,folder,config)
             run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after='analyze')
             stage('analyze','completed')
             atomic_json(folder/'result.json',{'status':'completed','finished_at':now()});return 0
@@ -94,7 +104,7 @@ def main(folder:Path):
             if operation in ('analyze','render') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
             precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation=='render' else None
             if operation=='analyze':configure_analysis_requests(config,transcriber.transcript,settings,folder)
-            analyzer=GeminiAnalyzer(work_root=root/'work',budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls),events_path=folder/'analysis-events.jsonl') if operation=='analyze' else None
+            analyzer=make_analyzer(settings,root,folder,config) if operation=='analyze' else None
             def pipeline_progress(value):
                 progress.update(value);atomic_json(folder/'progress.json',progress)
             selection=request.get('selection',{})
@@ -105,12 +115,14 @@ def main(folder:Path):
         code=getattr(exc,'code','JOB_FAILED')
         if operation=='analyze' or operation=='prepare' and progress['steps'].get('analyze')=='running':EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
-        messages={'RENDER_FAILED':'Uma ou mais prévias falharam. As prontas foram preservadas; retome somente as pendentes.','PROVIDER_TIMEOUT':'O Gemini excedeu o tempo de resposta. Continue a análise; janelas validadas serão reaproveitadas.',
-            'PROVIDER_UNAVAILABLE':'Falha de comunicação com o Gemini. Continue a análise para tentar as janelas restantes.',
-            'PROVIDER_RATE_LIMIT':'O Gemini atingiu a cota ou o limite de solicitações deste modelo. Confira os limites no Google AI Studio e aguarde a renovação antes de continuar. As janelas já validadas foram preservadas.',
-            'PROVIDER_INVALID_OUTPUT':'O Gemini não entregou uma resposta estruturada válida. As janelas já validadas foram preservadas.',
-            'PROVIDER_OUTPUT_TRUNCATED':'A resposta do Gemini foi truncada antes de concluir o JSON. As janelas validadas foram preservadas.',
-            'PROVIDER_AUTH':'O Gemini recusou a autenticação. Verifique a chave e o acesso ao modelo.'}
+        provider_name = 'OpenRouter' if settings.get('ai_provider') == 'openrouter' else 'Gemini'
+        messages={'RENDER_FAILED':'Uma ou mais prévias falharam. As prontas foram preservadas; retome somente as pendentes.',
+            'PROVIDER_TIMEOUT':f'O {provider_name} excedeu o tempo de resposta. Continue a análise; janelas validadas serão reaproveitadas.',
+            'PROVIDER_UNAVAILABLE':f'Falha de comunicação com o {provider_name}. Continue a análise para tentar as janelas restantes.',
+            'PROVIDER_RATE_LIMIT':f'O {provider_name} atingiu a cota ou o limite de solicitações deste modelo. Aguarde a renovação antes de continuar. As janelas já validadas foram preservadas.',
+            'PROVIDER_INVALID_OUTPUT':f'O {provider_name} não entregou uma resposta estruturada válida. As janelas já validadas foram preservadas.',
+            'PROVIDER_OUTPUT_TRUNCATED':f'A resposta do {provider_name} foi truncada antes de concluir o JSON. As janelas validadas foram preservadas.',
+            'PROVIDER_AUTH':f'O {provider_name} recusou a autenticação. Verifique a chave e o acesso ao modelo.'}
         from engine.media.source_errors import MESSAGES
         messages.update(MESSAGES)
         atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.')}})
