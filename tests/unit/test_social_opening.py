@@ -10,8 +10,10 @@ def test_opening_is_separate_from_speech_and_expires_at_seven_seconds(tmp_path):
     caps=OpenShortsCaptionBuilder(tmp_path).build(t,edl,CaptionRevision(),CaptionConfig(opening_text='Toda corrupção é igual?'))
     text=caps.ass_path.read_text(encoding='utf-8')
     rows=[line for line in text.splitlines() if line.startswith('Dialogue: 1,')]
-    assert len(rows)==1
-    assert '0:00:00.00,0:00:07.00,Opening' in rows[0]
+    assert len(rows)==3
+    assert '0:00:06.70,0:00:07.00,Opening' in rows[-1]
+    assert r'\move(' in rows[0] and r'\move(' in rows[-1]
+    assert ',3,4,0,8,' in text
     assert 'TODA CORRUPÇÃO É IGUAL?' in rows[0]
     assert caps.opening_text=='Toda corrupção é igual?'
     assert 'corrupção' not in caps.srt_path.read_text().lower()

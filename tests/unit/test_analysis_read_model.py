@@ -30,3 +30,10 @@ def test_active_job_never_shows_previous_complete_analysis(tmp_path):
     atomic_json(folder/'analysis-preview.json',{'analysis':a.model_copy(update={'complete':False}),'completed_windows':1,'total_windows':2})
     view=analysis_view(tmp_path,job,folder)
     assert view['state']=='partial' and view['analysis_hash'] is None and view['completed_windows']==1
+
+def test_resume_keeps_durable_partial_visible_before_new_response(tmp_path):
+    t,a=fixture(tmp_path)
+    atomic_json(tmp_path/'work'/'analysis-preview.json',{'analysis':a.model_copy(update={'complete':False}),'completed_windows':2,'total_windows':5})
+    view=analysis_view(tmp_path,{'id':'resumed','status':'running','operation':'analyze'},tmp_path/'new-job')
+    assert view['completed_windows']==2 and view['total_windows']==5
+    assert view['proposals'] and view['analysis_hash'] is None

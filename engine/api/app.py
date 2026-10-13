@@ -170,6 +170,14 @@ def create_app(workspace:Path,token:str)->FastAPI:
         latest=None
         # Store ordering is chronological; completed artifacts are independent of event retention.
         if rows:latest=jobs.status(max(rows,key=lambda j:(j.get('created_at',''),j['id']))['id'])
+        # Migrate the most recent validated partial snapshot from earlier job folders.
+        if not (root/'work'/'analysis-preview.json').exists():
+            from .projects import read_json
+            from engine.pipeline.artifacts import atomic_json
+            for row in sorted(rows,key=lambda j:(j.get('created_at',''),j['id']),reverse=True):
+                snapshot=read_json(jobs.root/row['id']/'analysis-preview.json')
+                if snapshot:
+                    atomic_json(root/'work'/'analysis-preview.json',snapshot);break
         return analysis_view(root,latest,jobs.root/latest['id'] if latest else None,settings.get().get('clip_max_seconds',180))
     @app.get('/api/v1/projects/{pid}/analysis-selection')
     def selection(pid:str):

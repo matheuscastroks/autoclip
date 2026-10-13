@@ -14,6 +14,7 @@ def normalized(label):
 def analysis_view(root,job=None,job_folder=None,max_seconds=180):
     root=Path(root);active=job and job['operation'] in ('analyze','prepare') and job['status']!='completed'
     preview=read_json(Path(job_folder)/'analysis-preview.json') if active and job_folder else None
+    if active and not preview:preview=read_json(root/'work'/'analysis-preview.json')
     path=root/'analysis.json';transcript_path=root/'transcript.json'
     empty={'schema_version':'1.0','state':'not_started','job_id':job['id'] if job else None,'analysis_hash':None,'model':None,'completed_windows':0,'total_windows':0,'topic_groups':[],'proposals':[]}
     if not transcript_path.exists():return empty

@@ -121,12 +121,24 @@ class GeminiAnalyzer:
         topics=[];candidates=[];covered=set();hashes=[];responses=[];calls=0
         windows=build_windows(transcript,max(config.window_seconds,config.clip_max_seconds*2) if config.clip_min_seconds>=60 else config.window_seconds,config.max_text_chars,overlap_seconds=config.clip_max_seconds if config.clip_min_seconds>=60 else 30)
         runtime={'analyzer':file_hash(Path(__file__)),'worker':file_hash(Path(__file__).with_name('request_worker.py')),'checkpoints':file_hash(Path(__file__).with_name('checkpoints.py')),'schema':GeminiResponse.model_json_schema(),'policy':2}
-        identity={'transcript':object_hash(transcript),'model':config.model,'prompt':object_hash(prompt),'runtime':runtime}
+        identity={'transcript':object_hash(transcript),'model':config.model,'prompt':object_hash(prompt),'compatibility':{'schema':GeminiResponse.model_json_schema(),'policy':2}}
+        from engine.api.projects import read_json
+        previous=read_json(self.work_root/'analysis-preview.json',{}) or {}
+        previous_analysis=previous.get('analysis',{})
+        compatible_previous=(previous_analysis.get('transcript_id')==str(transcript.transcript_id) and previous_analysis.get('model')==config.model and previous_analysis.get('prompt_hash')==object_hash(prompt))
         planned=[]
         for window in windows:
             text=prompt+'\n<TRANSCRICAO>\n'+window['text']+'\n</TRANSCRICAO>'
             key=object_hash({**identity,'window_id':window['id'],'word_ids':[w.id for w in window['words']],'text':text})
             cached=load_checkpoint(self.checkpoint_root,key)
+            if cached is None:
+                legacy_key=object_hash({**{k:v for k,v in identity.items() if k!='compatibility'},'runtime':runtime,'window_id':window['id'],'word_ids':[w.id for w in window['words']],'text':text})
+                cached=load_checkpoint(self.checkpoint_root,legacy_key)
+            if cached is None and compatible_previous and self.checkpoint_root:
+                for path in self.checkpoint_root.glob('*.json'):
+                    old=load_checkpoint(self.checkpoint_root,path.stem)
+                    if old and old['provenance'].get('window_id')==window['id'] and old['payload_hashes'] and set(old['payload_hashes'])<=set(previous_analysis.get('payload_hashes',[])):
+                        cached=old;break
             if cached:
                 try:
                     validate(GeminiResponse.model_validate(cached['response']),window)
@@ -202,7 +214,9 @@ class GeminiAnalyzer:
             topics.extend(domain_topics);candidates.extend(domain_candidates);covered.update(w.id for w in window['words']);responses.append(provenance)
             if self.events_path:
                 preview=AnalysisArtifact(transcript_id=transcript.transcript_id,topics=topics,candidates=candidates,clip_min_seconds=config.clip_min_seconds,complete=False,covered_word_ids=sorted(covered),model=config.model,prompt_hash=object_hash(prompt),payload_hashes=hashes,responses=responses)
-                atomic_json(self.events_path.parent/'analysis-preview.json',{'analysis':preview.model_dump(mode='json'),'completed_windows':index,'total_windows':len(windows)})
+                snapshot={'analysis':preview.model_dump(mode='json'),'completed_windows':index,'total_windows':len(windows)}
+                atomic_json(self.events_path.parent/'analysis-preview.json',snapshot)
+                if self.checkpoint_root is not None:atomic_json(self.work_root/'analysis-preview.json',snapshot)
             writer.emit('window_validated','Janela validada e salva para retomada; propostas aguardam revisão.',**self.context,topics=[t.model_dump(mode='json') for t in domain_topics],candidates=[{**c.model_dump(mode='json'),'start_us':next(w.start_us for w in window['words'] if w.id==c.start_word_id),'end_us':max(w.end_us for w in window['words'][next(i for i,w in enumerate(window['words']) if w.id==c.start_word_id):next(i for i,w in enumerate(window['words']) if w.id==c.end_word_id)+1])} for c in domain_candidates],usage=provenance['usage'])
         if covered!={w.id for w in transcript.words}:raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Some transcript words were not covered.')
         # Consolidate after every window, preserving coverage independently of proposals.
