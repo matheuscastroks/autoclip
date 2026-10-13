@@ -26,4 +26,5 @@ engine = ["prompts/*.txt", "contracts/schemas/*.json", "assets/fonts/*","assets/
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--basetemp=.pytest_temp"
 markers = ["real_media: opt-in real corpus test"]
