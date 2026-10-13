@@ -115,9 +115,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def health():return {'schema_version':'1.0','status':'ok','application':'autoclip-editor'}
     @app.post('/api/v1/shutdown')
     def shutdown():
-        if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs()):raise HTTPException(409,'Cancele ou aguarde a tarefa antes de encerrar o serviço.')
-        callback=getattr(app.state,'shutdown',None)
-        if callback:callback()
+        if not jobs.request_shutdown(getattr(app.state,'shutdown',None)):raise HTTPException(409,'Cancele ou aguarde a tarefa antes de encerrar o serviço.')
         return {'stopped':True}
     @app.get('/api/v1/config')
     def config():return settings.get()

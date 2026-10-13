@@ -79,3 +79,7 @@
 ## Revisão do plano
 
 Cada requisito da especificação está coberto nas tarefas 1–3. Sem empacotamento de modelos/Python neste lote. A política de leases complementa a posse prevista na especificação e evita shutdown indevido entre janelas. A revisão visual nativa dependerá das superfícies de automação disponíveis; não usar evidência do navegador como prova de WebView2.
+
+## Estado da execução
+
+Implementação entregue e compilada em modo local debug sem bundle; ver docs/tauri-execution/ledger.md e docs/tauri-runbook.md.138 testes Python,64 Vue e2 Rust passaram. Janela nativa responsiva e motor validado na abertura. Inspeção visual de reprodução/diálogos no WebView2 e build otimizado permanecem pendentes; a variante debug foi escolhida conforme ruling registrado para a entrega local.

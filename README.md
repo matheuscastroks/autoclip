@@ -33,3 +33,10 @@ Scripts em `research/` são instrumentos de investigação dos candidatos. Não 
 ## Próximo gate
 
 A arquitetura e o plano OpenShorts + Gemini foram aprovados e implementados. Transcrição, edição e renderização permanecem locais. O vídeo integral produziu 5.414 palavras em CPU; o teste remoto usa Gemini 2.5 Flash, somente texto, com até 20 tentativas autorizadas. Consulte o estado de validação para o resultado atual. O comparativo editorial dos cinco projetos ainda exige a rubrica humana documentada.
+
+
+## Janela desktop Tauri 2 (versão local)
+
+Abra **Abrir AutoClip Desktop.vbs** por duplo clique na raiz do checkout. A janela reutiliza projetos, configurações e motor local; não abre o navegador. Os recursos Python/FFmpeg/Whisper devem estar provisionados neste checkout. Para recompilar: `npm --prefix desktop run desktop:build:local` (Rust/MSVC/WebView2 necessários). O executável fica em `desktop/src-tauri/target/debug/autoclip-desktop.exe`.
+
+Esta é uma versão local de desenvolvimento, sem instalador autossuficiente. Consulte [o runbook Tauri](docs/tauri-runbook.md) para lifecycle, pré-requisitos e limites de validação.

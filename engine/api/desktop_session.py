@@ -34,15 +34,30 @@ class DesktopSession:
         request=urllib.request.Request(self.origin+'/api/v1/shutdown',data=b'',headers={'Authorization':'Bearer '+self.session['token']},method='POST')
         try:
             opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
-            with opener.open(request,timeout=3):return 'stopped'
+            with opener.open(request,timeout=3):pass
+            current=read_json(self.workspace/'.autoclip/session.json',{}) or {}
+            if current.get('token')==self.session['token']:
+                current['stopping']=True;atomic_json(self.workspace/'.autoclip/session.json',current)
+            if launcher.owned_instance(self.session,self.workspace):
+                try:psutil.Process(self.session['pid']).wait(timeout=5)
+                except psutil.TimeoutExpired:return 'unavailable'
+                except psutil.NoSuchProcess:pass
+            return 'stopped'
         except urllib.error.HTTPError as exc:return 'busy' if exc.code==409 else 'unavailable'
         except Exception:return 'unavailable'
+    def active_jobs(self):
+        request=urllib.request.Request(self.origin+'/api/v1/jobs',headers={'Authorization':'Bearer '+self.session['token']})
+        try:
+            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(request,timeout=2) as response:
+                return any(j.get('status') in ('running','pending','cancelling') for j in json.load(response))
+        except Exception:return False
     def close(self):
         with launcher.launch_lock(self.workspace):
             current=read_json(self.workspace/'.autoclip/session.json',{}) or {}
             shared=current.get('shared') or any(p!=self.lease for p in self.lease.parent.glob('*.json'))
             self.lease.unlink(missing_ok=True)
-            if not self.owned or shared:return 'shared'
+            if not self.owned or shared:return 'busy' if self.active_jobs() else 'shared'
             if current.get('token') not in (None,self.session['token']):return 'unavailable'
             return self.shutdown()
 

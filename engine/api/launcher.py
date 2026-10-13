@@ -68,18 +68,17 @@ def acquire_session(workspace:Path,on_acquired=None)->tuple[dict,bool]:
     workspace=Path(workspace).resolve()
     with launch_lock(workspace):
         session=read_json(workspace/'.autoclip/session.json',{}) or {}
-        created=not (owned_instance(session,workspace) and ready(session))
+        created=session.get('stopping',False) or not (owned_instance(session,workspace) and ready(session))
         if created:session=start_server(workspace)
         if on_acquired:on_acquired(session,created)
     return session,created
 
 def launch(workspace:Path,open_browser=True)->str:
     workspace=Path(workspace).resolve()
-    session,_=acquire_session(workspace)
-    with launch_lock(workspace):
-        current=read_json(workspace/'.autoclip/session.json',{}) or {}
-        if current.get('token')==session['token']:
-            current['shared']=True;atomic_json(workspace/'.autoclip/session.json',current)
+    def mark_shared(session,created):
+        session['shared']=True
+        atomic_json(workspace/'.autoclip/session.json',session)
+    session,_=acquire_session(workspace,on_acquired=mark_shared)
     url=f"http://127.0.0.1:{session['port']}/#session={session['token']}"
     if open_browser:webbrowser.open(url)
     return url

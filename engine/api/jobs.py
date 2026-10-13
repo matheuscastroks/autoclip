@@ -10,7 +10,7 @@ ACTIVE=('running','pending','cancelling')
 
 class JobManager:
     def __init__(self,store,workspace,spawn=subprocess.Popen):
-        self.store=store;self.workspace=Path(workspace).resolve();self.spawn=spawn;self.processes={};self.lock=threading.Lock()
+        self.store=store;self.workspace=Path(workspace).resolve();self.spawn=spawn;self.processes={};self.lock=threading.Lock();self.draining=False
         self.root=self.workspace/'.autoclip/jobs';self.root.mkdir(parents=True,exist_ok=True)
         for job in self.store.jobs():self.status(job['id'])
 
@@ -51,12 +51,20 @@ class JobManager:
             with sqlite3.connect(budget) as c:job['requests_used']=c.execute('SELECT count(*) FROM attempts').fetchone()[0]
         self.store.save_job(job);return job
 
+    def request_shutdown(self,callback):
+        with self.lock:
+            if any(self.status(j['id'])['status'] in ACTIVE for j in self.store.jobs()):return False
+            self.draining=True
+            if callback:callback()
+            return True
+
     def start(self,project_id,operation,options,*,persist_selection=True):
         if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
         if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')
         row=self.store.get(project_id)
         if (Path(row['path'])/'manual-check.json').exists():raise ValueError('Projeto manual disponível apenas para consulta nesta fase.')
         with self.lock:
+            if self.draining:raise RuntimeError('O motor está encerrando. Reabra o aplicativo.')
             for prior in self.store.jobs():
                 if self.status(prior['id'])['status'] in ACTIVE:raise RuntimeError('Uma tarefa já está em execução. Aguarde ou cancele antes de iniciar outra.')
             settings=Settings(self.workspace).get()
