@@ -116,7 +116,7 @@ class JobManager:
         threading.Thread(target=enforce,daemon=True).start()
         return job
 
-    def resume(self,job_id,source_input=None):
+    def resume(self,job_id,source_input=None,*,candidate_id=None):
         job=self.status(job_id)
         if job['status'] not in ('failed','cancelled','interrupted'):raise ValueError('Tarefa não pode ser retomada neste estado.')
         if source_input is not None:
@@ -125,6 +125,10 @@ class JobManager:
         if job['operation'] in ('prepare','analyze'):return self.start(job['project_id'],job['operation'],{'source_input':source_input or read_json(self.root/job_id/'request.json',{}).get('source_input')})
         request=read_json(self.root/job_id/'request.json',{})
         selection=request.get('selection',{})
+        if candidate_id is not None:
+            failed={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='failed'}
+            if job['operation']!='render' or candidate_id not in failed or candidate_id not in selection.get('candidate_ids',[]):raise ValueError('Este corte não está disponível para nova tentativa.')
+            selection={**selection,'candidate_ids':[candidate_id]}
         if job['operation']=='render' and selection.get('candidate_ids'):
             ready={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='ready'}
             selection={**selection,'candidate_ids':[cid for cid in selection['candidate_ids'] if cid not in ready]}

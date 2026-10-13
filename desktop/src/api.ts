@@ -34,7 +34,7 @@ export const api={
   deletedClips:(pid:string)=>request<{revision_id:string;title:string}[]>(`/projects/${pid}/deleted-revisions`),
   restoreClip:(pid:string,rid:string)=>post(`/projects/${pid}/revisions/${rid}/restore`),
   start:(id:string,operation:string,options:Record<string,unknown>={})=>post<Job>(`/projects/${id}/jobs`,{operation,options}),
-  cancel:(id:string)=>post<Job>(`/jobs/${id}/cancel`),resume:(id:string,options?:{source_input:string})=>post<Job>(`/jobs/${id}/resume`,options),
+  cancel:(id:string)=>post<Job>(`/jobs/${id}/cancel`),resume:(id:string,options?:{source_input?:string;candidate_id?:string})=>post<Job>(`/jobs/${id}/resume`,options),
   pick:async(kind:string)=>(await post<{path:string|null}>('/picker',{kind})).path,
   saveConfig:(config:Config)=>request<Config>('/config',{method:'PUT',body:JSON.stringify(Object.fromEntries(Object.entries(config).filter(([k])=>!['schema_version','asr_available','tools_available','gemini_key_configured'].includes(k))))}),
   saveKey:(key:string)=>request<GeminiConnection>('/config/credential',{method:'PUT',body:JSON.stringify({key})}),

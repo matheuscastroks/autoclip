@@ -37,7 +37,8 @@ def test_analysis_selection_and_worker_snapshot(client,tmp_path):
     folder=client.app.state.jobs.root/response.json()['id']
     atomic_json(folder/'result.json',{'status':'failed'})
     atomic_json(folder/'progress.json',{'items':[{'candidate_id':str(c.id),'state':'ready'},{'candidate_id':str(other.id),'state':'failed'}]})
-    resumed=client.post('/api/v1/jobs/'+response.json()['id']+'/resume')
+    assert client.post('/api/v1/jobs/'+response.json()['id']+'/resume',json={'candidate_id':str(c.id)}).status_code==400
+    resumed=client.post('/api/v1/jobs/'+response.json()['id']+'/resume',json={'candidate_id':str(other.id)})
     assert resumed.status_code==200
     retry=json.loads((client.app.state.jobs.root/resumed.json()['id']/'request.json').read_bytes())
     assert retry['selection']['candidate_ids']==[str(other.id)]

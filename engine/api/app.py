@@ -46,6 +46,7 @@ class StartJob(Input):
     options:JobOptions=Field(default_factory=JobOptions)
 class RetryJob(Input):
     source_input:str|None=Field(default=None,min_length=1,max_length=4000)
+    candidate_id:str|None=Field(default=None,min_length=1,max_length=100)
 class AnalysisSelection(Input):
     analysis_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
     candidate_ids:list[str]=Field(max_length=1000)
@@ -224,7 +225,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def cancel_job(jid:str):return jobs.cancel(jid)
     @app.post('/api/v1/jobs/{jid}/resume')
     def resume_job(jid:str,value:RetryJob|None=None):
-        try:return jobs.resume(jid,value.source_input if value else None)
+        try:return jobs.resume(jid,value.source_input if value else None,candidate_id=value.candidate_id if value else None)
         except RuntimeError as exc:raise HTTPException(409,str(exc))
     @app.post('/api/v1/picker')
     def picker(value:Picker):
