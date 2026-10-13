@@ -166,6 +166,9 @@ class GeminiAnalyzer:
                             timeout=isinstance(exc,(TimeoutError,httpx.TimeoutException)) or getattr(exc,'timeout',False)
                             writer.emit('request_failed','Tempo de resposta excedido.' if timeout else 'Solicitação não concluída.',**self.context,error_code='PROVIDER_TIMEOUT' if timeout else 'PROVIDER_UNAVAILABLE')
                             code=getattr(exc,'code',None) or getattr(exc,'status_code',None)
+                            if code==429:
+                                writer.emit('provider_rate_limited','O Gemini atingiu a cota ou o limite de solicitações. Aguarde a renovação do limite antes de continuar.',**self.context,error_code='PROVIDER_RATE_LIMIT')
+                                raise PipelineError('PROVIDER_RATE_LIMIT','analyze','Gemini quota/rate limit reached; no immediate retry. Validated windows remain available.') from None
                             if code in (401,403):raise PipelineError('PROVIDER_AUTH','analyze','Gemini authentication/permission failed.') from None
                             if code=='PROVIDER_OUTPUT_TRUNCATED':raise PipelineError(code,'analyze','Gemini output token limit reached; no complete JSON received.') from None
                             transport_types=(TimeoutError,ConnectionError,httpx.TimeoutException,httpx.NetworkError)

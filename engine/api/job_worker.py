@@ -107,6 +107,7 @@ def main(folder:Path):
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
         messages={'RENDER_FAILED':'Uma ou mais prévias falharam. As prontas foram preservadas; retome somente as pendentes.','PROVIDER_TIMEOUT':'O Gemini excedeu o tempo de resposta. Continue a análise; janelas validadas serão reaproveitadas.',
             'PROVIDER_UNAVAILABLE':'Falha de comunicação com o Gemini. Continue a análise para tentar as janelas restantes.',
+            'PROVIDER_RATE_LIMIT':'O Gemini atingiu a cota ou o limite de solicitações deste modelo. Confira os limites no Google AI Studio e aguarde a renovação antes de continuar. As janelas já validadas foram preservadas.',
             'PROVIDER_INVALID_OUTPUT':'O Gemini não entregou uma resposta estruturada válida. As janelas já validadas foram preservadas.',
             'PROVIDER_OUTPUT_TRUNCATED':'A resposta do Gemini foi truncada antes de concluir o JSON. As janelas validadas foram preservadas.',
             'PROVIDER_AUTH':'O Gemini recusou a autenticação. Verifique a chave e o acesso ao modelo.'}

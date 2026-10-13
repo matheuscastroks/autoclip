@@ -25,6 +25,18 @@ def test_retry_after_is_capped():
     error=SimpleNamespace(response=SimpleNamespace(headers={'Retry-After':'120'}))
     assert retry_delay(error)==30
 
+def test_quota_error_stops_without_immediate_retry():
+    from engine.adapters.gemini.analyzer import GeminiAnalyzer,WorkerRequestError
+    from engine.contracts import AnalysisConfig,PipelineError
+    calls=[]
+    def request(**kw):
+        calls.append(1)
+        raise WorkerRequestError({'code':429,'type':'ClientError','transport':False})
+    with pytest.raises(PipelineError) as error:
+        GeminiAnalyzer(request=request,sleep=lambda _:None).analyze(transcript(),AnalysisConfig(model='fixture',max_calls=10))
+    assert error.value.code=='PROVIDER_RATE_LIMIT'
+    assert len(calls)==1
+
 def test_analysis_cancels_before_second_window():
     from engine.adapters.gemini.analyzer import GeminiAnalyzer
     from engine.contracts import AnalysisConfig,Word,PipelineError
