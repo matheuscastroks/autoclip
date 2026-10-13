@@ -123,8 +123,8 @@ function handleKey(e:KeyboardEvent){
 .global-queue-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(14, 16, 19, 0.75);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,25 +132,25 @@ function handleKey(e:KeyboardEvent){
   padding: 20px;
 }
 .global-queue-container {
-  background: var(--panel, #ffffff);
-  border: 1px solid var(--line, #e2e8f0);
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: 16px;
   width: 100%;
   max-width: 680px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .queue-modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--line, #e2e8f0);
+  border-bottom: 1px solid var(--color-border-subtle, var(--line));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: var(--surface-header, #f8fafc);
+  background: var(--color-surface-raised, var(--soft));
 }
 .queue-title-area {
   display: flex;
@@ -164,18 +164,18 @@ function handleKey(e:KeyboardEvent){
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--accent-light, #ede9fe);
-  color: var(--accent, #6d28d9);
+  background: var(--color-accent-soft, var(--accent-soft));
+  color: var(--color-accent, var(--accent));
 }
 .queue-title-area h2 {
   font-size: 1.1rem;
   margin: 0;
-  color: var(--text-main, #0f172a);
+  color: var(--color-text-primary, var(--ink));
 }
 .queue-title-area p {
   font-size: 0.8rem;
   margin: 2px 0 0;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .queue-header-actions {
   display: flex;
@@ -185,24 +185,27 @@ function handleKey(e:KeyboardEvent){
 .queue-tabs {
   display: flex;
   gap: 4px;
-  background: var(--surface-sunken, #f1f5f9);
+  background: var(--color-canvas, #0e1013);
   padding: 3px;
   border-radius: 8px;
 }
 .queue-tab {
   font-size: 0.78rem;
-  padding: 4px 10px;
+  min-height: 30px;
+  padding: 5px 12px;
   border-radius: 6px;
   background: transparent;
   border: none;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
 }
 .queue-tab.selected {
-  background: #ffffff;
-  color: var(--accent, #6d28d9);
+  background: var(--color-surface, var(--panel));
+  color: var(--color-accent, var(--accent));
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 .queue-modal-body {
   padding: 16px 20px;
@@ -215,20 +218,20 @@ function handleKey(e:KeyboardEvent){
   gap: 12px;
 }
 .queue-job-card {
-  border: 1px solid var(--line, #e2e8f0);
+  border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: 12px;
   padding: 14px 16px;
-  background: var(--surface-card, #ffffff);
+  background: var(--color-surface-raised, var(--soft));
   display: flex;
   flex-direction: column;
   gap: 10px;
   transition: border-color 0.15s ease;
 }
 .queue-job-card[data-status="running"] {
-  border-left: 4px solid var(--accent, #6d28d9);
+  border-left: 4px solid var(--color-accent, var(--accent));
 }
 .queue-job-card[data-status="pending"] {
-  border-left: 4px solid var(--amber-500, #f59e0b);
+  border-left: 4px solid var(--color-warning-border, #8c531b);
 }
 .job-card-top {
   display: flex;
@@ -240,15 +243,18 @@ function handleKey(e:KeyboardEvent){
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 32px;
   background: transparent;
   border: none;
-  color: var(--accent, #6d28d9);
-  padding: 2px 4px;
+  color: var(--color-accent, var(--accent));
+  padding: 4px 8px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 0.88rem;
 }
 .project-jump-btn:hover {
   text-decoration: underline;
+  background: var(--color-accent-soft, var(--accent-soft));
 }
 .job-status-tags {
   display: flex;
@@ -257,11 +263,11 @@ function handleKey(e:KeyboardEvent){
 }
 .queue-position-pill {
   font-size: 0.75rem;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: var(--amber-50, #fffbeb);
-  color: var(--amber-700, #b45309);
-  border: 1px solid var(--amber-200, #fde68a);
+  background: var(--color-warning-surface, #2a2012);
+  color: var(--color-warning-text, #fbbf24);
+  border: 1px solid var(--color-warning-border, #8c531b);
 }
 .job-card-details {
   display: flex;
@@ -273,19 +279,20 @@ function handleKey(e:KeyboardEvent){
   display: flex;
   gap: 8px;
   align-items: center;
+  color: var(--color-text-primary, var(--ink));
 }
 .job-op-title span {
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .job-pending-note small {
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .job-error-note small {
-  color: var(--red-600, #dc2626);
+  color: var(--color-error, #ef4444);
 }
 .progress-bar-wrap {
   height: 6px;
-  background: var(--surface-sunken, #f1f5f9);
+  background: var(--color-canvas, #0e1013);
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 4px;
@@ -293,7 +300,7 @@ function handleKey(e:KeyboardEvent){
 .progress-bar-fill.indeterminate {
   height: 100%;
   width: 50%;
-  background: var(--accent, #6d28d9);
+  background: var(--color-accent, var(--accent));
   border-radius: 999px;
   animation: indeterminate-progress 1.5s infinite ease-in-out;
 }
@@ -304,17 +311,17 @@ function handleKey(e:KeyboardEvent){
 .job-card-footer {
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid var(--line-subtle, #f1f5f9);
+  border-top: 1px solid var(--color-border-subtle, var(--line));
   padding-top: 8px;
 }
 .queue-empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .queue-empty-state h3 {
   margin: 12px 0 6px;
-  color: var(--text-main, #0f172a);
+  color: var(--color-text-primary, var(--ink));
 }
 .queue-empty-state p {
   margin: 0;
@@ -322,12 +329,12 @@ function handleKey(e:KeyboardEvent){
 }
 .queue-modal-footer {
   padding: 12px 20px;
-  border-top: 1px solid var(--line, #e2e8f0);
+  border-top: 1px solid var(--color-border-subtle, var(--line));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--surface-footer, #f8fafc);
+  background: var(--color-surface-raised, var(--soft));
   font-size: 0.78rem;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 </style>

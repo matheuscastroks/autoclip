@@ -139,28 +139,28 @@ function handleStepClick(id:string){
 
 <style scoped>
 .stepper-track-wrap {
-  background: var(--surface-card, #ffffff);
-  border: 1px solid var(--line, #e2e8f0);
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: 14px;
-  padding: 16px 20px;
-  margin: 18px 0 22px;
+  padding: 14px 18px;
+  margin: 14px 0 18px;
 }
 .stepper-track-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .stepper-track-title strong {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-main, #0f172a);
+  color: var(--color-text-primary, var(--ink));
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 .stepper-track-title span {
   font-size: 0.8rem;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .stepper-track {
   display: flex;
@@ -194,49 +194,49 @@ function handleStepClick(id:string){
   justify-content: center;
   font-size: 0.82rem;
   font-weight: 600;
-  background: var(--surface-sunken, #f8fafc);
-  color: var(--text-muted, #64748b);
-  border: 2px solid var(--line, #cbd5e1);
+  background: var(--color-surface-raised, var(--soft));
+  color: var(--color-text-muted, var(--muted));
+  border: 2px solid var(--color-border-subtle, var(--line));
   transition: all 0.2s ease;
 }
 .stepper-node[data-state="completed"] .node-circle {
-  background: #ecfdf5;
-  color: #059669;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
   border-color: #10b981;
 }
 .stepper-node[data-state="running"] .node-circle,
 .stepper-node[data-state="processing"] .node-circle {
-  background: var(--accent-soft, #ede9fe);
-  color: var(--accent, #6d28d9);
-  border-color: var(--accent, #6d28d9);
-  box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.15);
+  background: var(--color-accent-soft, var(--accent-soft));
+  color: var(--color-accent, var(--accent));
+  border-color: var(--color-accent, var(--accent));
+  box-shadow: 0 0 0 4px rgba(217, 119, 36, 0.2);
 }
 .stepper-node[data-state="waiting"] .node-circle {
-  background: #ffffff;
-  color: var(--accent, #6d28d9);
-  border-color: var(--accent, #6d28d9);
+  background: var(--color-surface, var(--panel));
+  color: var(--color-accent, var(--accent));
+  border-color: var(--color-accent, var(--accent));
   font-weight: 700;
 }
 .stepper-node[data-state="failed"] .node-circle,
 .stepper-node[data-state="cancelled"] .node-circle,
 .stepper-node[data-state="interrupted"] .node-circle {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
   border-color: #ef4444;
 }
 .node-label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-main, #334155);
+  color: var(--color-text-primary, var(--ink));
 }
 .node-subtext {
   font-size: 0.7rem;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .stepper-connector {
   flex: 1;
   height: 2px;
-  background: var(--line, #e2e8f0);
+  background: var(--color-border-subtle, var(--line));
   margin-top: -18px;
   z-index: 1;
 }

@@ -106,9 +106,9 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  background: var(--surface-card, #ffffff);
-  border: 1px solid var(--border-subtle, #e2e8f0);
-  border-left: 4px solid var(--accent, #6d28d9);
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-left: 4px solid var(--color-accent, var(--accent));
   border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 16px;
@@ -116,18 +116,18 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 .resume-info strong {
   display: block;
   font-size: 0.95rem;
-  color: var(--text-main, #1e293b);
+  color: var(--color-text-primary, var(--ink));
   margin-bottom: 4px;
 }
 .resume-info p {
   margin: 0 0 4px;
   font-size: 0.85rem;
-  color: var(--text-muted, #64748b);
+  color: var(--color-text-muted, var(--muted));
 }
 .resume-info small {
   display: block;
   font-size: 0.78rem;
-  color: var(--amber-600, #d97706);
+  color: var(--color-warning-text, #f59e0b);
 }
 .resume-analysis-btn {
   white-space: nowrap;
@@ -135,7 +135,8 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 .overlap-notice {
   margin-top: 8px;
-  color: var(--amber-600, #d97706);
+  color: var(--color-warning-text, #f59e0b);
   font-size: 0.82rem;
+  font-weight: 500;
 }
 </style>

@@ -1,1 +1,43 @@
-:root{--shell-height:64px;--focus-ring:#6d28d9;--canvas:#f4f5f8;--panel:#fff;--ink:#20232b;--muted:#616875;--line:#e2e5ec;--line-soft:#e2e5ec;--blue:#6d28d9;--accent:#6d28d9;--accent-hover:#5b21b6;--accent-soft:#ede9fe;--accent-on:#fff;--accent-light:#c4b5fd;--soft:#f8f9fb;--warning:#92400e;--heading:'Segoe UI',system-ui,sans-serif;--body:'Segoe UI',system-ui,sans-serif;--radius-panel:16px;--radius-control:9px;--shadow-panel:0 3px 16px #20232b06;--shadow-floating:0 12px 36px #20232b16}
+:root{
+  /* New Semantic Studio Tokens */
+  --color-canvas:#0E1013;
+  --color-surface:#16191F;
+  --color-surface-raised:#1E232B;
+  --color-border-subtle:#2A303C;
+  --color-border-focus:#E08A3C;
+  --color-accent:#D97724;
+  --color-accent-hover:#BF651B;
+  --color-accent-soft:#2E1F12;
+  --color-accent-on:#FFFFFF;
+  --color-text-primary:#F2F4F7;
+  --color-text-muted:#9AA4B2;
+  --color-warning-surface:#2A2012;
+  --color-warning-border:#8C531B;
+  --color-warning-text:#FBBF24;
+  --color-error:#EF4444;
+  --color-success:#10B981;
+
+  /* App Shell & Layout Variables */
+  --shell-height:64px;
+  --focus-ring:var(--color-border-focus);
+  --canvas:var(--color-canvas);
+  --panel:var(--color-surface);
+  --soft:var(--color-surface-raised);
+  --ink:var(--color-text-primary);
+  --muted:var(--color-text-muted);
+  --line:var(--color-border-subtle);
+  --line-soft:var(--color-border-subtle);
+  --blue:var(--color-accent);
+  --accent:var(--color-accent);
+  --accent-hover:var(--color-accent-hover);
+  --accent-soft:var(--color-accent-soft);
+  --accent-on:var(--color-accent-on);
+  --accent-light:#F9A35C;
+  --warning:var(--color-warning-text);
+  --heading:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter",sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter",sans-serif;
+  --radius-panel:14px;
+  --radius-control:8px;
+  --shadow-panel:0 2px 12px rgba(0,0,0,0.35);
+  --shadow-floating:0 12px 36px rgba(0,0,0,0.55);
+}
