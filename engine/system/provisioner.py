@@ -97,12 +97,13 @@ class DependencyProvisioner:
 
         with zipfile.ZipFile(zip_path, "r") as zf:
             for member in zf.namelist():
-                lower = member.lower()
-                if lower.endswith(f"/bin/{ffmpeg_name}") or lower.endswith(f"\\bin\\{ffmpeg_name}"):
-                    with zf.open(member) as src, open(tools_dir / ffmpeg_name, "wb") as dst:
+                lower = member.lower().replace("\\", "/")
+                basename = lower.split("/")[-1]
+                if "/bin/" in lower and basename in ("ffmpeg.exe", "ffmpeg"):
+                    with zf.open(member) as src, open(tools_dir / basename, "wb") as dst:
                         shutil.copyfileobj(src, dst)
-                elif lower.endswith(f"/bin/{ffprobe_name}") or lower.endswith(f"\\bin\\{ffprobe_name}"):
-                    with zf.open(member) as src, open(tools_dir / ffprobe_name, "wb") as dst:
+                elif "/bin/" in lower and basename in ("ffprobe.exe", "ffprobe"):
+                    with zf.open(member) as src, open(tools_dir / basename, "wb") as dst:
                         shutil.copyfileobj(src, dst)
 
         try:
