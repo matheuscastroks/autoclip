@@ -25,7 +25,7 @@ def confined(root: Path, relative: str) -> Path:
 
 def atomic_bytes(path: Path, data: bytes):
     path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
-    temp=path.with_name(path.name+'.'+uuid.uuid4().hex+'.partial')
+    temp=path.with_name(uuid.uuid4().hex[:16]+'.partial')
     try:
         with temp.open('xb') as f:
             f.write(data); f.flush(); os.fsync(f.fileno())

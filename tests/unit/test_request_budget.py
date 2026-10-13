@@ -16,6 +16,6 @@ def test_provider_retry_reserves_each_attempt(tmp_path):
     from engine.contracts import AnalysisConfig,PipelineError
     from test_gemini import transcript,FakeError
     calls=[];budget=RequestBudget(tmp_path/'budget.sqlite',2)
-    def request(**kw):calls.append(1);raise FakeError(429)
+    def request(**kw):calls.append(1);raise FakeError(503)
     with pytest.raises(PipelineError):GeminiAnalyzer(request=request,sleep=lambda _:None,budget=budget).analyze(transcript(),AnalysisConfig(model='fixture',max_calls=2))
     assert len(calls)==2 and budget.used==2

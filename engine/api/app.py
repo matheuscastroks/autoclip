@@ -48,6 +48,7 @@ class RetryJob(Input):
     source_input:str|None=Field(default=None,min_length=1,max_length=4000)
     candidate_id:str|None=Field(default=None,min_length=1,max_length=100)
 class AnalysisSelection(Input):
+    schema_version:str|None='1.0'
     analysis_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
     candidate_ids:list[str]=Field(max_length=1000)
 class NewProject(Input):

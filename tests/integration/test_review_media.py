@@ -22,7 +22,7 @@ def test_vfr_between_frames_keeps_original_visual_clock(tmp_path,ffmpeg,ffprobe)
     args=media_setup(tmp_path,ffmpeg,ffprobe)
     r=FFmpegRenderer(ffmpeg).render(*args)
     early=tmp_path/'early.png';late=tmp_path/'late.png'
-    for t,p in [('0',early),('0.9',late)]:subprocess.run([str(ffmpeg),'-v','error','-y','-ss',t,'-i',str(r.path),'-frames:v','1',str(p)],check=True)
+    for t,p in [('0.3',early),('0.9',late)]:subprocess.run([str(ffmpeg),'-v','error','-y','-ss',t,'-i',str(r.path),'-frames:v','1',str(p)],check=True)
     red=Image.open(early).getpixel((540,960));green=Image.open(late).getpixel((540,960))
     assert red[0]>red[1]*2,red
     assert green[1]>green[0]*2,green
