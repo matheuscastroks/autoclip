@@ -10,6 +10,7 @@
     "check": "vue-tsc --noEmit",
     "tauri": "tauri",
     "desktop:build": "tauri build --no-bundle",
+    "desktop:bundle": "tauri build",
     "desktop:dev": "tauri dev",
     "desktop:build:local": "tauri build --debug --no-bundle"
   },

@@ -1,0 +1,77 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release Windows Installer (NSIS)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop]"
+
+      - name: Build Python Engine Sidecar
+        run: |
+          python scripts/build_engine_sidecar.py
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd desktop
+          npm ci
+
+      - name: Build Tauri App & Publish Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: 'AutoClip ${{ github.ref_name }}'
+          releaseBody: |
+            ### AutoClip Desktop (Windows)
+            
+            Instalador oficial standalone do AutoClip para Windows (64-bit).
+            
+            - **Zero Configuração:** Não requer Python, Node ou Git instalado.
+            - **Hardware Profiling:** Detecta sua CPU, RAM e GPU e recomenda o modelo Whisper ideal.
+            - **Instalação Automática:** Baixa o FFmpeg e o modelo Whisper com barra de progresso visual no primeiro uso.
+          releaseDraft: false
+          prerelease: false
