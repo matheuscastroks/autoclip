@@ -69,7 +69,12 @@ class Decision(Input):
 def create_app(workspace:Path,token:str)->FastAPI:
     workspace=Path(workspace).resolve();store=ProjectStore(workspace/'.autoclip/library.sqlite');settings=Settings(workspace)
     discover(store,workspace)
-    app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
+    from contextlib import asynccontextmanager
+    @asynccontextmanager
+    async def lifespan(app):
+        try:yield
+        finally:app.state.jobs.close()
+    app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.store=store;app.state.workspace=workspace;app.state.token=token;app.state.settings=settings
     from .gemini_connection import GeminiConnection
     gemini_connection=GeminiConnection();app.state.gemini_connection=gemini_connection
@@ -77,7 +82,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
     jobs=JobManager(store,workspace);app.state.jobs=jobs
     def describe(row):
         rows=[j for j in store.jobs() if j['project_id']==row['id']]
-        latest=max(rows,key=lambda j:(j.get('created_at',''),j['id'])) if rows else None
+        executing=[j for j in rows if j['status'] in ('running','cancelling')]
+        pending=[j for j in rows if j['status']=='pending']
+        latest=max(executing or pending or rows,key=lambda j:(j.get('created_at',''),j['id'])) if rows else None
         return project_detail(row,jobs.status(latest['id']) if latest else None)
 
     @app.middleware('http')

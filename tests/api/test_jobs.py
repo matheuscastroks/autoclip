@@ -11,9 +11,10 @@ def test_one_job_at_a_time_and_cancellation(tmp_path):
         def poll(self):return None
     manager=JobManager(store,tmp_path,spawn=lambda *a,**kw:Process())
     first=manager.start(row['id'],'transcribe',{})
-    with pytest.raises(RuntimeError):manager.start(row['id'],'transcribe',{})
+    assert manager.start(row['id'],'transcribe',{})['id']==first['id']
     manager.cancel(first['id'])
     assert (tmp_path/'.autoclip/jobs'/first['id']/'cancel').is_file()
+    manager.close()
 
 def test_dead_owned_worker_becomes_interrupted(tmp_path):
     from engine.api.jobs import JobManager

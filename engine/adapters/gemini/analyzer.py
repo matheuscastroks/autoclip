@@ -62,6 +62,13 @@ class WorkerRequestError(Exception):
         super().__init__('Isolated Gemini request failed; no secret details exposed.')
 
 def isolated_request(root,cancelled,timeout,**kwargs):
+    from engine.pipeline.provider_lock import provider_slot
+    writer=EventWriter(kwargs.get('events_path'));context=kwargs.get('context',{})
+    with provider_slot(Path.cwd(),cancelled,on_wait=lambda:writer.emit('provider_waiting','Aguardando a vez na fila de chamadas à IA. Nenhuma nova solicitação foi enviada ainda.',**context)):
+        writer.emit('request_dispatched','Vez liberada; iniciando a solicitação ao Gemini.',**context)
+        return _isolated_request(root,cancelled,timeout,**kwargs)
+
+def _isolated_request(root,cancelled,timeout,**kwargs):
     root.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='gemini-',dir=root) as folder:
         folder=Path(folder);request=folder/'request.json';response=folder/'response.json'

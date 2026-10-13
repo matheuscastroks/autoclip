@@ -1,18 +1,35 @@
 import json,os,subprocess,sys,threading,uuid,time
 from pathlib import Path
 import psutil
+from datetime import datetime
 from engine.pipeline.artifacts import atomic_json
 from .store import now
 from .projects import read_json
 from .settings import Settings
+from engine.pipeline.artifacts import object_hash,file_hash
 
 ACTIVE=('running','pending','cancelling')
 
+def render_recipe(settings):
+    from engine.pipeline.fingerprints import stage_dependencies,ROOT
+    keys=('clip_max_seconds','pause_mode','ffmpeg','ffprobe')
+    return object_hash({'settings':{k:settings.get(k) for k in keys},'stages':{stage:stage_dependencies(stage) for stage in ('edit_plan','captions','reframe','render','verify')},'contracts':file_hash(ROOT/'engine/contracts/models.py')})
+
+def legacy_render_compatible(request,job,settings):
+    """Adopt old recipes only when their settings and implementation still match."""
+    from engine.pipeline.fingerprints import FILES,ROOT
+    keys=('clip_max_seconds','pause_mode','ffmpeg','ffprobe')
+    if any(request.get('settings',{}).get(k)!=settings.get(k) for k in keys):return False
+    files={name for stage in ('edit_plan','captions','reframe','render','verify') for name in FILES[stage]}|{'engine/contracts/models.py'}
+    try:return datetime.fromisoformat(job['created_at']).timestamp()>=max((ROOT/name).stat().st_mtime for name in files)
+    except (OSError,ValueError,KeyError):return False
+
 class JobManager:
     def __init__(self,store,workspace,spawn=subprocess.Popen):
-        self.store=store;self.workspace=Path(workspace).resolve();self.spawn=spawn;self.processes={};self.lock=threading.Lock();self.draining=False
+        self.store=store;self.workspace=Path(workspace).resolve();self.spawn=spawn;self.processes={};self.lock=threading.RLock();self.draining=False;self.max_workers=2;self._stop=threading.Event()
         self.root=self.workspace/'.autoclip/jobs';self.root.mkdir(parents=True,exist_ok=True)
         for job in self.store.jobs():self.status(job['id'])
+        self._scheduler=threading.Thread(target=self._monitor,daemon=True);self._scheduler.start()
 
     def owned_alive(self,job):
         process=self.processes.get(job['id'])
@@ -23,10 +40,13 @@ class JobManager:
         except (psutil.Error,ValueError):return False
 
     def status(self,job_id):
+        with self.lock:return self._status(job_id)
+
+    def _status(self,job_id):
         job=self.store.job(job_id);folder=self.root/job_id
         result=read_json(folder/'result.json')
         if result:job.update(result)
-        elif job['status'] in ACTIVE and not self.owned_alive(job):
+        elif job['status'] in ('running','cancelling') and not self.owned_alive(job):
             job['status']='interrupted';job['error']={'code':'INTERRUPTED','message':'Tarefa interrompida. Retome explicitamente pela interface.'}
         job['events']=read_json(folder/'events.json',[]) or []
         from engine.pipeline.analysis_events import read_events
@@ -65,8 +85,6 @@ class JobManager:
         if (Path(row['path'])/'manual-check.json').exists():raise ValueError('Projeto manual disponível apenas para consulta nesta fase.')
         with self.lock:
             if self.draining:raise RuntimeError('O motor está encerrando. Reabra o aplicativo.')
-            for prior in self.store.jobs():
-                if self.status(prior['id'])['status'] in ACTIVE:raise RuntimeError('Uma tarefa já está em execução. Aguarde ou cancele antes de iniciar outra.')
             settings=Settings(self.workspace).get()
             if operation=='render' and options.get('candidate_ids') is not None:
                 from .analysis_view import save_selection,validate_selection
@@ -78,30 +96,111 @@ class JobManager:
             # New UI jobs plan calls from the actual transcript. Explicit legacy API limits remain supported.
             automatic=operation in ('prepare','analyze') and 'max_calls' not in options
             values['automatic_calls']=automatic
+            active_rows=[self.status(j['id']) for j in self.store.jobs() if j['project_id']==project_id]
+            ignored_ready=ignored_queued=0;ready_items=[];recipe=None
+            if operation=='render' and options.get('candidate_ids') is not None:
+                recipe=render_recipe(values);queued=set();ready={}
+                for prior in active_rows:
+                    if prior['operation']!='render':continue
+                    old=read_json(self.root/prior['id']/'request.json',{}) or {}
+                    if old.get('selection',{}).get('analysis_hash')!=options.get('analysis_hash'):continue
+                    if old.get('render_recipe')!=recipe and not (old.get('render_recipe') is None and legacy_render_compatible(old,prior,values)):continue
+                    if prior['status'] in ACTIVE:queued.update(old.get('selection',{}).get('candidate_ids',[]))
+                    for item in (prior.get('progress') or {}).get('items',[]):
+                        if item['state']=='ready':ready[item['candidate_id']]=item
+                # Only technically valid, existing revisions may be skipped as ready.
+                from .reviews import list_revisions
+                valid={r.get('candidate_id'):r for r in list_revisions(Path(row['path'])) if r['technical_pass']}
+                checked_ready={}
+                for cid,item in ready.items():
+                    if cid not in valid or cid not in options['candidate_ids']:continue
+                    rendered=read_json(Path(row['path'])/'revisions'/item.get('revision_id','missing')/'render.json',{}) or {}
+                    path=Path(rendered.get('path','')).resolve()
+                    if path.is_relative_to(Path(row['path']).resolve()) and path.is_file() and file_hash(path)==rendered.get('sha256'):checked_ready[cid]=item
+                ready=checked_ready
+                wanted=options['candidate_ids'];ignored_ready=sum(cid in ready for cid in wanted);ignored_queued=sum(cid in queued and cid not in ready for cid in wanted)
+                ready_items=[ready[cid] for cid in wanted if cid in ready]
+                options={**options,'candidate_ids':[cid for cid in wanted if cid not in queued and cid not in ready]}
+                if not options['candidate_ids'] and ignored_queued:
+                    prior=next(j for j in active_rows if j['status'] in ACTIVE and j['operation']=='render' and set(read_json(self.root/j['id']/'request.json',{}).get('selection',{}).get('candidate_ids',[]))&set(wanted))
+                    return {**prior,'ignored_ready':ignored_ready,'ignored_queued':ignored_queued,'enqueued_items':0}
+            else:
+                for prior in active_rows:
+                    old=read_json(self.root/prior['id']/'request.json',{}) or {}
+                    if prior['status'] in ACTIVE and prior['operation']==operation and old.get('settings')==values and old.get('source_input')==options.get('source_input'):return prior
             jid=str(uuid.uuid4());folder=self.root/jid;folder.mkdir()
-            job={'id':jid,'project_id':project_id,'operation':operation,'status':'running','created_at':now(),'requests_used':0,'request_mode':'automatic' if automatic else 'manual','request_limit':None if automatic else values['max_calls'],'events':[]}
+            job={'id':jid,'project_id':project_id,'operation':operation,'status':'pending','created_at':now(),'requests_used':0,'request_mode':'automatic' if automatic else 'manual','request_limit':None if automatic else values['max_calls'],'events':[]}
             request={'job_id':jid,'project_id':project_id,'project_root':row['path'],'workspace':str(self.workspace),'operation':operation,'settings':values,'source_input':options.get('source_input')}
             request['selection']={k:options[k] for k in ('analysis_hash','candidate_ids') if options.get(k) is not None}
+            if recipe:request['render_recipe']=recipe
+            job.update(ignored_ready=ignored_ready,ignored_queued=ignored_queued,enqueued_items=len(options.get('candidate_ids',[])))
             atomic_json(folder/'request.json',request)
-            with self.store.connect() as c:
-                c.execute('BEGIN IMMEDIATE')
-                if c.execute("SELECT 1 FROM jobs WHERE status IN ('running','pending','cancelling')").fetchone():raise RuntimeError('Uma tarefa já está em execução.')
-                c.execute('INSERT INTO jobs VALUES(?,?,?,?)',(jid,project_id,'running',json.dumps(job)))
-            try:
-                kwargs={'cwd':str(self.workspace),'stdout':(folder/'stdout.log').open('wb'),'stderr':subprocess.STDOUT}
-                if os.name=='nt':kwargs['creationflags']=subprocess.CREATE_NO_WINDOW
-                try:process=self.spawn([sys.executable,'-X','utf8','-m','engine.api.job_worker',str(folder)],**kwargs)
-                finally:kwargs['stdout'].close()
-                self.processes[jid]=process;job['pid']=process.pid
-                try:job['worker_created']=psutil.Process(process.pid).create_time() if process.pid>0 else 0
-                except psutil.Error:job['worker_created']=0
-                self.store.save_job(job);return job
-            except BaseException:
-                job['status']='failed';job['error']={'code':'WORKER_START','message':'Não foi possível iniciar a tarefa local.'};self.store.save_job(job);raise
+            if operation=='render' and options.get('candidate_ids'):
+                analysis=read_json(Path(row['path'])/'analysis.json',{}) or {}
+                titles={c['id']:c.get('title_suggestion','Trecho') for c in analysis.get('candidates',[])}
+                atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'pending'},'phase':'waiting','items':[{'candidate_id':cid,'title':titles.get(cid,'Trecho'),'state':'pending','phase':'waiting','processed_us':0,'total_us':None} for cid in options['candidate_ids']]})
+            if operation=='render' and options.get('candidate_ids')==[]:
+                atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'completed'},'items':ready_items})
+                atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
+                job['status']='completed'
+            self.store.save_job(job)
+            self.dispatch()
+            return self.status(jid)
+
+    def close(self):
+        self._stop.set()
+        if threading.current_thread() is not self._scheduler:self._scheduler.join(timeout=2)
+
+    def _monitor(self):
+        while not self._stop.wait(.5):
+            try:self.dispatch()
+            except Exception:
+                # A transient database/filesystem failure must not kill the scheduler.
+                import logging
+                logging.getLogger(__name__).exception('Queue dispatch failed')
+
+    def dispatch(self):
+        with self.lock:
+            if self.draining:return
+            rows=[self.status(j['id']) if j['status'] in ACTIVE else j for j in self.store.jobs()]
+            executing=[j for j in rows if j['status'] in ('running','cancelling')]
+            occupied={j['project_id'] for j in executing}
+            provider_busy=any(j['operation']=='analyze' for j in executing)
+            pending=sorted((j for j in rows if j['status']=='pending'),key=lambda j:(j['created_at'],j['id']))
+            waiting_projects=set()
+            for position,job in enumerate(pending,1):
+                blocked=job['project_id'] in occupied or job['project_id'] in waiting_projects
+                provider=job['operation']=='analyze'
+                reason='Aguardando a tarefa anterior deste projeto.' if blocked else 'Aguardando a fila de análise por IA.' if provider and provider_busy else 'Aguardando capacidade do motor local.' if len(executing)>=self.max_workers else ''
+                if reason:
+                    job.update(queue_position=position,queue_reason=reason);self.store.save_job(job);waiting_projects.add(job['project_id']);continue
+                folder=self.root/job['id'];job.update(status='running',queue_position=None,queue_reason=None,started_at=now())
+                self.store.save_job(job)
+                try:
+                    kwargs={'cwd':str(self.workspace),'stdout':(folder/'stdout.log').open('wb'),'stderr':subprocess.STDOUT}
+                    if os.name=='nt':kwargs['creationflags']=subprocess.CREATE_NO_WINDOW
+                    try:process=self.spawn([sys.executable,'-X','utf8','-m','engine.api.job_worker',str(folder)],**kwargs)
+                    finally:kwargs['stdout'].close()
+                    self.processes[job['id']]=process;job['pid']=process.pid
+                    try:job['worker_created']=psutil.Process(process.pid).create_time() if process.pid>0 else 0
+                    except psutil.Error:job['worker_created']=0
+                    self.store.save_job(job);executing.append(job);occupied.add(job['project_id']);provider_busy=provider_busy or provider
+                except Exception:
+                    job.update(status='failed',error={'code':'WORKER_START','message':'Não foi possível iniciar a tarefa local. As outras tarefas foram preservadas.'})
+                    self.store.save_job(job)
 
     def cancel(self,job_id):
+        with self.lock:return self._cancel(job_id)
+
+    def _cancel(self,job_id):
         job=self.status(job_id)
         if job['status'] not in ACTIVE:return job
+        if job['status']=='pending':
+            progress=read_json(self.root/job_id/'progress.json')
+            if progress:
+                for item in progress.get('items',[]):item.update(state='cancelled',phase='cancelled')
+                atomic_json(self.root/job_id/'progress.json',progress)
+            atomic_json(self.root/job_id/'result.json',{'status':'cancelled','finished_at':now()});job['status']='cancelled';self.store.save_job(job);self.dispatch();return job
         (self.root/job_id/'cancel').touch();job['status']='cancelling';self.store.save_job(job)
         # Import and hashing may not poll cooperatively. Kill only the verified owned tree after grace.
         def enforce():
