@@ -20,6 +20,15 @@ def test_source_output_roundtrip_at_join():
     assert output_at(e,25) is None
     assert output_at(e,source_at(e,19))==19
 
+def test_configured_five_minute_policy_accepts_clip_over_three_minutes(tmp_path):
+    from engine.contracts import Source,Candidate,SelectionConfig
+    from engine.editorial.edl import plan_continuous_edit
+    t=transcript()
+    for i,w in enumerate(t.words):w.end_us=i*8_000_000+1_000_000;w.start_us=i*8_000_000
+    s=Source(id=t.source_id,sha256=t.source_sha256,local_path=tmp_path/'s.mp4',duration_us=300_000_000)
+    result=plan_continuous_edit(Candidate.model_validate(payload(t)['candidates'][0]),t,s,selection=SelectionConfig(min_us=60_000_000,max_us=300_000_000))
+    assert 180_000_000<result.duration_us<=300_000_000
+
 def test_padding_never_trims_a_word_to_fit_60_seconds(tmp_path):
     from engine.contracts import Source,Candidate,PipelineError
     from engine.editorial.edl import plan_continuous_edit

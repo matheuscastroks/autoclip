@@ -23,10 +23,10 @@ it('shows face tracking progress before encoding',()=>{
  expect(w.get('[role=progressbar]').attributes('aria-valuenow')).toBe('50')
 })
 it('distinguishes completed coding from readiness and retries only through the job snapshot',async()=>{
- const job={id:'j',project_id:'p',operation:'render',status:'running',created_at:'',requests_used:0,request_limit:null,events:[],progress:{stage:'render',steps:{},completed_items:1,total_items:3,items:[{candidate_id:'a',title:'Pronta',state:'ready',phase:'ready',processed_us:0,total_us:null},{candidate_id:'b',title:'Codificando',state:'running',phase:'render',processed_us:100,total_us:100},{candidate_id:'c',title:'Falha localizada',state:'failed',phase:'failed',processed_us:0,total_us:null,error_code:'RENDER_FAILED'}]}}
+ const job={id:'j',project_id:'p',operation:'render',status:'running',created_at:'',requests_used:0,request_limit:null,events:[],progress:{stage:'render',steps:{},completed_items:1,total_items:3,items:[{candidate_id:'a',title:'Pronta',state:'ready',phase:'ready',processed_us:0,total_us:null},{candidate_id:'b',title:'Codificando',state:'running',phase:'render',processed_us:100,total_us:100},{candidate_id:'c',title:'Falha localizada',state:'failed',phase:'failed',processed_us:0,total_us:null,error_code:'RENDER_FAILED',error_stage:'edit_plan',error_message:'clip would exceed 180s',error_type:'RecutError'}]}}
  const w=mount(GenerationQueue,{props:{jobs:[job]}})
  expect(w.text()).toContain('2 pendente(s)');expect(w.text()).toContain('100% codificado · Verificação técnica a seguir')
- expect(w.find('[data-state=failed]').text()).toContain('outras prévias foram preservadas')
+ expect(w.find('[data-state=failed]').text()).toContain('outras prévias foram preservadas');expect(w.find('[data-state=failed]').text()).toContain('clip would exceed 180s');expect(w.find('[data-state=failed]').text()).toContain('Preparando edição')
  await w.setProps({jobs:[{...job,status:'failed'}]});await w.get('button').trigger('click')
  expect(w.emitted('resume')?.[0]).toEqual(['j'])
 })

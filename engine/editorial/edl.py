@@ -25,7 +25,7 @@ def plan_continuous_edit(candidate:Candidate,transcript:TranscriptArtifact,sourc
     start-=max(0,lead);end+=max(0,tail)
     if end>source.duration_us: raise PipelineError('UNSAFE_EDIT','edit_plan','Word exceeds source duration.')
     # Keep upstream range validation, while canonical integer timing stays exact.
-    normalize_segments([{'start':start/1e6,'end':end/1e6}],source.duration_us/1e6)
+    normalize_segments([{'start':start/1e6,'end':end/1e6}],source.duration_us/1e6,max_total_seconds=selection.max_us/1e6)
     removed=[];warnings=[]
     if pauses.enabled:
         if verified_silences is None:warnings.append('Pausas preservadas: não houve confirmação no áudio.')

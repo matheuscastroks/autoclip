@@ -128,13 +128,16 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 current.update(state='ready',phase='ready',revision_id=str(edl.revision_id),reused=reused_render)
                 current=None;report('next')
             except (PipelineError,OSError,ValueError) as exc:
+                failed_phase=current.get('phase','edit_plan')
+                detail=str(exc)[:1000]
+                error_type=type(exc).__name__
                 if not isinstance(exc,PipelineError):
                     import traceback
                     (root/(str(candidate.id)+'.error.log')).write_text(traceback.format_exc(),encoding='utf-8')
                     exc=PipelineError('ITEM_FAILED','render','Local preview failed; retry this item.')
                 if exc.code=='CANCELLED': raise
-                failures.append({'candidate_id':str(candidate.id),'error':exc.as_dict()})
-                current.update(state='failed',phase='failed',error_code=exc.code);current=None;report('next')
+                failures.append({'candidate_id':str(candidate.id),'error':{**exc.as_dict(),'detail':detail,'failed_stage':failed_phase,'type':error_type}})
+                current.update(state='failed',phase='failed',error_code=exc.code,error_message=detail,error_stage=failed_phase,error_type=error_type);current=None;report('next')
                 atomic_json(root/'item-errors.json',failures)
         state.status='failed' if failures else ('needs_review' if state.revisions else 'no_candidates')
         atomic_json(root/'last-run.json',{'reused':cache.reused,'failures':failures})

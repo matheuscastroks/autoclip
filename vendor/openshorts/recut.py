@@ -42,7 +42,7 @@ class RecutError(ValueError):
     """Invalid EDL — safe to surface verbatim as a 400 detail."""
 
 
-def normalize_segments(segments, source_duration=None):
+def normalize_segments(segments, source_duration=None, *, max_total_seconds=MAX_TOTAL_SECONDS):
     """Validate and clamp an EDL. Returns [{'start': float, 'end': float}, ...].
 
     Order is preserved — the segment order IS the clip order, and reusing a
@@ -71,8 +71,8 @@ def normalize_segments(segments, source_duration=None):
                 f"segment {i + 1} is shorter than {MIN_SEGMENT_SECONDS}s")
         normalized.append({"start": round(start, 3), "end": round(end, 3)})
 
-    if total_duration(normalized) > MAX_TOTAL_SECONDS:
-        raise RecutError(f"clip would exceed {MAX_TOTAL_SECONDS:.0f}s")
+    if total_duration(normalized) > max_total_seconds:
+        raise RecutError(f"clip would exceed {max_total_seconds:.0f}s")
     return normalized
 
 
