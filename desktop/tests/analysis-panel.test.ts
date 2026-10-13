@@ -78,3 +78,41 @@ it('shows 1-click resume button for partial analysis and emits resume on click',
  w.unmount()
 })
 
+it('does not display redundant marketing header texts on complete analysis',()=>{
+ const w=mount(AnalysisPanel,{props:{analysis:view,selection:null,jobs:[],sourceUrl:'',busy:false}})
+ const headText=w.get('.analysis-heading').text()
+ expect(headText).not.toContain('Curadoria Editorial com Inteligência Artificial')
+ expect(headText).not.toContain('Temas e propostas')
+ expect(headText).not.toContain('janelas validadas')
+ w.unmount()
+})
+
+it('allows discarding and restoring proposals and deselects discarded items',async()=>{
+ const w=mount(AnalysisPanel,{props:{analysis:view,selection:{schema_version:'1.0',analysis_hash:view.analysis_hash,candidate_ids:['one']},jobs:[],sourceUrl:'',busy:false}})
+ // Initially candidate 'one' is selected
+ expect((w.findAll('input[type=checkbox]')[0].element as HTMLInputElement).checked).toBe(true)
+ // Discard candidate 'one' via button in proposal card
+ await w.get('[data-action=discard-proposal]').trigger('click')
+ // Candidate 'one' should be deselected and selection emitted with empty array
+ expect(w.emitted('selection')?.slice(-1)[0][0]).toMatchObject({candidate_ids:[]})
+ // Active list should now be empty (proposal 'two' is ineligible, but let's check tabs)
+ expect(w.text()).toContain('Descartadas (1)')
+ // Switch to discarded filter tab
+ const discardedTab=w.findAll('.filter-pill-btn').find(b=>b.text().includes('Descartadas'))
+ expect(discardedTab).toBeDefined()
+ await discardedTab!.trigger('click')
+ // Restore proposal
+ await w.get('[data-action=restore-proposal]').trigger('click')
+ expect(w.text()).toContain('Ativas (2)')
+ w.unmount()
+})
+
+it('supports selecting all eligible proposals and clearing selection',async()=>{
+ const w=mount(AnalysisPanel,{props:{analysis:view,selection:null,jobs:[],sourceUrl:'',busy:false}})
+ await w.get('[data-action=select-all-proposals]').trigger('click')
+ expect(w.emitted('selection')?.[0]?.[0]).toMatchObject({candidate_ids:['one']})
+ await w.get('[data-action=clear-selection]').trigger('click')
+ expect(w.emitted('selection')?.slice(-1)[0][0]).toMatchObject({candidate_ids:[]})
+ w.unmount()
+})
+

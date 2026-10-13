@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue'
 import {computed,ref,watch} from 'vue'
-import {Play,Search,Check,Scissors,FileText,RotateCcw,Sparkles,Clock,AlertTriangle,Volume2,Layers} from '@lucide/vue'
+import {Play,Search,Check,Scissors,FileText,RotateCcw,Sparkles,Clock,AlertTriangle,Volume2,Layers,Trash2,CheckCheck,X} from '@lucide/vue'
 import type {AnalysisView,AnalysisSelection,Job,Proposal} from '../types'
 import {time} from '../format'
 import {notify} from '../notifications'
@@ -11,12 +11,98 @@ const props=defineProps<{analysis:AnalysisView|null;selection:AnalysisSelection|
 const emit=defineEmits<{generate:[value:{analysis_hash:string;candidate_ids:string[]}];selection:[value:AnalysisSelection];resume:[]}>()
 const topic=ref(''),search=ref(''),focused=ref(''),selected=ref<string[]>([]),player=ref<HTMLVideoElement>(),playEnd=ref(0)
 const locallyEdited=ref(false)
+const discarded=ref<string[]>([])
+const filterMode=ref<'active'|'discarded'|'all'>('active')
+
 const analysisLabels:Record<string,string>={not_started:'Análise ainda não iniciada',running:'Analisando a transcrição',partial:'Análise parcial disponível',completed:'Análise concluída',failed:'Análise precisa de atenção',cancelled:'Análise cancelada',interrupted:'Análise interrompida'}
 const analysisStateLabel=computed(()=>analysisLabels[props.analysis?.state||'not_started']||'Estado da análise')
 const complete=computed(()=>props.analysis?.state==='completed'&&!!props.analysis.analysis_hash)
 const proposals=computed(()=>props.analysis?.proposals||[])
-const filtered=computed(()=>proposals.value.filter(p=>(!topic.value||p.group_id===topic.value)&&(!search.value||[p.title,p.rationale,p.text].join(' ').toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')))))
+const activeProposals=computed(()=>proposals.value.filter(p=>!discarded.value.includes(p.candidate_id)))
+const discardedProposals=computed(()=>proposals.value.filter(p=>discarded.value.includes(p.candidate_id)))
+
+const filtered=computed(()=>proposals.value.filter(p=>{
+  if(filterMode.value==='active'&&discarded.value.includes(p.candidate_id))return false
+  if(filterMode.value==='discarded'&&!discarded.value.includes(p.candidate_id))return false
+  if(topic.value&&p.group_id!==topic.value)return false
+  if(search.value){
+    const q=search.value.toLocaleLowerCase('pt-BR')
+    const target=[p.title,p.rationale,p.text].join(' ').toLocaleLowerCase('pt-BR')
+    if(!target.includes(q))return false
+  }
+  return true
+}))
+
 const current=computed(()=>filtered.value.find(p=>p.candidate_id===focused.value)||filtered.value[0])
+
+function loadDiscarded(hash?:string|null){
+  if(!hash){discarded.value=[];return}
+  try{
+    const raw=localStorage.getItem(`autoclip:discarded:${hash}`)
+    if(raw){
+      const parsed=JSON.parse(raw)
+      if(Array.isArray(parsed)){discarded.value=parsed;return}
+    }
+  }catch{}
+  discarded.value=[]
+}
+
+function saveDiscarded(hash?:string|null){
+  if(!hash)return
+  try{
+    localStorage.setItem(`autoclip:discarded:${hash}`,JSON.stringify(discarded.value))
+  }catch{}
+}
+
+function discard(id:string){
+  if(!discarded.value.includes(id)){
+    discarded.value=[...discarded.value,id]
+    saveDiscarded(props.analysis?.analysis_hash)
+  }
+  if(selected.value.includes(id)){
+    selected.value=selected.value.filter(s=>s!==id)
+    locallyEdited.value=true
+    emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
+  }
+  notify.info('Proposta descartada.')
+}
+
+function restore(id:string){
+  discarded.value=discarded.value.filter(s=>s!==id)
+  saveDiscarded(props.analysis?.analysis_hash)
+  notify.info('Proposta restaurada.')
+}
+
+function selectAllEligible(){
+  if(!complete.value||props.busy)return
+  const toSelect:string[]=[]
+  const candidates=proposals.value.filter(p=>p.eligible&&!discarded.value.includes(p.candidate_id)&&(!topic.value||p.group_id===topic.value))
+  for(const c of candidates){
+    const hasOverlap=toSelect.some(id=>{
+      const kept=proposals.value.find(p=>p.candidate_id===id)!
+      return Math.min(c.end_us,kept.end_us)>Math.max(c.start_us,kept.start_us)
+    })
+    if(!hasOverlap){
+      toSelect.push(c.candidate_id)
+    }
+  }
+  locallyEdited.value=true
+  selected.value=toSelect
+  emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
+  if(candidates.length>toSelect.length){
+    notify.info(`${toSelect.length} propostas selecionadas. Trechos sobrepostos foram desconsiderados.`)
+  }else{
+    notify.info(`${toSelect.length} propostas selecionadas.`)
+  }
+}
+
+function clearSelection(){
+  if(props.busy)return
+  locallyEdited.value=true
+  selected.value=[]
+  emit('selection',{schema_version:'1.0',analysis_hash:props.analysis?.analysis_hash||'',candidate_ids:[]})
+  notify.info('Seleção limpa.')
+}
 
 function overlapsWithSelected(p:Proposal):boolean{
   if(selected.value.includes(p.candidate_id))return false
@@ -30,6 +116,7 @@ function overlapsWithSelected(p:Proposal):boolean{
 const validSelection=computed(()=>{
   const result:string[]=[]
   for(const id of selected.value){
+    if(discarded.value.includes(id))continue
     const cand=proposals.value.find(p=>p.candidate_id===id&&p.eligible)
     if(!cand)continue
     const hasOverlap=result.some(keptId=>{
@@ -60,14 +147,30 @@ const isPartial=computed(()=>{
 })
 const remainingWindows=computed(()=>Math.max(0,(props.analysis?.total_windows||0)-(props.analysis?.completed_windows||0)))
 
-watch(()=>props.analysis?.analysis_hash,(hash,old)=>{if(hash!==old){locallyEdited.value=false;selected.value=hash&&props.selection?.analysis_hash===hash?[...props.selection.candidate_ids]:[];if(!proposals.value.some(p=>p.candidate_id===focused.value))focused.value='';if(!props.analysis?.topic_groups.some(g=>g.id===topic.value))topic.value=''}})
-watch(()=>props.analysis?.job_id,(job,old)=>{if(old&&job!==old){focused.value='';topic.value='';selected.value=[];locallyEdited.value=false}})
+watch(()=>props.analysis?.analysis_hash,(hash,old)=>{
+  if(hash!==old){
+    locallyEdited.value=false
+    loadDiscarded(hash)
+    selected.value=hash&&props.selection?.analysis_hash===hash?[...props.selection.candidate_ids]:[]
+    if(!proposals.value.some(p=>p.candidate_id===focused.value))focused.value=''
+    if(!props.analysis?.topic_groups.some(g=>g.id===topic.value))topic.value=''
+  }
+},{immediate:true})
+watch(()=>props.analysis?.job_id,(job,old)=>{
+  if(old&&job!==old){
+    focused.value=''
+    topic.value=''
+    selected.value=[]
+    discarded.value=[]
+    locallyEdited.value=false
+  }
+})
 watch(()=>props.selection,value=>{if(!locallyEdited.value&&value?.analysis_hash===props.analysis?.analysis_hash&&value?.analysis_hash)selected.value=[...value.candidate_ids]},{immediate:true})
 watch(overlap,value=>{if(value)notify.warning('Seleção com trechos sobrepostos detectada. Os cortes não podem se sobrepor no vídeo original.')})
 watch(current,value=>{if(value&&!value.eligible)notify.warning(value.reasons.join(' ')+' A geração permanece bloqueada.',{key:'proposal:'+value.candidate_id+':'+(props.analysis?.analysis_hash||props.analysis?.job_id)})})
 
 function toggle(p:Proposal){
-  if(!complete.value||!p.eligible||props.busy)return
+  if(!complete.value||!p.eligible||props.busy||discarded.value.includes(p.candidate_id))return
   if(!selected.value.includes(p.candidate_id)&&overlapsWithSelected(p)){
     notify.warning('Este trecho se sobrepõe a outro corte já selecionado. Desmarque o corte concorrente primeiro.')
     return
@@ -85,18 +188,15 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 <template>
   <section class="analysis-workspace">
     <!-- CABEÇALHO DO WORKSPACE DE CURADORIA -->
-    <header class="analysis-heading">
-      <div>
-        <span class="eyebrow">Curadoria Editorial com Inteligência Artificial</span>
-        <h2>Temas e propostas</h2>
-        <p v-if="analysis">
-          {{analysisStateLabel}}
-          <span v-if="analysis.model"> · {{analysis.model}}</span>
-          · {{analysis.completed_windows}}/{{analysis.total_windows}} janelas validadas
-          · {{proposals.length}} propostas
-          <span v-if="!complete"> · Resultado parcial</span>
-        </p>
-        <p v-else>A análise organizará os temas e os trechos da transcrição.</p>
+    <header class="analysis-heading" :class="{'is-complete':complete}">
+      <div v-if="!complete" class="analysis-heading-text">
+        <span class="status-pill" :data-status="analysis?.state">{{analysisStateLabel}}</span>
+        <p v-if="!analysis">A análise organizará os temas e os trechos da transcrição.</p>
+      </div>
+      <div v-else class="analysis-heading-meta">
+        <span class="heading-stat-pill">
+          <strong>{{validSelection.length}}</strong> de <strong>{{activeProposals.length}}</strong> propostas selecionadas
+        </span>
       </div>
 
       <AppButton
@@ -125,189 +225,337 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       As propostas já validadas podem ser consultadas. A geração fica disponível quando a análise completa terminar.
     </div>
 
-    <!-- NOVO LAYOUT DESKTOP 2 COLUNAS: FILTROS & LISTA À ESQUERDA | SUITE DE INSPEÇÃO À DIREITA -->
-    <div class="analysis-layout curation-2col-layout">
-      
-      <!-- COLUNA ESQUERDA (380px): SELETOR DE TEMAS + BUSCA + LISTA DE PROPOSTAS -->
-      <aside class="curation-sidebar">
-        <!-- Filtro de Temas (Chips Horizontais com Contadores) -->
-        <div class="topic-list" role="tablist" aria-label="Temas identificados">
-          <div class="topic-list-header">
-            <span class="selection-step">01 · Escolha um tema</span>
-            <h3>Temas identificados</h3>
+    <!-- WORKSPACE DESKTOP EM 3 COLUNAS FUNCIONAIS -->
+    <div class="analysis-layout curation-3col-layout">
+
+      <!-- COLUNA 1: NAVEGAÇÃO POR TEMAS (~340px) -->
+      <aside class="curation-topics-col" role="region" aria-label="Temas identificados">
+        <div class="column-panel-header">
+          <div class="panel-header-title">
+            <span class="selection-step-badge">01</span>
+            <h3>Temas</h3>
           </div>
-          <div class="topic-chips-scroll">
-            <AppButton class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
-              Todos os temas <span>{{proposals.length}}</span>
-            </AppButton>
-            <AppButton
-              v-for="group in analysis?.topic_groups"
-              :key="group.id"
-              class="topic-chip-btn"
-              :class="{selected:topic===group.id}"
-              @click="topic=group.id;focused=''"
-            >
-              {{group.label}}<span>{{proposals.filter(p=>p.group_id===group.id).length}}</span>
-            </AppButton>
-          </div>
-          <div v-if="topic" class="topic-summary">
-            <p v-for="summary in analysis?.topic_groups.find(g=>g.id===topic)?.summaries" :key="summary">{{summary}}</p>
-          </div>
+          <span class="panel-counter-badge">{{(analysis?.topic_groups.length||0) + 1}}</span>
         </div>
 
-        <!-- Lista de Propostas com Busca e Detecção de Conflitos -->
-        <div class="proposal-column">
-          <div class="proposal-column-header">
-            <span class="selection-step">02 · Escolha um trecho</span>
-            <span class="proposal-count-tag">{{filtered.length}} proposta(s)</span>
-          </div>
+        <div class="topic-list custom-scrollbar" role="tablist" aria-label="Temas identificados">
+          <AppButton class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
+            <span class="chip-label">Todos os temas</span>
+            <span class="chip-count">{{activeProposals.length}}</span>
+          </AppButton>
+          <AppButton
+            v-for="group in analysis?.topic_groups"
+            :key="group.id"
+            class="topic-chip-btn"
+            :class="{selected:topic===group.id}"
+            @click="topic=group.id;focused=''"
+          >
+            <span class="chip-label" :title="group.label">{{group.label}}</span>
+            <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
+          </AppButton>
+        </div>
 
-          <label class="search">
-            <Search :size="16"/>
-            <input v-model="search" type="search" placeholder="Buscar nas propostas por palavra..." aria-label="Buscar nas propostas"/>
-          </label>
+        <div v-if="topic" class="topic-summary-box">
+          <span class="summary-label">Resumo do tema:</span>
+          <p v-for="summary in analysis?.topic_groups.find(g=>g.id===topic)?.summaries" :key="summary">{{summary}}</p>
+        </div>
 
-          <div class="proposal-list hidden-scrollbar" tabindex="0" aria-label="Propostas de cortes">
-            <article
-              v-for="p in filtered"
-              :key="p.candidate_id"
-              class="proposal-card"
-              :class="{selected:current?.candidate_id===p.candidate_id,overlapping:overlapsWithSelected(p)}"
-            >
-              <div class="proposal-top">
-                <label class="proposal-checkbox" :title="overlapsWithSelected(p)?'Sobrepõe um corte já selecionado':undefined">
-                  <input
-                    type="checkbox"
-                    :checked="selected.includes(p.candidate_id)"
-                    :disabled="!complete||!p.eligible||busy||overlapsWithSelected(p)"
-                    :aria-label="'Selecionar '+p.title"
-                    @change="toggle(p)"
-                  />
-                </label>
-                <AppButton class="proposal-open" @click="choose(p.candidate_id)">
-                  <strong>{{p.title}}</strong>
-                  <small>{{time(p.start_us)}} – {{time(p.end_us)}} · {{time(p.duration_us)}}</small>
-                </AppButton>
-              </div>
-
-              <p class="proposal-summary">{{p.rationale}}</p>
-
-              <div class="proposal-card-badges">
-                <span v-if="overlapsWithSelected(p)" class="status-pill conflict-pill" data-status="warning" title="Este trecho se sobrepõe a outro corte já selecionado">
-                  <AlertTriangle :size="12"/>Sobrepõe seleção
-                </span>
-                <span v-else class="status-pill" :data-status="p.eligible?'analyzed':'failed'">
-                  <Check v-if="p.eligible" :size="12"/>{{p.eligible?'Elegível para prévia':'Precisa de atenção'}}
-                </span>
-              </div>
-            </article>
-
-            <p v-if="!filtered.length" class="subtle empty-proposals">
-              {{proposals.length?'Nenhuma proposta corresponde ao filtro.':'Aguardando propostas validadas.'}}
-            </p>
-          </div>
+        <!-- GAVETA COMPACTA DE DIAGNÓSTICO DO MOTOR -->
+        <div class="topics-pipeline-drawer">
+          <details class="analysis-explanation">
+            <summary><Layers :size="13"/> Diagnóstico do motor</summary>
+            <div class="explanation-inner-box">
+              <AnalysisFeedback :jobs="jobs"/>
+            </div>
+          </details>
         </div>
       </aside>
 
-      <!-- COLUNA DIREITA: SUITE COMPLETA DE INSPEÇÃO DO CORTE SELECIONADO -->
-      <main class="curation-inspection-main">
-        <section v-if="current" class="proposal-detail">
-          <div class="proposal-inspection">
-            <div class="inspection-head">
-              <span class="selection-step">03 · Confira e selecione</span>
-              <div class="inspection-time-badge">
-                <Clock :size="13"/>
-                <span>{{time(current.start_us)}} – {{time(current.end_us)}} ({{time(current.duration_us)}})</span>
-              </div>
-            </div>
+      <!-- COLUNA 2: PROPOSTAS DE CORTES / WORK ITEMS (~380px) -->
+      <section class="curation-proposals-col" aria-label="Lista de propostas de cortes">
+        <div class="column-panel-header">
+          <div class="panel-header-title">
+            <span class="selection-step-badge">02</span>
+            <h3>Propostas</h3>
+          </div>
+          <span class="panel-counter-badge">{{filtered.length}} de {{proposals.length}}</span>
+        </div>
 
-            <h3>{{current.title}}</h3>
-
-            <!-- Mini Player de Audição Rápida -->
-            <div class="inspection-media-box">
-              <video v-if="sourceUrl" ref="player" :src="sourceUrl" controls preload="metadata" playsinline @timeupdate="stopAtEnd"></video>
-              <div class="proposal-play">
-                <AppButton class="button small primary" :disabled="!sourceUrl" @click="play()">
-                  <Play :size="14"/>Ouvir trecho
-                </AppButton>
-                <AppButton class="button small secondary" :disabled="!sourceUrl" @click="play(true)">
-                  Com contexto (+15s)
-                </AppButton>
-              </div>
-            </div>
-
-            <!-- Gancho Social em Destaque -->
-            <details class="proposal-copy" open>
-              <summary>Frase de abertura · 7 segundos</summary>
-              <div class="opening-copy">
-                <small>Frase de abertura · primeiros 7 segundos</small>
-                <p>{{current.opening_text||'A próxima análise poderá sugerir uma frase curta para este trecho.'}}</p>
-              </div>
-            </details>
-
-            <!-- Raciocínio Editorial e Por que Funciona -->
-            <div class="inspection-block">
-              <div class="block-title">
-                <Sparkles :size="15"/>
-                <strong>Por que este corte funciona</strong>
-              </div>
-              <p class="proposal-rationale">{{current.rationale}}</p>
-            </div>
-
-            <!-- Checklist Editorial -->
-            <div class="editorial-flags">
-              <span v-for="(label,key) in {completeness:'Raciocínio completo',standalone_context:'Contexto suficiente',qualification_preserved:'Ressalvas preservadas'}" :key="key">
-                {{label}} <b>{{current.editorial[key]==='yes'?'Sim':current.editorial[key]==='no'?'Não':'Incerto'}}</b>
-              </span>
-            </div>
-
-            <AppButton v-if="!current.eligible" class="text-button" @click="notify.warning(current.reasons.join(' ')+' A geração permanece bloqueada.')">
-              Ver motivo da restrição
-            </AppButton>
-            <p v-for="warning in current.warnings" :key="warning" class="subtle">{{warning}}</p>
-
-            <!-- Transcrição Completa e Contexto -->
-            <details class="proposal-transcript">
-              <summary><FileText :size="14"/>Fala e contexto</summary>
-              <p class="context-text">{{current.context_before}}</p>
-              <p class="core-text">{{current.text}}</p>
-              <p class="context-text">{{current.context_after}}</p>
-            </details>
-            <small class="evidence-subtext">{{current.evidence_word_ids.length}} referência(s) à transcrição original · Timestamps estimados pelo ASR</small>
+        <!-- BARRA DE CONTROLE DE SELEÇÃO E FILTROS -->
+        <div class="proposals-control-bar">
+          <div class="filter-mode-pills" role="tablist" aria-label="Filtro de status de propostas">
+            <button
+              type="button"
+              class="filter-pill-btn"
+              :class="{active:filterMode==='active'}"
+              @click="filterMode='active'"
+            >
+              Ativas ({{activeProposals.length}})
+            </button>
+            <button
+              v-if="discardedProposals.length>0||filterMode==='discarded'"
+              type="button"
+              class="filter-pill-btn"
+              :class="{active:filterMode==='discarded'}"
+              @click="filterMode='discarded'"
+            >
+              Descartadas ({{discardedProposals.length}})
+            </button>
+            <button
+              type="button"
+              class="filter-pill-btn"
+              :class="{active:filterMode==='all'}"
+              @click="filterMode='all'"
+            >
+              Todas ({{proposals.length}})
+            </button>
           </div>
 
-          <!-- Ação Principal de Seleção para o Corte Focado -->
-          <div class="inspection-footer-actions">
-            <AppButton
-              class="button primary select-focused-btn"
-              data-action="select-focused"
-              :disabled="!complete||!current.eligible||busy||(!selected.includes(current.candidate_id)&&overlapsWithSelected(current))"
-              :title="!selected.includes(current.candidate_id)&&overlapsWithSelected(current)?'Sobrepõe um corte já selecionado':undefined"
-              @click="toggle(current)"
+          <div class="bulk-selection-actions" v-if="complete">
+            <button
+              type="button"
+              class="bulk-action-btn"
+              data-action="select-all-proposals"
+              title="Selecionar todas as propostas elegíveis não descartadas"
+              :disabled="busy||!activeProposals.length"
+              @click="selectAllEligible"
             >
-              <Check v-if="selected.includes(current.candidate_id)" :size="16"/>
-              {{selected.includes(current.candidate_id)?'Remover da seleção':'Selecionar este trecho'}}
+              <CheckCheck :size="12"/> Todas
+            </button>
+            <button
+              v-if="selected.length>0"
+              type="button"
+              class="bulk-action-btn"
+              data-action="clear-selection"
+              title="Limpar seleção atual"
+              :disabled="busy"
+              @click="clearSelection"
+            >
+              <X :size="12"/> Limpar
+            </button>
+          </div>
+        </div>
+
+        <label class="search-proposals-wrap">
+          <Search :size="15"/>
+          <input v-model="search" type="search" placeholder="Filtrar por palavra..." aria-label="Buscar nas propostas"/>
+        </label>
+
+        <div class="proposal-list custom-scrollbar" tabindex="0" role="region" aria-label="Propostas de cortes">
+          <article
+            v-for="p in filtered"
+            :key="p.candidate_id"
+            class="proposal-card"
+            :class="{selected:current?.candidate_id===p.candidate_id,overlapping:overlapsWithSelected(p),checked:selected.includes(p.candidate_id),discarded:discarded.includes(p.candidate_id)}"
+            tabindex="0"
+            role="button"
+            :aria-pressed="selected.includes(p.candidate_id)"
+            :aria-label="'Proposta: ' + p.title + ' (' + time(p.duration_us) + ')'"
+            @click="choose(p.candidate_id)"
+            @keydown.enter.prevent="choose(p.candidate_id)"
+            @keydown.space.prevent="choose(p.candidate_id)"
+          >
+            <div class="proposal-top-row">
+              <label class="proposal-checkbox-label" :title="discarded.includes(p.candidate_id)?'Restaure a proposta para selecioná-la':overlapsWithSelected(p)?'Sobrepõe um corte já selecionado':undefined" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selected.includes(p.candidate_id)"
+                  :disabled="!complete||!p.eligible||busy||discarded.includes(p.candidate_id)||overlapsWithSelected(p)"
+                  :aria-label="'Selecionar '+p.title"
+                  @change="toggle(p)"
+                />
+              </label>
+              <div class="proposal-open" @click="choose(p.candidate_id)">
+                <strong>{{p.title}}</strong>
+                <div class="proposal-time-subline">
+                  <span class="time-range"><Clock :size="11"/> {{time(p.start_us)}} – {{time(p.end_us)}}</span>
+                  <span class="duration-pill">{{time(p.duration_us)}}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                v-if="!discarded.includes(p.candidate_id)"
+                class="proposal-discard-icon-btn"
+                title="Descartar esta proposta"
+                data-action="discard-proposal"
+                @click.stop="discard(p.candidate_id)"
+              >
+                <Trash2 :size="13"/>
+              </button>
+              <button
+                type="button"
+                v-else
+                class="proposal-restore-icon-btn"
+                title="Restaurar esta proposta"
+                data-action="restore-proposal"
+                @click.stop="restore(p.candidate_id)"
+              >
+                <RotateCcw :size="12"/> Restaurar
+              </button>
+            </div>
+
+            <p class="proposal-summary">{{p.rationale}}</p>
+
+            <div class="proposal-card-badges">
+              <span v-if="discarded.includes(p.candidate_id)" class="status-pill discarded-pill">
+                <Trash2 :size="11"/>Descartada
+              </span>
+              <span v-else-if="overlapsWithSelected(p)" class="status-pill conflict-pill" data-status="warning" title="Este trecho se sobrepõe a outro corte já selecionado">
+                <AlertTriangle :size="12"/>Sobrepõe seleção
+              </span>
+              <span v-else class="status-pill" :data-status="p.eligible?'analyzed':'failed'">
+                <Check v-if="p.eligible" :size="12"/>{{p.eligible?'Elegível para prévia':'Precisa de atenção'}}
+              </span>
+            </div>
+          </article>
+
+          <p v-if="!filtered.length" class="subtle empty-proposals">
+            {{proposals.length?'Nenhuma proposta corresponde ao filtro.':'Aguardando propostas validadas.'}}
+          </p>
+        </div>
+      </section>
+
+      <!-- COLUNA 3: SUÍTE DE INSPEÇÃO EDITORIAL -->
+      <main class="curation-inspection-col">
+        <section v-if="current" class="proposal-detail custom-scrollbar">
+          <div class="inspection-head-bar">
+            <div class="inspection-step-wrap">
+              <span class="selection-step-badge">03</span>
+              <span class="inspection-title-step">Inspeção Editorial</span>
+            </div>
+            <div class="inspection-time-badge">
+              <Clock :size="13"/>
+              <span>{{time(current.start_us)}} – {{time(current.end_us)}} ({{time(current.duration_us)}})</span>
+            </div>
+          </div>
+
+          <h3 class="inspection-current-title">{{current.title}}</h3>
+
+          <!-- MINI PLAYER COMPACTO DE APOIO (ÁUDIO/VÍDEO) -->
+          <div class="compact-media-bar">
+            <div class="mini-video-frame">
+              <video v-if="sourceUrl" ref="player" :src="sourceUrl" preload="metadata" playsinline @timeupdate="stopAtEnd"></video>
+              <div v-else class="media-placeholder">
+                <Volume2 :size="24"/>
+              </div>
+            </div>
+            <div class="media-controls-wrap">
+              <div class="media-status-row">
+                <span class="media-type-badge"><Volume2 :size="13"/> Trecho original</span>
+                <span class="media-timecode">{{time(current.start_us)}} → {{time(current.end_us)}}</span>
+              </div>
+              <div class="proposal-play">
+                <AppButton class="button small primary play-btn" :disabled="!sourceUrl" @click="play()">
+                  <Play :size="13"/> Ouvir trecho
+                </AppButton>
+                <AppButton class="button small secondary context-btn" :disabled="!sourceUrl" @click="play(true)">
+                  Contexto (+15s)
+                </AppButton>
+              </div>
+            </div>
+          </div>
+
+          <!-- GANCHO SOCIAL (PRIMEIROS 7 SEGUNDOS) -->
+          <div class="opening-copy-card">
+            <div class="hook-header">
+              <span class="hook-tag"><Sparkles :size="13"/> Gancho Social · Primeiros 7 segundos</span>
+            </div>
+            <div class="opening-copy">
+              <small class="hook-label">Frase de abertura · primeiros 7 segundos</small>
+              <p class="hook-text">"{{current.opening_text||'A próxima análise poderá sugerir uma frase curta para este trecho.'}}"</p>
+            </div>
+          </div>
+
+          <!-- RACIOCÍNIO EDITORIAL E POR QUE FUNCIONA -->
+          <div class="inspection-block rationale-card">
+            <div class="block-title">
+              <Sparkles :size="15"/>
+              <strong>Por que este corte funciona</strong>
+            </div>
+            <p class="proposal-rationale">{{current.rationale}}</p>
+            <div class="editorial-flags">
+              <span v-for="(label,key) in {completeness:'Raciocínio completo',standalone_context:'Contexto suficiente',qualification_preserved:'Ressalvas preservadas'}" :key="key" class="editorial-flag-item">
+                {{label}}: <b>{{current.editorial[key]==='yes'?'Sim':current.editorial[key]==='no'?'Não':'Incerto'}}</b>
+              </span>
+            </div>
+          </div>
+
+          <div v-if="!current.eligible" class="restriction-box">
+            <AppButton class="text-button" @click="notify.warning(current.reasons.join(' ')+' A geração permanece bloqueada.')">
+              <AlertTriangle :size="14"/> Ver motivo da restrição
             </AppButton>
+            <p v-for="warning in current.warnings" :key="warning" class="subtle">{{warning}}</p>
+          </div>
+
+          <!-- TRANSCRIÇÃO COMPLETA E CONTEXTO -->
+          <details class="proposal-transcript" open>
+            <summary><FileText :size="14"/> Fala e contexto original</summary>
+            <div class="transcript-preview-body">
+              <p v-if="current.context_before" class="context-text before">{{current.context_before}}</p>
+              <p class="core-text">{{current.text}}</p>
+              <p v-if="current.context_after" class="context-text after">{{current.context_after}}</p>
+            </div>
+          </details>
+          <small class="evidence-subtext">{{current.evidence_word_ids.length}} referência(s) à transcrição original · Timestamps estimados pelo ASR</small>
+
+          <!-- AÇÃO PRINCIPAL DE SELEÇÃO E DESCARTE PARA O CORTE FOCADO -->
+          <div class="inspection-footer-actions">
+            <div class="inspection-actions-row">
+              <AppButton
+                class="button primary select-focused-btn"
+                data-action="select-focused"
+                :disabled="!complete||!current.eligible||busy||discarded.includes(current.candidate_id)||(!selected.includes(current.candidate_id)&&overlapsWithSelected(current))"
+                :title="discarded.includes(current.candidate_id)?'Restaure a proposta para selecioná-la':!selected.includes(current.candidate_id)&&overlapsWithSelected(current)?'Sobrepõe um corte já selecionado':undefined"
+                @click="toggle(current)"
+              >
+                <Check v-if="selected.includes(current.candidate_id)" :size="16"/>
+                {{selected.includes(current.candidate_id)?'Remover da seleção':'Selecionar este trecho'}}
+              </AppButton>
+
+              <AppButton
+                v-if="!discarded.includes(current.candidate_id)"
+                class="button secondary discard-focused-btn"
+                data-action="discard-focused"
+                :disabled="busy"
+                title="Descartar esta proposta"
+                @click="discard(current.candidate_id)"
+              >
+                <Trash2 :size="14"/> Descartar proposta
+              </AppButton>
+              <AppButton
+                v-else
+                class="button secondary restore-focused-btn"
+                data-action="restore-focused"
+                :disabled="busy"
+                title="Restaurar esta proposta"
+                @click="restore(current.candidate_id)"
+              >
+                <RotateCcw :size="14"/> Restaurar proposta
+              </AppButton>
+            </div>
             
-            <p v-if="!selected.includes(current.candidate_id)&&overlapsWithSelected(current)" class="subtle overlap-notice">
+            <p v-if="discarded.includes(current.candidate_id)" class="subtle discard-notice">
+              Esta proposta está marcada como descartada. Você pode restaurá-la para voltar a selecioná-la.
+            </p>
+            <p v-else-if="!selected.includes(current.candidate_id)&&overlapsWithSelected(current)" class="subtle overlap-notice">
               Este trecho se sobrepõe a um corte já selecionado. Desmarque o corte concorrente para poder selecioná-lo.
             </p>
           </div>
         </section>
 
         <section v-else class="proposal-detail proposal-empty" aria-label="Inspeção do trecho">
-          <FileText :size="36"/>
+          <FileText :size="40"/>
           <h3>{{proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'}}</h3>
           <p>{{proposals.length?'Confira o conteúdo original, a justificativa e a integridade antes de selecionar.':'Quando houver propostas validadas, você poderá ouvir o contexto e escolher os cortes nesta área.'}}</p>
         </section>
       </main>
     </div>
 
-    <!-- BARRA INFERIOR PERSISTENTE DE SELEÇÃO E AÇÃO -->
-    <div class="curation-floating-bar" v-if="complete&&proposals.length>0">
-      <div class="floating-selection-info">
-        <span class="selection-count-pill">{{validSelection.length}}</span>
-        <div>
+    <!-- RODAPÉ INTEGRADO DOCK (NUNCA FLUTUA SOBRE CONTEÚDO) -->
+    <footer class="curation-dock-bar" v-if="complete&&proposals.length>0">
+      <div class="dock-selection-info">
+        <span class="dock-count-pill">{{validSelection.length}}</span>
+        <div class="dock-text">
           <strong>{{validSelection.length}} corte{{validSelection.length===1?'':'s'}} selecionado{{validSelection.length===1?'':'s'}}</strong>
           <small v-if="validSelection.length">Duração total estimada: ~{{time(totalSelectedDurationUs)}}</small>
           <small v-else>Selecione os melhores trechos para gerar vídeos 9:16 verticais</small>
@@ -315,19 +563,14 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       </div>
 
       <AppButton
-        class="button primary generate-floating-btn"
-        data-action="generate-selected-floating"
+        class="button primary generate-dock-btn"
+        data-action="generate-selected-dock"
         :disabled="!complete||!validSelection.length||busy||overlap"
         @click="emit('generate',{analysis_hash:analysis!.analysis_hash!,candidate_ids:[...validSelection]})"
       >
         <Scissors :size="16"/>Gerar {{validSelection.length}} prévia{{validSelection.length===1?'':'s'}} {{validSelection.length===1?'vertical':'verticais'}}
       </AppButton>
-    </div>
-
-    <details class="analysis-explanation">
-      <summary>Resumo da análise em andamento</summary>
-      <AnalysisFeedback :jobs="jobs"/>
-    </details>
+    </footer>
   </section>
 </template>
 
@@ -335,39 +578,147 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 .analysis-workspace {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  width: 100%;
+  height: auto !important;
 }
 
-.curation-2col-layout {
-  display: grid;
-  grid-template-columns: 390px minmax(0, 1fr) !important;
-  gap: 20px;
-  align-items: start;
-}
-
-.curation-sidebar {
+.analysis-heading {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: 38px;
 }
 
-.topic-list {
+.analysis-heading.is-complete {
+  margin-bottom: 2px;
+}
+
+.heading-stat-pill {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, var(--muted));
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  padding: 5px 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heading-stat-pill strong {
+  color: var(--color-text-primary, var(--ink));
+  font-weight: 600;
+}
+
+.analysis-heading-text h2 {
+  margin: 2px 0 4px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.analysis-heading-text p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.generate-cta-btn {
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+/* 3-COLUMN WORKSPACE GRID (AMPLA VISIBILIDADE PARA TEMAS ~340px) */
+.curation-3col-layout {
+  display: grid !important;
+  grid-template-columns: 340px 380px minmax(360px, 1fr) !important;
+  gap: 14px !important;
+  align-items: stretch;
+  height: 520px !important;
+  min-height: 520px !important;
+  flex: none !important;
+  box-sizing: border-box;
+}
+
+/* COLUMN 1: TOPICS */
+.curation-topics-col {
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 14px);
-  padding: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.topic-list-header {
-  margin-bottom: 10px;
-}
-
-.topic-chips-scroll {
+.curation-topics-col .topic-list {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 180px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 100px;
+}
+
+.column-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-subtle, var(--line));
+  flex-shrink: 0;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header-title h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.selection-step-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
+  color: var(--color-accent-light, #f9a35c);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(217, 119, 36, 0.4);
+}
+
+.panel-counter-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-muted, var(--muted));
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 2px;
 }
 
 .topic-chip-btn {
@@ -376,13 +727,14 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   justify-content: space-between;
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
   font-size: 0.8rem;
   background: transparent;
   border: 1px solid transparent;
   color: var(--color-text-secondary, var(--muted));
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .topic-chip-btn:hover {
@@ -391,86 +743,346 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 
 .topic-chip-btn.selected {
-  background: var(--color-accent-subtle, var(--accent-soft));
-  border-color: var(--color-accent, #6366f1);
-  color: var(--color-accent-text, var(--accent));
+  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.14));
+  border-color: var(--color-accent, #d97724);
+  color: var(--color-accent-text, #f9a35c);
   font-weight: 600;
 }
 
-.topic-chip-btn span {
-  font-size: 0.72rem;
-  opacity: 0.8;
-  background: var(--color-surface-raised, rgba(255,255,255,0.06));
-  padding: 1px 6px;
-  border-radius: 4px;
+.chip-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
-.proposal-column {
+.chip-count {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  background: var(--color-surface-raised, rgba(255, 255, 255, 0.06));
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.topic-summary-box {
+  background: var(--color-surface-hover, var(--soft));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary, var(--muted));
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.summary-label {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text-primary, var(--ink));
+  margin-bottom: 3px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.topic-summary-box p {
+  margin: 0;
+}
+
+.topics-pipeline-drawer {
+  margin-top: auto;
+  border-top: 1px solid var(--color-border-subtle, var(--line));
+  padding-top: 8px;
+}
+
+.topics-pipeline-drawer details summary {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, var(--muted));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.topics-pipeline-drawer details summary:hover {
+  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-primary, var(--ink));
+}
+
+.explanation-inner-box {
+  margin-top: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 0.75rem;
+}
+
+/* COLUMN 2: PROPOSALS */
+.curation-proposals-col {
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 14px);
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.proposal-column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.proposal-count-tag {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, var(--muted));
-}
-
-.proposal-list {
-  max-height: calc(var(--work-area-height, 480px) - 100px);
+.curation-proposals-col .proposal-list {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 4px 0 0 !important;
+  flex: 1;
+  min-height: 120px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-right: 4px;
+  gap: 8px;
+}
+
+.proposals-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-mode-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.filter-pill-btn {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--muted));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill-btn:hover {
+  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-primary, var(--ink));
+}
+
+.filter-pill-btn.active {
+  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.14));
+  color: var(--color-accent-light, #f9a35c);
+  border-color: rgba(217, 119, 36, 0.5);
+  font-weight: 600;
+}
+
+.bulk-selection-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.bulk-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface-raised, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary, var(--muted));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bulk-action-btn:hover:not(:disabled) {
+  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-primary, var(--ink));
+  border-color: var(--color-border-strong, #555);
+}
+
+.bulk-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.search-proposals-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface-raised, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--color-text-muted, var(--muted));
+  flex-shrink: 0;
+}
+
+.search-proposals-wrap input {
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, var(--ink));
+  font-size: 0.8rem;
+  width: 100%;
+  outline: none;
 }
 
 .proposal-card {
   background: var(--color-surface-raised, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 9px;
+  padding: 10px 12px;
   transition: all 0.15s ease;
+  cursor: pointer;
+  outline: none;
 }
 
 .proposal-card:hover {
   border-color: var(--color-border-strong, #555);
 }
 
+.proposal-card:focus-visible {
+  border-color: var(--color-accent, #d97724);
+  box-shadow: 0 0 0 2px rgba(217, 119, 36, 0.25);
+}
+
 .proposal-card.selected {
-  border-color: var(--color-accent, #6366f1);
-  background: rgba(99, 102, 241, 0.05);
+  border-color: var(--color-accent, #d97724);
+  background: rgba(217, 119, 36, 0.08);
+}
+
+.proposal-card.checked {
+  border-left: 3px solid var(--color-accent, #d97724);
 }
 
 .proposal-card.overlapping {
-  opacity: 0.8;
+  opacity: 0.82;
 }
 
-.proposal-top {
+.proposal-card.discarded {
+  opacity: 0.62;
+  border-style: dashed;
+}
+
+.proposal-card.discarded:hover {
+  opacity: 0.88;
+}
+
+.proposal-top-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
-.proposal-checkbox {
-  padding-top: 3px;
-}
-
-.proposal-checkbox input {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--color-accent, #6366f1);
+.proposal-checkbox-label {
+  padding-top: 2px;
   cursor: pointer;
+}
+
+.proposal-checkbox-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent, #d97724);
+  cursor: pointer;
+}
+
+.proposal-discard-icon-btn,
+.proposal-restore-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--color-text-muted, var(--muted));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.proposal-discard-icon-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.proposal-restore-icon-btn {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 7px;
+}
+
+.proposal-restore-icon-btn:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.proposal-open {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.proposal-open strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary, var(--ink));
+  margin-bottom: 3px;
+}
+
+.proposal-time-subline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--muted));
+  font-family: var(--font-mono, monospace);
+}
+
+.duration-pill {
+  font-size: 0.68rem;
+  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-muted, var(--muted));
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.proposal-summary {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--color-text-secondary, var(--muted));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .proposal-card-badges {
@@ -488,25 +1100,58 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   gap: 4px;
 }
 
-.curation-inspection-main {
-  min-width: 0;
+.discarded-pill {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.proposal-detail {
+/* COLUMN 3: INSPECTION SUITE */
+.curation-inspection-col {
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 14px);
-  padding: 22px;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  box-sizing: border-box;
 }
 
-.inspection-head {
+.curation-inspection-col .proposal-detail {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inspection-head-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+}
+
+.inspection-step-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspection-title-step {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, var(--muted));
 }
 
 .inspection-time-badge {
@@ -518,106 +1163,343 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   background: var(--color-surface-hover, var(--soft));
   padding: 3px 8px;
   border-radius: 6px;
+  font-family: var(--font-mono, monospace);
 }
 
-.proposal-detail h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
+.inspection-current-title {
+  font-size: 1.15rem;
+  font-weight: 700;
   line-height: 1.3;
   margin: 0;
   color: var(--color-text-primary, var(--ink));
 }
 
-.inspection-media-box {
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
+/* COMPACT MEDIA BAR */
+.compact-media-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--color-surface-raised, rgba(0, 0, 0, 0.25));
   border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 10px;
+  padding: 10px 14px;
 }
 
-.inspection-media-box video {
-  width: 100%;
+.mini-video-frame {
+  width: 160px;
+  height: 90px;
   aspect-ratio: 16/9;
-  max-height: 240px;
-  display: block;
-  object-fit: cover;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.inspection-block {
+.mini-video-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-placeholder {
+  color: var(--color-text-muted, var(--muted));
+  opacity: 0.6;
+}
+
+.media-controls-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.media-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.media-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.media-timecode {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+  color: var(--color-accent-light, #f9a35c);
+  font-weight: 600;
+}
+
+.proposal-play {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.proposal-play .play-btn {
+  font-weight: 600;
+}
+
+/* SOCIAL OPENING HOOK */
+.opening-copy-card {
+  background: linear-gradient(135deg, rgba(217, 119, 36, 0.08) 0%, rgba(224, 138, 60, 0.04) 100%);
+  border: 1px solid rgba(217, 119, 36, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.hook-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-light, #f9a35c);
+  margin-bottom: 6px;
+}
+
+.hook-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--muted));
+  margin-bottom: 4px;
+}
+
+.hook-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-primary, var(--ink));
+  line-height: 1.35;
+  margin: 0;
+  font-style: italic;
+}
+
+/* RATIONALE CARD */
+.rationale-card {
   background: var(--color-surface-hover, var(--soft));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 12px 14px;
 }
 
-.inspection-block .block-title {
+.block-title {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: var(--color-accent, #6366f1);
+  color: var(--color-accent-light, #f9a35c);
   margin-bottom: 6px;
+}
+
+.proposal-rationale {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0 0 10px;
+  color: var(--color-text-secondary, var(--muted));
+}
+
+.editorial-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editorial-flag-item {
+  font-size: 0.72rem;
+  background: var(--color-surface-raised, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.editorial-flag-item b {
+  color: var(--color-text-primary, var(--ink));
+}
+
+.restriction-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.proposal-transcript {
+  background: var(--color-surface-hover, var(--soft));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.proposal-transcript summary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.transcript-preview-body {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.context-text {
+  color: var(--color-text-muted, var(--muted));
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.core-text {
+  font-weight: 500;
+  color: var(--color-text-primary, var(--ink));
+  margin: 6px 0;
+}
+
+.evidence-subtext {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--muted));
 }
 
 .inspection-footer-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--color-border-subtle, var(--line));
 }
 
-.select-focused-btn {
-  min-height: 40px;
-  font-size: 0.9rem;
-  font-weight: 600;
+.inspection-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.curation-floating-bar {
+.select-focused-btn {
+  min-height: 38px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.discard-focused-btn {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.discard-focused-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+}
+
+.restore-focused-btn {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.restore-focused-btn:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10b981 !important;
+}
+
+.discard-notice {
+  color: #f87171;
+  font-size: 0.76rem;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.proposal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.proposal-empty h3 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.proposal-empty p {
+  max-width: 320px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* RODAPÉ DOCK INTEGRADO */
+.curation-dock-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-accent, rgba(99, 102, 241, 0.4));
-  border-radius: 14px;
-  padding: 14px 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-top: 2px solid var(--color-accent, #d97724);
+  border-radius: 12px;
+  padding: 10px 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
 }
 
-.floating-selection-info {
+.dock-selection-info {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.selection-count-pill {
-  width: 32px;
-  height: 32px;
+.dock-count-pill {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--color-accent, #6366f1);
+  background: var(--color-accent, #d97724);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
-.floating-selection-info strong {
-  font-size: 0.92rem;
+.dock-text strong {
+  font-size: 0.88rem;
   display: block;
+  color: var(--color-text-primary, var(--ink));
 }
 
-.floating-selection-info small {
-  font-size: 0.77rem;
+.dock-text small {
+  font-size: 0.75rem;
   color: var(--color-text-muted, var(--muted));
 }
 
-.generate-floating-btn {
-  font-size: 0.9rem;
+.generate-dock-btn {
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 10px 20px;
+  padding: 8px 16px;
 }
 
 .analysis-resume-card {
@@ -629,24 +1511,24 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   border: 1px solid var(--color-border-subtle, var(--line));
   border-left: 4px solid var(--color-accent, var(--accent));
   border-radius: 10px;
-  padding: 14px 18px;
+  padding: 12px 16px;
 }
 
 .resume-info strong {
   display: block;
-  font-size: 0.95rem;
-  margin-bottom: 4px;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
 }
 
 .resume-info p {
-  margin: 0 0 4px;
-  font-size: 0.85rem;
+  margin: 0 0 2px;
+  font-size: 0.82rem;
   color: var(--color-text-muted, var(--muted));
 }
 
 .resume-info small {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--color-warning-text, #f59e0b);
 }
 
@@ -656,15 +1538,41 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 
 .overlap-notice {
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--color-warning-text, #f59e0b);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 500;
 }
 
+/* CUSTOM SLIM SCROLLBAR */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 1100px) {
+  .curation-3col-layout {
+    grid-template-columns: 190px 330px minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+
 @media (max-width: 900px) {
-  .curation-2col-layout {
-    grid-template-columns: 1fr !important;
+  .curation-3col-layout {
+    grid-template-columns: 1fr;
+    height: auto;
   }
 }
 </style>
