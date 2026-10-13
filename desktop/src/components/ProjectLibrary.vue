@@ -2,11 +2,11 @@
 import AppButton from './AppButton.vue'
 import AppSelect from './AppSelect.vue'
 import {computed,ref} from 'vue'
-import {Search,Film,Trash2,FolderOpen,Plus,FileVideo} from '@lucide/vue'
+import {Search,Film,Trash2,FolderOpen,Plus,FileVideo,ListOrdered} from '@lucide/vue'
 import type {Project} from '../types'
 import {time,labels,stages} from '../format'
 const props=defineProps<{projects:Project[];busy:boolean;covers?:Record<string,string>;activeProjects?:string[]}>()
-defineEmits<{open:[id:string];create:[];import:[];delete:[id:string];trash:[]}>()
+defineEmits<{open:[id:string];create:[];import:[];delete:[id:string];trash:[];queue:[]}>()
 const query=ref(''),filter=ref('all')
 const sort=ref('updated')
 const stateOptions=computed(()=>[{value:'all',label:'Todos os projetos'},...Array.from(new Set(props.projects.map(p=>p.status))).map(state=>({value:state,label:labels[state]||state}))])
@@ -16,6 +16,14 @@ function updated(value:number){return value?new Date(value*1000).toLocaleString(
 </script>
 <template>
   <header class="page-heading"><div><p class="breadcrumb">Biblioteca local</p><h1>Seus projetos<span class="heading-count">{{projects.length}}</span></h1><p>Do vídeo original ao trecho que vale compartilhar.</p></div><div class="actions"><AppButton class="button secondary" @click="$emit('import')" :disabled="busy"><FolderOpen :size="17"/>Importar projeto</AppButton><AppButton class="button primary new-project-action" @click="$emit('create')" :disabled="busy"><Plus :size="18"/>Novo projeto</AppButton></div></header>
+  <aside v-if="activeProjects?.length" class="global-queue-banner" @click="$emit('queue')">
+    <div class="queue-banner-info">
+      <span class="pulse-dot"></span>
+      <strong>Tarefas em andamento:</strong>
+      <span>{{activeProjects.length}} projeto{{activeProjects.length===1?'':'s'}} processando na fila global</span>
+    </div>
+    <AppButton class="button small secondary" @click.stop="$emit('queue')"><ListOrdered :size="14"/>Ver fila global</AppButton>
+  </aside>
   <section class="library-tools"><label class="search"><Search :size="17"/><input type="search" v-model="query" placeholder="Buscar projeto ou vídeo" aria-label="Buscar projetos"/></label><label class="filter">Estado<AppSelect v-model="filter" label="Filtrar por estado" :options="stateOptions"/></label><label class="filter">Ordenar<AppSelect v-model="sort" label="Ordenar projetos" :options="[{value:'updated',label:'Mais recentes'},{value:'name',label:'Nome do projeto'}]"/></label></section>
   <section class="project-table" aria-label="Projetos locais">
     <div class="table-head"><span>Projeto</span><span>Duração</span><span>Etapa / estado</span><span>Cortes</span><span>Atualizado</span><span>Ações</span></div>
