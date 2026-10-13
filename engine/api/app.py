@@ -138,9 +138,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
         try:job=jobs.start(row['id'],'prepare' if value.automatic else 'import',{'source_input':value.source_input,'authorize_text':value.authorize_text,**({'max_calls':value.max_calls} if value.max_calls else {})})
         except RuntimeError as exc:raise HTTPException(409,str(exc))
         return {'project':project_detail(row),'job':job}
-    def editable(pid):
+    def editable(pid,*,cut_delete=False):
         store.get(pid)
-        if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs() if j['project_id']==pid):raise HTTPException(409,'Aguarde ou cancele a tarefa antes de excluir ou restaurar.')
+        if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs() if j['project_id']==pid and (not cut_delete or j['operation'] not in ('transcribe','analyze'))):raise HTTPException(409,'Aguarde ou cancele a geração, exportação ou importação antes de excluir este corte.' if cut_delete else 'Aguarde ou cancele a tarefa antes de excluir ou restaurar.')
     @app.delete('/api/v1/projects/{pid}')
     def delete_project(pid:str):
         with jobs.lock:
@@ -232,7 +232,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.delete('/api/v1/projects/{pid}/revisions/{rid}')
     def delete_revision(pid:str,rid:str):
         with jobs.lock:
-            editable(pid);return reviews.set_deleted(Path(store.get(pid)['path']),rid,True)
+            editable(pid,cut_delete=True);return reviews.set_deleted(Path(store.get(pid)['path']),rid,True)
     @app.post('/api/v1/projects/{pid}/revisions/{rid}/restore')
     def restore_revision(pid:str,rid:str):
         with jobs.lock:
