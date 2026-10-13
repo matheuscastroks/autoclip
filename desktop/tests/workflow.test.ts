@@ -57,4 +57,16 @@ describe('workflow visibility',()=>{
     expect(w.get('[data-stage=transcribe]').text()).toContain('Concluído')
     expect(w.get('[data-stage=render]').text()).toContain('Na fila');w.unmount()
   })
+  it('renders linear progression stepper track with step states',()=>{
+    const imported={...project,has_transcript:true,source:{local_path:'/fixture',original_title:'Fixture',channel:'',attribution:'',sha256:'a'.repeat(64)}}
+    const w=mount(ProjectWorkspace,{props:{project:imported,transcript:null,revisions:[],jobs:[],sourceUrl:'',previewUrl:'',busy:false}})
+    expect(w.find('.stepper-track-wrap').exists()).toBe(true)
+    expect(w.text()).toContain('Esteira de Processamento')
+    const nodes=w.findAll('.stepper-node')
+    expect(nodes.length).toBe(6)
+    expect(nodes[0].attributes('data-state')).toBe('completed')
+    expect(nodes[1].attributes('data-state')).toBe('completed')
+    expect(nodes[2].attributes('data-state')).toBe('pending')
+    w.unmount()
+  })
 })
