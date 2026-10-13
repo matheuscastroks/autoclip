@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue'
-import {computed,watch} from 'vue'
-import {Check,Square,RotateCcw,LoaderCircle,AlertCircle,ArrowRight,Play,FileText,Sparkles,Scissors,Download,Film,Clock} from '@lucide/vue'
+import {computed,watch,ref} from 'vue'
+import {Check,Square,RotateCcw,LoaderCircle,AlertCircle,Play,Sparkles,Scissors,Download,Film,Clock,ListOrdered,ChevronDown,FolderOpen} from '@lucide/vue'
 import type {Project,Job,Revision,AnalysisView} from '../types'
 import {active,labels,latestJob,time} from '../format'
 import {notifyJob,notify} from '../notifications'
 
 const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean;revisions?:Revision[];analysis?:AnalysisView|null;sourceUrl?:string;selectedCount?:number}>()
 const emit=defineEmits<{transcribe:[];analyze:[];render:[];analysis:[];review:[];cancel:[id:string];resume:[id:string];replaceSource:[id:string];generate:[];export:[]}>()
-const names=[['import','Importar vídeo'],['transcribe','Transcrever'],['analyze','Analisar temas'],['choose','Escolher trechos'],['render','Gerar prévias'],['export','Exportar']] as const
-const groups=[{title:'Preparação automática',description:'O motor importa, transcreve e identifica os temas.',steps:names.slice(0,3)},{title:'Seleção e entrega',description:'Escolha os trechos, gere os vídeos e baixe para publicar.',steps:names.slice(3)}]
+
+const names=[['import','Importar'],['transcribe','Transcrever'],['analyze','Analisar'],['choose','Selecionar'],['render','Gerar'],['export','Exportar']] as const
 const job=computed(()=>latestJob(props.jobs))
 const recovery=computed(()=>job.value&&['failed','cancelled','interrupted'].includes(job.value.status))
 const importRecovery=computed(()=>recovery.value&&!props.project.source&&['prepare','import'].includes(job.value?.operation||''))
 const approved=computed(()=>props.revisions?.some(r=>r.technical_pass))
-watch(job,value=>{if(value&&['failed','interrupted'].includes(value.status))notifyJob(value)},{immediate:true})
 const processing=computed(()=>props.jobs.some(j=>active(j.status)))
+
+watch(job,value=>{if(value&&['failed','interrupted'].includes(value.status))notifyJob(value)},{immediate:true})
 
 function state(step:string){
   if(step==='choose')return props.selectedCount?'completed':props.project.has_analysis?'waiting':'pending'
@@ -35,182 +36,384 @@ function handleStepClick(id:string){
   else if((id==='render'||id==='export')&&props.hasCuts)emit('review')
 }
 
-// Determinar recomendação contextual inteligente para o Hero
-const activeAction=computed(()=>{
-  if(importRecovery.value) return 'import-failed'
-  if(!props.project.source) return 'importing'
-  if(!props.project.has_transcript) return 'transcribe'
-  if(!props.project.has_analysis) return 'analyze'
-  if(!props.hasCuts && (!props.selectedCount || props.selectedCount === 0)) return 'choose'
-  if(!props.hasCuts && props.selectedCount && props.selectedCount > 0) return 'render'
-  if(props.hasCuts) return 'review'
-  return 'idle'
+// Detecção de falhas de renderização nas prévias
+const renderJobs=computed(()=>props.jobs.filter(j=>j.operation==='render'))
+const failedRenderItem=computed(()=>{
+  for(const rj of renderJobs.value){
+    for(const item of rj.progress?.items||[]){
+      if(item.state==='failed'){
+        return {item,job:rj}
+      }
+    }
+  }
+  return null
 })
+
+// Contagem de pendências de renderização
+const pendingQueueCount=computed(()=>{
+  let count=0
+  for(const rj of renderJobs.value){
+    for(const it of rj.progress?.items||[]){
+      if(['waiting','queued','pending'].includes(it.state)) count++
+    }
+    if(rj.status==='pending') count++
+  }
+  return count
+})
+
+// Determina se há uma falha relevante que requer atenção
+const hasFailure=computed(()=>{
+  return importRecovery.value || !!failedRenderItem.value || (recovery.value && !['analyze','render'].includes(job.value?.operation||''))
+})
+
+const completedStepsCount=computed(()=>names.filter(([id])=>state(id)==='completed').length)
+
+// Informações da última falha
+const lastFailureTitle=computed(()=>{
+  if(importRecovery.value) return 'Falha na importação do arquivo original'
+  if(failedRenderItem.value?.item.title) return failedRenderItem.value.item.title
+  if(job.value?.error?.message) return job.value.error.message
+  return 'Por que a lei não explica a verdadeira corrupção'
+})
+
+const lastFailureReason=computed(()=>{
+  if(importRecovery.value) return job.value?.error?.message||'Fonte bloqueada ou inacessível'
+  if(failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message
+  if(failedRenderItem.value?.item.error_code) return `${failedRenderItem.value.item.error_code} · FFmpeg`
+  if(job.value?.error?.code) return `${job.value.error.code} · Motor de processamento`
+  return 'Erro na codificação do vídeo · FFmpeg'
+})
+
+function triggerErrorDetails(){
+  if(job.value) notifyJob(job.value, true)
+  else if(props.project.error) notify.error(props.project.error.message)
+  else notify.error(lastFailureReason.value)
+}
 </script>
 
 <template>
-  <section class="pipeline-panel" aria-label="Preparar seus cortes">
-    <!-- CABEÇALHO DO PROJETO COM STATUS E CONTROLE DE CANCELAMENTO -->
-    <header class="preparation-header">
-      <div class="preparation-intro">
-        <span class="section-eyebrow">Fluxo de Trabalho</span>
-        <div class="pipeline-title">
-          <h2>Preparar seus cortes</h2>
-          <AppButton v-if="processing&&job" class="button small secondary cancel-job-btn" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)">
-            <Square :size="12"/>Cancelar
-          </AppButton>
-        </div>
-        <p>Acompanhe a esteira de processamento e tome as decisões editoriais.</p>
-        <p class="preparation-summary">{{project.has_transcript?project.word_count.toLocaleString('pt-BR')+' palavras transcritas':'Transcrição pendente'}} · {{analysis?.topic_groups.length||0}} temas · {{revisions?.length||0}} prévias</p>
+  <section class="pipeline-panel" aria-label="Central de acompanhamento do projeto">
+    <!-- 1. CABEÇALHO COMPACTO DO PROJETO -->
+    <header class="project-headline-bar">
+      <div class="headline-meta">
+        <h2 class="project-main-title">{{project.title||project.name}}</h2>
+        <p class="project-tags-strip">
+          <span v-if="project.source?.channel||project.source?.attribution" class="source-author">{{project.source.channel||project.source.attribution}}</span>
+          <span v-if="project.duration_us" class="meta-dot">·</span>
+          <span v-if="project.duration_us">{{time(project.duration_us)}}</span>
+          <span class="meta-dot">·</span>
+          <span>{{project.word_count.toLocaleString('pt-BR')}} palavras</span>
+        </p>
       </div>
 
-      <figure class="pipeline-video">
-        <video v-if="sourceUrl" :src="sourceUrl" controls preload="metadata" playsinline aria-label="Vídeo original em miniatura"></video>
-        <div v-else class="pipeline-video-empty">{{project.source?'Vídeo indisponível':importRecovery?'Importação interrompida':processing&&job?.progress?.steps.import==='running'?'Importando vídeo…':'Vídeo ainda não importado'}}</div>
-        <figcaption>Vídeo original · {{project.source?'Fonte preservada':'Aguardando fonte'}}</figcaption>
-      </figure>
+      <div class="headline-actions">
+        <AppButton v-if="processing&&job" class="button small secondary cancel-job-btn" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)">
+          <Square :size="12"/>Cancelar
+        </AppButton>
+      </div>
     </header>
 
-    <!-- ESTEIRA LINEAR DE PROGRESSO VISUAL (6 ETAPAS INTERATIVAS) -->
+    <!-- 2. ESTEIRA HORIZONTAL LINEAR E COMPACTA (6 ETAPAS CONECTADAS) -->
     <section class="stepper-track-wrap" aria-label="Esteira de progresso das etapas">
       <div class="stepper-track-title">
         <strong>Esteira de Processamento</strong>
-        <span>{{names.filter(([id])=>state(id)==='completed').length}} de {{names.length}} etapas concluídas</span>
+        <span>{{completedStepsCount}} de {{names.length}} etapas concluídas</span>
       </div>
       <div class="stepper-track">
         <template v-for="([id,title],idx) in names" :key="id">
-          <div class="stepper-node" :data-stepper-stage="id" :data-state="state(id)" :class="{clickable:state(id)==='completed'}" @click="handleStepClick(id)">
+          <div
+            class="stepper-node"
+            :data-stepper-stage="id"
+            :data-state="state(id)"
+            :class="{clickable:state(id)==='completed'}"
+            role="button"
+            :tabindex="state(id)==='completed'?0:-1"
+            @click="handleStepClick(id)"
+          >
             <div class="node-circle">
-              <Check v-if="state(id)==='completed'" :size="15"/>
-              <LoaderCircle v-else-if="['running','cancelling','processing'].includes(state(id))" class="spin" :size="15"/>
-              <AlertCircle v-else-if="['failed','cancelled','interrupted'].includes(state(id))" :size="15"/>
+              <Check v-if="state(id)==='completed'" :size="14"/>
+              <LoaderCircle v-else-if="['running','cancelling','processing'].includes(state(id))" class="spin" :size="14"/>
+              <AlertCircle v-else-if="['failed','cancelled','interrupted'].includes(state(id))" :size="14"/>
               <span v-else>{{idx+1}}</span>
             </div>
             <span class="node-label">{{title}}</span>
-            <small class="node-subtext">{{state(id)==='waiting'?'Próxima ação':labels[state(id)]||state(id)}}</small>
+            <small class="node-subtext">{{state(id)==='waiting'?'Próxima':labels[state(id)]||state(id)}}</small>
           </div>
           <div v-if="idx<names.length-1" class="stepper-connector" :class="{done:state(id)==='completed'}"></div>
         </template>
       </div>
     </section>
 
-    <!-- CARD CONTEXTUAL HERO: A PRÓXIMA AÇÃO CLARA PARA O USUÁRIO -->
-    <div class="action-hero-card" :data-action-state="activeAction">
-      <div class="hero-card-content">
-        <div class="hero-badge">Próxima Ação Recomendada</div>
-        <template v-if="activeAction==='import-failed'">
-          <h3>A importação do vídeo foi interrompida</h3>
-          <p>O link do YouTube pode ter sido bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.</p>
-        </template>
-        <template v-else-if="activeAction==='transcribe'">
-          <h3>Transcrever áudio original com Whisper</h3>
-          <p>O vídeo está pronto. Gere a transcrição completa com marcação temporal precisa usando o processamento local.</p>
-          <div class="hero-actions">
-            <AppButton class="button primary hero-primary-btn" :disabled="busy||!project.source||processing" @click="$emit('transcribe')">
-              <Play :size="15"/>Transcrever vídeo agora
+    <!-- 3. GRADE DO DASHBOARD: PAINEL PRINCIPAL (ESQUERDA) + VÍDEO & MÉTRICAS (DIREITA) -->
+    <div class="dashboard-grid">
+      <!-- COLUNA PRINCIPAL: HERO DINÂMICO ORIENTADO AO ESTADO ATUAL -->
+      <section class="dashboard-hero-column">
+        <!-- ESTADO 1: ATENÇÃO / FALHA (Última Falha & Ação Contextual de Retomada) -->
+        <article v-if="hasFailure" class="state-hero-card attention-mode" data-state="attention">
+          <div class="hero-header-badge attention-badge">
+            <AlertCircle :size="14"/>
+            <span>A geração precisa de atenção</span>
+          </div>
+
+          <div class="hero-body-text">
+            <h3>{{importRecovery?'Falha na importação do vídeo':'A geração precisa de atenção'}}</h3>
+            <p>
+              {{importRecovery
+                ?'O link do YouTube foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
+                :'Uma das prévias apresentou erro durante a renderização. Os resultados preservados continuam disponíveis.'}}
+            </p>
+          </div>
+
+          <!-- CARD DEDICADO: ÚLTIMA FALHA -->
+          <div class="last-failure-card">
+            <span class="failure-eyebrow">ÚLTIMA FALHA</span>
+            <strong class="failure-title">{{lastFailureTitle}}</strong>
+            <p class="failure-reason">{{lastFailureReason}}</p>
+            <AppButton type="button" class="text-button failure-details-link" data-action="error-details" @click="triggerErrorDetails">
+              Ver detalhes técnicos
             </AppButton>
           </div>
-        </template>
-        <template v-else-if="activeAction==='analyze'">
-          <h3>Identificar temas e propostas com IA Gemini</h3>
-          <p>A transcrição com {{project.word_count.toLocaleString('pt-BR')}} palavras está concluída. Encontre os trechos com maior potencial de retenção.</p>
-          <div class="hero-actions">
-            <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('analyze')">
-              <Sparkles :size="15"/>{{project.has_analysis?'Nova análise de temas':recovery?'Continuar análise':'Iniciar análise inteligente'}}
+
+          <!-- AÇÕES DO ESTADO DE FALHA -->
+          <div class="hero-action-buttons">
+            <template v-if="importRecovery&&job">
+              <AppButton class="button primary hero-primary-btn" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)">
+                <RotateCcw :size="15"/>Tentar novamente
+              </AppButton>
+              <AppButton class="button secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">
+                <FolderOpen :size="15"/>Usar arquivo local
+              </AppButton>
+            </template>
+            <template v-else-if="failedRenderItem">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('resume',failedRenderItem.job.id)">
+                <RotateCcw :size="15"/>Abrir fila e retomar →
+              </AppButton>
+              <AppButton class="button secondary" @click="$emit('analysis')">
+                Ajustar seleção
+              </AppButton>
+            </template>
+            <template v-else-if="job">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('resume',job.id)">
+                <RotateCcw :size="15"/>Retomar processamento
+              </AppButton>
+            </template>
+          </div>
+        </article>
+
+        <!-- ESTADO 2: PROCESSAMENTO ATIVO -->
+        <article v-else-if="processing&&job" class="state-hero-card processing-mode" data-state="processing">
+          <div class="hero-header-badge processing-badge">
+            <LoaderCircle class="spin" :size="14"/>
+            <span>Processando seu projeto</span>
+          </div>
+
+          <div class="hero-body-text">
+            <h3>Processamento em andamento</h3>
+            <p>O motor AutoClip está executando a etapa atual em segundo plano de forma local.</p>
+          </div>
+
+          <div class="processing-status-strip">
+            <div role="progressbar" class="stage-progress indeterminate" aria-label="Progresso da tarefa"><span></span></div>
+            <small>Status: {{labels[job.status]||job.status}}</small>
+          </div>
+
+          <div class="hero-action-buttons">
+            <AppButton class="button secondary" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)">
+              <Square :size="14"/>Cancelar processamento
             </AppButton>
           </div>
-        </template>
-        <template v-else-if="activeAction==='choose'">
-          <h3>Curadoria editorial de cortes pronta</h3>
-          <p>A IA encontrou {{analysis?.proposals.length||0}} trechos e {{analysis?.topic_groups.length||0}} temas. Selecione os melhores cortes sem sobreposição.</p>
-          <div class="hero-actions">
-            <AppButton class="button primary hero-primary-btn" :disabled="busy" @click="$emit('analysis')">
-              <Scissors :size="15"/>Abrir Curadoria e Selecionar Cortes
-            </AppButton>
+        </article>
+
+        <!-- ESTADO 3: PRÓXIMO PASSO NORMAL (Transcrição, Análise, Seleção, Renderização ou Cortes) -->
+        <article v-else class="state-hero-card ready-mode" data-state="ready">
+          <!-- CASO A: Transcrição Pendente -->
+          <template v-if="!project.has_transcript">
+            <div class="hero-header-badge ready-badge">
+              <Sparkles :size="14"/>
+              <span>Próximo Passo</span>
+            </div>
+            <div class="hero-body-text">
+              <h3>Transcrever áudio original com Whisper local</h3>
+              <p>O vídeo original está pronto. Gere a transcrição completa com marcação temporal precisa usando o modelo local.</p>
+            </div>
+            <div class="hero-action-buttons">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy||!project.source||processing" @click="$emit('transcribe')">
+                <Play :size="15"/>Transcrever vídeo agora
+              </AppButton>
+            </div>
+          </template>
+
+          <!-- CASO B: Análise Pendente -->
+          <template v-else-if="!project.has_analysis">
+            <div class="hero-header-badge ready-badge">
+              <Sparkles :size="14"/>
+              <span>Próximo Passo</span>
+            </div>
+            <div class="hero-body-text">
+              <h3>Identificar temas e propostas com IA Gemini</h3>
+              <p>A transcrição com {{project.word_count.toLocaleString('pt-BR')}} palavras está pronta. Descubra os momentos com maior potencial de engajamento.</p>
+            </div>
+            <div class="hero-action-buttons">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('analyze')">
+                <Sparkles :size="15"/>Iniciar análise inteligente
+              </AppButton>
+            </div>
+          </template>
+
+          <!-- CASO C: Seleção Pendente -->
+          <template v-else-if="!hasCuts&&(!selectedCount||selectedCount===0)">
+            <div class="hero-header-badge ready-badge">
+              <Scissors :size="14"/>
+              <span>Curadoria Pronta</span>
+            </div>
+            <div class="hero-body-text">
+              <h3>Curadoria editorial de cortes disponível</h3>
+              <p>A IA encontrou {{analysis?.proposals.length||0}} propostas e {{analysis?.topic_groups.length||0}} temas. Escolha os melhores trechos na tela de curadoria.</p>
+            </div>
+            <div class="hero-action-buttons">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy" @click="$emit('analysis')">
+                <Scissors :size="15"/>Abrir Curadoria e Selecionar Cortes
+              </AppButton>
+            </div>
+          </template>
+
+          <!-- CASO D: Pronto para Renderizar Cortes -->
+          <template v-else-if="!hasCuts&&selectedCount&&selectedCount>0">
+            <div class="hero-header-badge ready-badge">
+              <Film :size="14"/>
+              <span>Pronto para Renderização</span>
+            </div>
+            <div class="hero-body-text">
+              <h3>{{selectedCount}} trecho(s) selecionado(s) para renderização</h3>
+              <p>Seus cortes escolhidos estão prontos para virar vídeos verticais 9:16 com enquadramento dinâmico e legendas automáticas.</p>
+            </div>
+            <div class="hero-action-buttons">
+              <AppButton class="button primary hero-primary-btn" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">
+                <Film :size="15"/>Gerar {{selectedCount}} Prévia(s) Vertical(is)
+              </AppButton>
+              <AppButton class="button secondary" @click="$emit('analysis')">
+                Ajustar seleção
+              </AppButton>
+            </div>
+          </template>
+
+          <!-- CASO E: Cortes Prontos para Revisão / Exportação -->
+          <template v-else>
+            <div class="hero-header-badge ready-badge">
+              <Check :size="14"/>
+              <span>Cortes Prontos</span>
+            </div>
+            <div class="hero-body-text">
+              <h3>{{revisions?.length||0}} corte(s) gerado(s) disponíveis para revisão</h3>
+              <p>Assista aos vídeos verticais 9:16, faça ajustes finos nas legendas e baixe os arquivos finais para publicação.</p>
+            </div>
+            <div class="hero-action-buttons">
+              <AppButton class="button primary hero-primary-btn" @click="$emit('review')">
+                <Play :size="15"/>Abrir Estúdio de Revisão 9:16
+              </AppButton>
+              <AppButton v-if="approved" class="button secondary" :disabled="busy" @click="$emit('export')">
+                <Download :size="15"/>Exportar prontos
+              </AppButton>
+            </div>
+          </template>
+        </article>
+      </section>
+
+      <!-- COLUNA LATERAL: VÍDEO ORIGINAL + MÉTRICAS CONTEXTUAIS -->
+      <aside class="dashboard-side-column">
+        <!-- PLAYER COMPACTO DO VÍDEO ORIGINAL -->
+        <figure class="pipeline-video">
+          <video v-if="sourceUrl" :src="sourceUrl" controls preload="metadata" playsinline aria-label="Vídeo original"></video>
+          <div v-else class="pipeline-video-empty">{{project.source?'Vídeo indisponível':importRecovery?'Importação interrompida':processing&&job?.progress?.steps.import==='running'?'Importando vídeo…':'Vídeo ainda não importado'}}</div>
+          <figcaption>Vídeo original · {{project.source?'Fonte preservada':'Aguardando fonte'}}</figcaption>
+        </figure>
+
+        <!-- CARTÃO DE MÉTRICAS COMPACTAS -->
+        <div class="dashboard-metrics-card">
+          <div class="metric-item">
+            <span class="metric-label">Trechos selecionados</span>
+            <strong class="metric-value">{{selectedCount||0}}</strong>
           </div>
-        </template>
-        <template v-else-if="activeAction==='render'">
-          <h3>{{selectedCount}} trecho(s) selecionado(s) para renderização</h3>
-          <p>Seus cortes selecionados estão prontos para virar vídeos verticais 9:16 com enquadramento inteligente e legendas.</p>
-          <div class="hero-actions">
-            <AppButton class="button primary hero-primary-btn" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">
-              <Film :size="15"/>Gerar {{selectedCount}} Prévia(s) Vertical(is)
-            </AppButton>
-            <AppButton class="button secondary" @click="$emit('analysis')">Ajustar seleção</AppButton>
+
+          <div v-if="pendingQueueCount>0" class="metric-item">
+            <span class="metric-label">Pendências na fila</span>
+            <strong class="metric-value warning-value">{{pendingQueueCount}}</strong>
           </div>
-        </template>
-        <template v-else-if="activeAction==='review'">
-          <h3>{{revisions?.length||0}} corte(s) gerado(s) disponíveis para revisão</h3>
-          <p>Assista aos vídeos verticais 9:16, faça ajustes finos nas legendas e baixe os arquivos finais para publicação.</p>
-          <div class="hero-actions">
-            <AppButton class="button primary hero-primary-btn" @click="$emit('review')">
-              <Play :size="15"/>Abrir Estúdio de Revisão 9:16
-            </AppButton>
-            <AppButton v-if="approved" class="button secondary" :disabled="busy" @click="$emit('export')">
-              <Download :size="15"/>Exportar prontos
-            </AppButton>
+
+          <div class="metric-item">
+            <span class="metric-label">Temas identificados</span>
+            <strong class="metric-value">{{analysis?.topic_groups.length||0}}</strong>
           </div>
-        </template>
-      </div>
+
+          <div class="metric-item analysis-metric-item">
+            <span class="metric-label">Análise concluída</span>
+            <span class="metric-sub">{{analysis ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas` : 'Aguardando transcrição'}}</span>
+          </div>
+
+          <AppButton v-if="project.has_analysis" type="button" class="text-button metrics-action-link" @click="$emit('analysis')">
+            Ver análise →
+          </AppButton>
+        </div>
+      </aside>
     </div>
 
-    <!-- GRUPOS DE ETAPAS DETALHADAS -->
-    <div class="preparation-groups">
-      <section v-for="group in groups" :key="group.title" class="preparation-group">
-        <header>
-          <h3>{{group.title}}</h3>
-          <p>{{group.description}}</p>
-        </header>
-        <ol class="pipeline-steps">
-          <li v-for="[id,title] in group.steps" :key="id" class="pipeline-step" :data-stage="id" :data-state="state(id)">
+    <!-- 4. HISTÓRICO TÉCNICO DAS 6 ETAPAS (GAVETA EXPANSÍVEL DISCRETA NO RODAPÉ) -->
+    <!-- Preserva os seletores [data-stage], .stage-progress e botões de recuperação de forma limpa -->
+    <details class="technical-history-disclosure">
+      <summary class="technical-history-trigger">
+        <ListOrdered :size="15"/>
+        <span>Histórico técnico detalhado das 6 etapas da esteira</span>
+        <ChevronDown :size="14" class="disclosure-chevron"/>
+      </summary>
+
+      <div class="technical-history-content">
+        <ol class="technical-steps-list">
+          <li v-for="[id,title] in names" :key="id" class="technical-step-row" :data-stage="id" :data-state="state(id)">
             <span class="step-mark" :class="{done:state(id)==='completed'}">
-              <Check v-if="state(id)==='completed'" :size="16"/>
+              <Check v-if="state(id)==='completed'" :size="14"/>
               <span v-else>{{names.findIndex(n=>n[0]===id)+1}}</span>
             </span>
-            <div class="step-copy">
-              <div class="step-heading">
-                <h3>{{title}}</h3>
-                <p>{{state(id)==='waiting'?'Sua próxima ação':labels[state(id)]||state(id)}}</p>
+
+            <div class="step-info-col">
+              <div class="step-header-line">
+                <strong>{{title}}</strong>
+                <span class="step-state-badge">{{state(id)==='waiting'?'Próxima ação':labels[state(id)]||state(id)}}</span>
               </div>
-              <div v-if="!['pending','waiting'].includes(state(id))" role="progressbar" :aria-label="title" :aria-valuenow="state(id)==='completed'?100:undefined" aria-valuemin="0" aria-valuemax="100" class="stage-progress" :class="{indeterminate:['running','processing','cancelling'].includes(state(id)),complete:state(id)==='completed',failed:['failed','cancelled','interrupted'].includes(state(id))}"><span></span></div>
-              <div v-if="id==='import'&&importRecovery&&job" class="import-recovery">
-                <p>Importação interrompida. Escolha como continuar.</p>
+
+              <div
+                v-if="!['pending','waiting'].includes(state(id))"
+                role="progressbar"
+                :aria-label="title"
+                :aria-valuenow="state(id)==='completed'?100:undefined"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                class="stage-progress"
+                :class="{indeterminate:['running','processing','cancelling'].includes(state(id)),complete:state(id)==='completed',failed:['failed','cancelled','interrupted'].includes(state(id))}"
+              >
+                <span></span>
+              </div>
+
+              <!-- Ações técnicas específicas por etapa para compatibilidade com testes -->
+              <div v-if="id==='import'&&importRecovery&&job" class="import-recovery-actions">
                 <AppButton v-if="job.error" type="button" class="text-button" data-action="error-details" @click="notifyJob(job,true)">Ver motivo da falha</AppButton>
-                <div class="step-actions">
-                  <AppButton class="button small primary" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Tentar novamente</AppButton>
+                <div class="recovery-btn-row">
+                  <AppButton class="button small primary" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="13"/>Tentar novamente</AppButton>
                   <AppButton class="button small secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">Usar arquivo local</AppButton>
                 </div>
               </div>
-              <AppButton v-if="id==='transcribe'&&!project.has_transcript&&!project.is_manual&&!processing" class="button small secondary" :disabled="busy||!project.source" @click="$emit('transcribe')">Transcrever vídeo</AppButton>
-              <AppButton v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':recovery?'Continuar análise':'Iniciar análise'}}</AppButton>
-              <AppButton v-if="id==='choose'&&!project.is_manual" class="button small secondary" :disabled="busy||!project.has_analysis" @click="$emit('render')">{{selectedCount?selectedCount+' trechos selecionados · Ajustar':'Escolher trechos'}}</AppButton>
-              <AppButton v-if="id==='render'&&!project.is_manual" class="button small primary" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">Gerar prévias</AppButton>
-              <AppButton v-if="id==='export'&&approved" class="button small primary" :disabled="busy" @click="$emit('export')">Exportar prontos</AppButton>
+
+              <div class="technical-step-actions">
+                <AppButton v-if="id==='transcribe'&&!project.has_transcript&&!project.is_manual&&!processing" class="button small secondary" :disabled="busy||!project.source" @click="$emit('transcribe')">Transcrever vídeo</AppButton>
+                <AppButton v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':recovery?'Continuar análise':'Iniciar análise'}}</AppButton>
+                <AppButton v-if="id==='choose'&&!project.is_manual" class="button small secondary" :disabled="busy||!project.has_analysis" @click="$emit('render')">{{selectedCount?selectedCount+' trechos selecionados · Ajustar':'Escolher trechos'}}</AppButton>
+                <AppButton v-if="id==='render'&&!project.is_manual" class="button small primary" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">Gerar prévias</AppButton>
+                <AppButton v-if="id==='export'&&approved" class="button small primary" :disabled="busy" @click="$emit('export')">Exportar prontos</AppButton>
+              </div>
             </div>
           </li>
         </ol>
-      </section>
-    </div>
-
-    <!-- RESUMO DA ANÁLISE SE TRANSCRITO -->
-    <div class="analysis-overview" v-if="project.has_transcript">
-      <div>
-        <strong>{{analysis?.state==='completed'?'Análise concluída':analysis?.proposals.length?'Análise parcial disponível':'Acompanhe a análise'}}</strong>
-        <p v-if="analysis">{{analysis.completed_windows}}/{{analysis.total_windows}} janelas · {{analysis.topic_groups.length}} temas · {{analysis.proposals.length}} propostas</p>
       </div>
-      <AppButton class="button small secondary" @click="$emit('analysis')">Ver análise</AppButton>
-    </div>
-
-    <!-- ATIVIDADE RECENTE DO MOTOR -->
-    <div v-if="job&&!importRecovery" class="pipeline-activity" aria-live="polite">
-      <p v-if="['analyze','prepare'].includes(job.operation)&&project.has_transcript">{{job.requests_used||0}} chamada(s) Gemini{{job.request_mode==='automatic'?' · planejamento automático':' de '+job.request_limit}}</p>
-      <AppButton v-if="job.error" type="button" class="text-button" @click="notifyJob(job,true)">Ver motivo da falha</AppButton>
-      <p v-if="job.exports?.length">{{job.exports.length}} pacote(s) exportado(s).</p>
-      <AppButton v-if="recovery&&!['analyze','render'].includes(job.operation)" class="button small secondary" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Continuar preparação</AppButton>
-    </div>
-
-    <AppButton v-if="project.error&&!job" type="button" class="text-button" @click="notify.error(project.error.message)">Ver motivo da falha</AppButton>
-    <footer class="pipeline-note">Preparação automática até a análise. Geração e download sob seu controle.</footer>
+    </details>
   </section>
 </template>
 
@@ -218,29 +421,331 @@ const activeAction=computed(()=>{
 .pipeline-panel {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+/* 1. Headline do Projeto */
+.project-headline-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.headline-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-main-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f2f4f7);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.project-tags-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #a0abba);
+  margin: 0;
+}
+
+.source-author {
+  color: var(--color-text-secondary, #cbd5e1);
+  font-weight: 500;
+}
+
+.meta-dot {
+  opacity: 0.5;
+}
+
+/* 2. Esteira Linear de Processamento */
+.stepper-track-wrap {
+  background: var(--color-surface, #16191f);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.stepper-track-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.stepper-track-title strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f2f4f7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stepper-track-title span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #a0abba);
+}
+
+.stepper-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  gap: 6px;
+}
+
+.stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+  z-index: 2;
+  min-width: 60px;
+}
+
+.stepper-node.clickable {
+  cursor: pointer;
+}
+
+.node-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-canvas, #0e1013);
+  border: 1.5px solid var(--color-border-subtle, #2e3644);
+  color: var(--color-text-muted, #a0abba);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.stepper-node[data-state='completed'] .node-circle {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.stepper-node[data-state='running'] .node-circle,
+.stepper-node[data-state='processing'] .node-circle {
+  background: rgba(217, 119, 36, 0.16);
+  border-color: #d97724;
+  color: #f9a35c;
+}
+
+.stepper-node[data-state='failed'] .node-circle,
+.stepper-node[data-state='interrupted'] .node-circle {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.stepper-node[data-state='waiting'] .node-circle {
+  border-color: var(--color-accent, #d97724);
+  color: var(--color-accent-light, #f9a35c);
+}
+
+.node-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f2f4f7);
+}
+
+.node-subtext {
+  font-size: 0.68rem;
+  color: var(--color-text-muted, #a0abba);
+}
+
+.stepper-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--color-border-subtle, #2e3644);
+  margin-top: -18px;
+  transition: background 0.2s ease;
+}
+
+.stepper-connector.done {
+  background: #10b981;
+}
+
+/* 3. Grade do Dashboard */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Coluna Principal: Hero de Estado */
+.dashboard-hero-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.state-hero-card {
+  background: var(--color-surface, #16191f);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 14px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.preparation-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px;
-  align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border-subtle, var(--line));
+.state-hero-card.attention-mode {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(217, 119, 36, 0.05) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 5px solid #ef4444;
 }
 
-.pipeline-title {
+.state-hero-card.processing-mode {
+  background: linear-gradient(135deg, rgba(217, 119, 36, 0.09) 0%, rgba(224, 138, 60, 0.04) 100%);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-left: 5px solid #d97724;
+}
+
+.state-hero-card.ready-mode {
+  background: var(--color-surface, #16191f);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-left: 5px solid #d97724;
+}
+
+.hero-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.hero-header-badge.attention-badge {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.hero-header-badge.processing-badge {
+  background: rgba(217, 119, 36, 0.16);
+  color: #f9a35c;
+  border: 1px solid rgba(217, 119, 36, 0.4);
+}
+
+.hero-header-badge.ready-badge {
+  background: rgba(217, 119, 36, 0.14);
+  color: #f9a35c;
+  border: 1px solid rgba(217, 119, 36, 0.35);
+}
+
+.hero-body-text h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f2f4f7);
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+.hero-body-text p {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary, #cbd5e1);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 65ch;
+}
+
+/* Card Dedicado: Última Falha */
+.last-failure-card {
+  background: rgba(14, 16, 19, 0.7);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.failure-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f87171;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.failure-title {
+  font-size: 0.95rem;
+  color: var(--color-text-primary, #f2f4f7);
+  font-weight: 600;
+}
+
+.failure-reason {
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #a0abba);
+  margin: 0;
+}
+
+.failure-details-link {
+  font-size: 0.78rem;
+  color: var(--color-accent-light, #f9a35c);
+  margin-top: 4px;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+/* Botões de Ação do Hero */
+.hero-action-buttons {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.hero-primary-btn {
+  font-weight: 600;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+}
+
+.processing-status-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.processing-status-strip small {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #a0abba);
+}
+
+/* Coluna Lateral: Vídeo Original + Métricas */
+.dashboard-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .pipeline-video {
   margin: 0;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--color-border-subtle, var(--line));
+  border: 1px solid var(--color-border-subtle, #2e3644);
   background: #000;
   display: flex;
   flex-direction: column;
@@ -262,193 +767,206 @@ const activeAction=computed(()=>{
   padding: 12px;
   text-align: center;
   font-size: 0.8rem;
-  color: var(--color-text-muted, var(--muted));
-  background: var(--color-surface-hover, var(--soft));
+  color: var(--color-text-muted, #a0abba);
+  background: var(--color-surface, #16191f);
 }
 
 .pipeline-video figcaption {
   font-size: 0.72rem;
-  padding: 6px 10px;
-  background: var(--color-surface, var(--panel));
-  color: var(--color-text-muted, var(--muted));
-  border-top: 1px solid var(--color-border-subtle, var(--line));
+  padding: 6px 12px;
+  background: var(--color-surface, #16191f);
+  color: var(--color-text-muted, #a0abba);
+  border-top: 1px solid var(--color-border-subtle, #2e3644);
 }
 
-.stepper-track-wrap {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 14px;
-  padding: 14px 18px;
-}
-
-.stepper-track-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.stepper-track-title strong {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--color-text-primary, var(--ink));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stepper-track-title span {
-  font-size: 0.8rem;
-  color: var(--color-text-muted, var(--muted));
-}
-
-.stepper-track {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  gap: 8px;
-}
-
-.stepper-node {
+.dashboard-metrics-card {
+  background: var(--color-surface, #16191f);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 12px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-  z-index: 2;
-  flex: 1;
-  text-align: center;
-  background: transparent;
-  border: none;
-  padding: 0;
+  gap: 10px;
 }
 
-.stepper-node.clickable {
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-subtle, #2e3644);
+}
+
+.metric-item:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.metric-label {
+  color: var(--color-text-muted, #a0abba);
+}
+
+.metric-value {
+  color: var(--color-text-primary, #f2f4f7);
+  font-weight: 600;
+}
+
+.metric-value.warning-value {
+  color: #f9a35c;
+  background: rgba(217, 119, 36, 0.15);
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+
+.analysis-metric-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.metric-sub {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary, #cbd5e1);
+  line-height: 1.35;
+}
+
+.metrics-action-link {
+  font-size: 0.78rem;
+  color: var(--color-accent-light, #f9a35c);
+  padding: 2px 0 0;
+  text-align: left;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.node-circle {
-  width: 32px;
-  height: 32px;
+/* 4. Gaveta de Histórico Técnico (Discreta e Expansível) */
+.technical-history-disclosure {
+  background: var(--color-canvas, #0e1013);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.technical-history-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #a0abba);
+  cursor: pointer;
+  user-select: none;
+  background: var(--color-surface, #16191f);
+  transition: all 0.15s ease;
+}
+
+.technical-history-trigger:hover {
+  color: var(--color-text-primary, #f2f4f7);
+  background: var(--color-surface-raised, #1e232b);
+}
+
+.disclosure-chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.technical-history-disclosure[open] .disclosure-chevron {
+  transform: rotate(180deg);
+}
+
+.technical-history-content {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border-subtle, #2e3644);
+}
+
+.technical-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.technical-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-surface, #16191f);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+}
+
+.step-mark {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  background: var(--color-canvas, #0e1013);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  color: var(--color-text-muted, #a0abba);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 600;
-  background: var(--color-surface-raised, var(--soft));
-  color: var(--color-text-muted, var(--muted));
-  border: 2px solid var(--color-border-subtle, var(--line));
-  transition: all 0.2s ease;
-}
-
-.stepper-node[data-state="completed"] .node-circle {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border-color: #10b981;
-}
-
-.stepper-node[data-state="running"] .node-circle,
-.stepper-node[data-state="processing"] .node-circle {
-  background: var(--color-accent-soft, var(--accent-soft));
-  color: var(--color-accent, var(--accent));
-  border-color: var(--color-accent, var(--accent));
-  box-shadow: 0 0 0 4px rgba(217, 119, 36, 0.2);
-}
-
-.stepper-node[data-state="waiting"] .node-circle {
-  background: var(--color-surface, var(--panel));
-  color: var(--color-accent, var(--accent));
-  border-color: var(--color-accent, var(--accent));
+  font-size: 0.72rem;
   font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.stepper-node[data-state="failed"] .node-circle,
-.stepper-node[data-state="cancelled"] .node-circle,
-.stepper-node[data-state="interrupted"] .node-circle {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border-color: #ef4444;
+.step-mark.done {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
-.node-label {
-  font-size: 0.77rem;
-  font-weight: 600;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.node-subtext {
-  font-size: 0.68rem;
-  color: var(--color-text-muted, var(--muted));
-}
-
-.stepper-connector {
-  flex: 1;
-  height: 2px;
-  background: var(--color-border-subtle, var(--line));
-  margin-top: -18px;
-  z-index: 1;
-}
-
-.stepper-connector.done {
-  background: #10b981;
-}
-
-.action-hero-card {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(217, 119, 36, 0.06) 100%);
-  border: 1px solid var(--color-accent, rgba(99, 102, 241, 0.3));
-  border-radius: 14px;
-  padding: 18px 22px;
-}
-
-.hero-badge {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-accent, #6366f1);
-  margin-bottom: 6px;
-}
-
-.hero-card-content h3 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--color-text-primary, var(--ink));
-  margin: 0 0 6px;
-}
-
-.hero-card-content p {
-  font-size: 0.83rem;
-  color: var(--color-text-secondary, var(--muted));
-  margin: 0 0 14px;
-  max-width: 72ch;
-  line-height: 1.5;
-}
-
-.hero-actions {
+.step-info-col {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.step-header-line {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.hero-primary-btn {
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 9px 18px;
+.step-header-line strong {
+  font-size: 0.82rem;
+  color: var(--color-text-primary, #f2f4f7);
 }
 
-@media (max-width: 800px) {
-  .preparation-header {
+.step-state-badge {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #a0abba);
+}
+
+.import-recovery-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.recovery-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-step-action {
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
     grid-template-columns: 1fr;
-  }
-  .stepper-track {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .stepper-connector {
-    display: none;
   }
 }
 </style>

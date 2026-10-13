@@ -1,21 +1,34 @@
 :root{
-  /* New Semantic Studio Tokens */
+  /* Semantic Studio Color Tokens */
   --color-canvas:#0E1013;
   --color-surface:#16191F;
   --color-surface-raised:#1E232B;
-  --color-border-subtle:#2A303C;
+  --color-surface-hover:#252B35;
+  --color-border-subtle:#2E3644;
+  --color-border-strong:#475366;
   --color-border-focus:#E08A3C;
   --color-accent:#D97724;
   --color-accent-hover:#BF651B;
-  --color-accent-soft:#2E1F12;
+  --color-accent-soft:rgba(217, 119, 36, 0.16);
+  --color-accent-subtle:rgba(217, 119, 36, 0.12);
+  --color-accent-text:#F9A35C;
+  --color-accent-light:#F9A35C;
   --color-accent-on:#FFFFFF;
   --color-text-primary:#F2F4F7;
-  --color-text-muted:#9AA4B2;
-  --color-warning-surface:#2A2012;
-  --color-warning-border:#8C531B;
+  --color-text-secondary:#CBD5E1;
+  --color-text-muted:#A0ABBA;
+  --color-warning-surface:rgba(245, 158, 11, 0.14);
+  --color-warning-border:rgba(245, 158, 11, 0.35);
   --color-warning-text:#FBBF24;
   --color-error:#EF4444;
+  --color-danger:#EF4444;
+  --color-danger-soft:rgba(239, 68, 68, 0.16);
+  --color-danger-border:rgba(239, 68, 68, 0.35);
+  --color-danger-text:#F87171;
   --color-success:#10B981;
+  --color-success-soft:rgba(16, 185, 129, 0.16);
+  --color-success-border:rgba(16, 185, 129, 0.35);
+  --color-success-text:#34D399;
 
   /* App Shell & Layout Variables */
   --shell-height:64px;
@@ -26,18 +39,19 @@
   --ink:var(--color-text-primary);
   --muted:var(--color-text-muted);
   --line:var(--color-border-subtle);
+  --line-strong:var(--color-border-strong);
   --line-soft:var(--color-border-subtle);
   --blue:var(--color-accent);
   --accent:var(--color-accent);
   --accent-hover:var(--color-accent-hover);
   --accent-soft:var(--color-accent-soft);
   --accent-on:var(--color-accent-on);
-  --accent-light:#F9A35C;
+  --accent-light:var(--color-accent-light);
   --warning:var(--color-warning-text);
   --heading:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter",sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter",sans-serif;
   --radius-panel:14px;
   --radius-control:8px;
-  --shadow-panel:0 2px 12px rgba(0,0,0,0.35);
-  --shadow-floating:0 12px 36px rgba(0,0,0,0.55);
+  --shadow-panel:0 2px 12px rgba(0,0,0,0.45);
+  --shadow-floating:0 12px 36px rgba(0,0,0,0.65);
 }

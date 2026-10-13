@@ -8,8 +8,6 @@ import {notify} from '../notifications'
 import ReviewPanel from './ReviewPanel.vue'
 import PipelinePanel from './PipelinePanel.vue'
 import AnalysisPanel from './AnalysisPanel.vue'
-import GenerationQueue from './GenerationQueue.vue'
-import ProjectQueue from './ProjectQueue.vue'
 
 const props=defineProps<{project:Project;transcript:Transcript|null;revisions:Revision[];jobs:Job[];sourceUrl:string;previewUrl:string;busy:boolean;selectedRevision?:string;mediaLoading?:boolean;analysis?:AnalysisView|null;selection?:AnalysisSelection|null}>()
 defineEmits<{back:[];folder:[];transcribe:[];analyze:[];resumeAnalysis:[];render:[value:{analysis_hash:string;candidate_ids:string[]}];selection:[value:AnalysisSelection];cancel:[id:string];resume:[id:string];replaceSource:[id:string];select:[id:string];decision:[value:Decision];export:[];delete:[id:string];deleted:[];retry:[value:{job_id:string;candidate_id:string}];bulkDelete:[ids:string[]];bulkExport:[ids:string[]]}>()
@@ -24,7 +22,6 @@ watch(()=>props.project.title,()=>void nextTick(measureArea))
 watch(()=>props.project.warnings,values=>{for(const warning of values)notify.warning(warning,{key:'project:'+props.project.id+':'+warning})},{immediate:true})
 
 const renderJob=computed(()=>latestJob(props.jobs.filter(j=>j.operation==='render')))
-const showGeneration=computed(()=>{if(!['overview','cuts'].includes(tab.value))return false;const seen=new Set<string>();for(const row of [...props.jobs].filter(j=>j.operation==='render').sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id))){if(active(row.status))return true;for(const item of row.progress?.items||[]){if(seen.has(item.candidate_id))continue;seen.add(item.candidate_id);if(!['ready','cancelled'].includes(item.state))return true}}return false})
 const processing=computed(()=>props.jobs.some(j=>active(j.status)))
 const segments=computed(()=>props.transcript?.segments.length?props.transcript.segments:props.transcript?.words.reduce<{id:string;text:string;start_us:number;end_us:number}[]>((all,w,i)=>{if(i%12===0)all.push({id:w.id,text:w.text,start_us:w.start_us,end_us:w.end_us});else{all[all.length-1].text+=' '+w.text;all[all.length-1].end_us=w.end_us}return all},[])||[])
 
@@ -58,9 +55,7 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
     <AppButton role="tab" id="tab-cuts" aria-controls="project-panel" :tabindex="tab==='cuts'?0:-1" :aria-selected="tab==='cuts'" :class="{selected:tab==='cuts'}" @click="tab='cuts'"><Scissors :size="16"/>Cortes<span>{{revisions.length}}</span></AppButton>
   </div>
 
-  <ProjectQueue :jobs="jobs" :busy="busy" @cancel="$emit('cancel',$event)"/>
-
-  <div ref="workArea" class="workspace-body" :style="{'--work-area-height':areaHeight+'px'}" :class="{'with-generation':showGeneration&&tab==='overview','cuts-workspace':tab==='cuts'}">
+  <div ref="workArea" class="workspace-body" :style="{'--work-area-height':areaHeight+'px'}" :class="{'cuts-workspace':tab==='cuts'}">
     <div id="project-panel" role="tabpanel" :aria-labelledby="'tab-'+tab">
       
       <!-- ABA 1: VISÃO GERAL / PREPARAÇÃO -->
@@ -169,30 +164,10 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
           @export="$emit('export')"
           @delete="$emit('delete',$event)"
           @deleted="$emit('deleted')"
-        >
-          <template #generation>
-            <GenerationQueue
-              @retry="$emit('retry',$event)"
-              v-if="showGeneration"
-              :jobs="jobs"
-              :revisions="revisions"
-              @resume="$emit('resume',$event)"
-            />
-          </template>
-        </ReviewPanel>
+          @retry="$emit('retry',$event)"
+        />
       </section>
     </div>
-
-    <!-- SIDEBAR DE GERAÇÃO EM BACKGROUND -->
-    <aside v-if="showGeneration&&tab==='overview'" class="generation-sidebar" aria-label="Acompanhamento de prévias">
-      <GenerationQueue
-        @retry="$emit('retry',$event)"
-        :jobs="jobs"
-        :revisions="revisions"
-        @select="tab='cuts';$emit('select',$event)"
-        @resume="$emit('resume',$event)"
-      />
-    </aside>
   </div>
 </template>
 
@@ -267,8 +242,8 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
 }
 
 .transcript-segment-row.highlighted {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(217, 119, 36, 0.16);
+  border-color: rgba(217, 119, 36, 0.45);
 }
 
 .transcript-no-matches {

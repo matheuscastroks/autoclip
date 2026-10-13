@@ -2,40 +2,168 @@
 import AppButton from './AppButton.vue'
 import AppSelect from './AppSelect.vue'
 import {reactive,ref,watch,computed,onMounted,nextTick} from 'vue'
-import {FolderOpen,KeyRound,Monitor,Save,Cpu,Sparkles,Scissors,CheckCircle2,AlertCircle,ChevronRight,ChevronLeft} from '@lucide/vue'
+import {FolderOpen,KeyRound,Monitor,Save,Cpu,Sparkles,Scissors,CheckCircle2,AlertCircle,ChevronRight,ChevronLeft,HardDrive,Sliders} from '@lucide/vue'
 import {notify} from '../notifications'
 import type {Config,GeminiConnection} from '../types'
 
-const props=defineProps<{config:Config;saveConfig:(value:Config)=>Promise<unknown>;saveKey:(value:string)=>Promise<unknown>;pick:(kind:string)=>Promise<string|null>;getConnection?:()=>Promise<GeminiConnection>;testConnection?:()=>Promise<GeminiConnection>}>()
-const values=reactive({clip_preferred_seconds:180,clip_max_seconds:300,pause_mode:'conservative' as const,show_thought_summaries:true,...props.config}),key=ref(''),busy=ref(false)
+const props=defineProps<{
+  config:Config;
+  saveConfig:(value:Config)=>Promise<unknown>;
+  saveKey:(value:string)=>Promise<unknown>;
+  saveOpenRouterKey?:(value:string)=>Promise<unknown>;
+  saveOpenrouterKey?:(value:string)=>Promise<unknown>;
+  pick:(kind:string)=>Promise<string|null>;
+  getConnection?:()=>Promise<GeminiConnection>;
+  testConnection?:()=>Promise<GeminiConnection>
+}>()
+
+const values=reactive({
+  clip_preferred_seconds:180,
+  clip_max_seconds:300,
+  pause_mode:'conservative' as const,
+  show_thought_summaries:true,
+  ai_provider:'gemini' as 'gemini'|'openrouter',
+  openrouter_model:'openrouter/free',
+  openrouter_key_configured:props.config.openrouter_key_configured,
+  ...props.config
+})
+
+const key=ref(''),openrouterKey=ref(''),busy=ref(false)
 const settingsStep=ref(0)
 
 const settingsCategories=[
   {num:'01',title:'Recursos locais',sub:'Whisper, FFmpeg e hardware local',icon:Cpu},
-  {num:'02',title:'Gemini e modelo',sub:'Chave de API, conexão e catálogo',icon:Sparkles},
+  {num:'02',title:'IA e modelos',sub:'Gemini, OpenRouter e chaves de API',icon:Sparkles},
   {num:'03',title:'Preferências dos cortes',sub:'Duração, pausas e regras editoriais',icon:Scissors}
 ]
-const settingsLabels=['Recursos locais','Gemini e modelo','Preferências dos cortes']
+const settingsLabels=['Recursos locais','IA e modelos','Preferências dos cortes']
 
 let invalidHandled=false
-function invalidSetting(event:Event){event.preventDefault();if(invalidHandled)return;invalidHandled=true;const target=event.target as HTMLElement;const section=target.closest<HTMLElement>('[data-settings-step]');if(section)settingsStep.value=Number(section.dataset.settingsStep);for(let details=target.closest('details');details;details=details.parentElement?.closest('details')||null)details.open=true;notify.error('Confira os campos destacados desta etapa antes de salvar.');void nextTick(()=>{target.focus();invalidHandled=false})}
-function settingsKey(e:KeyboardEvent){const k=e.key;let n=settingsStep.value;if(k==='ArrowRight'||k==='ArrowDown')n=(n+1)%3;else if(k==='ArrowLeft'||k==='ArrowUp')n=(n+2)%3;else if(k==='Home')n=0;else if(k==='End')n=2;else return;e.preventDefault();settingsStep.value=n;(e.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button')[n]?.focus()}
+function invalidSetting(event:Event){
+  event.preventDefault()
+  if(invalidHandled)return
+  invalidHandled=true
+  const target=event.target as HTMLElement
+  const section=target.closest<HTMLElement>('[data-settings-step]')
+  if(section)settingsStep.value=Number(section.dataset.settingsStep)
+  for(let details=target.closest('details');details;details=details.parentElement?.closest('details')||null)details.open=true
+  notify.error('Confira os campos destacados desta etapa antes de salvar.')
+  void nextTick(()=>{target.focus();invalidHandled=false})
+}
+
+function settingsKey(e:KeyboardEvent){
+  const k=e.key
+  let n=settingsStep.value
+  if(k==='ArrowRight'||k==='ArrowDown')n=(n+1)%3
+  else if(k==='ArrowLeft'||k==='ArrowUp')n=(n+2)%3
+  else if(k==='Home')n=0
+  else if(k==='End')n=2
+  else return
+  e.preventDefault()
+  settingsStep.value=n
+  ;(e.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button')[n]?.focus()
+}
 
 const connection=ref<GeminiConnection|null>(null),validating=ref(false)
 const statusLabel=computed(()=>validating.value?'Validando…':connection.value?.status==='valid'?'Conexão validada':connection.value?.status==='invalid'?'Chave sem acesso':connection.value?.status==='unavailable'?'Conexão indisponível':props.config.gemini_key_configured?'Chave salva · não testada':'Chave não configurada')
+const openrouterStatusLabel=computed(()=>(values.openrouter_key_configured||props.config.openrouter_key_configured)?'Chave configurada':'Chave não configurada')
+
+const freeModels=[
+  {id:'openrouter/free',name:'openrouter/free',desc:'Automático gratuito (melhor disponível)'},
+  {id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B',desc:'meta-llama/llama-3.3-70b-instruct:free'},
+  {id:'google/gemma-3-27b-it:free',name:'Gemma 3 27B',desc:'google/gemma-3-27b-it:free'},
+  {id:'deepseek/deepseek-chat',name:'DeepSeek V3',desc:'deepseek/deepseek-chat (pago)'}
+]
+
 const models=computed(()=>connection.value?.models||[])
-const modelOptions=computed(()=>[...(!models.value.some(m=>m.id===values.gemini_model)?[{value:values.gemini_model,label:values.gemini_model+' — '+(connection.value?.status==='valid'?'não aparece no catálogo':'modelo salvo'),disabled:true}]:[]),...models.value.map(m=>({value:m.id,label:m.display_name+' · '+m.id}))])
+const modelOptions=computed(()=>[
+  ...(!models.value.some(m=>m.id===values.gemini_model)?[{value:values.gemini_model,label:values.gemini_model+' — '+(connection.value?.status==='valid'?'não aparece no catálogo':'modelo salvo'),disabled:true}]:[]),
+  ...models.value.map(m=>({value:m.id,label:m.display_name+' · '+m.id}))
+])
 const listed=computed(()=>models.value.some(m=>m.id===values.gemini_model))
-const missingModel=computed(()=>connection.value?.status==='valid'&&!listed.value)
+const missingModel=computed(()=>values.ai_provider==='gemini'&&connection.value?.status==='valid'&&!listed.value)
 
-watch(()=>props.config,(value,old)=>{for(const field of Object.keys(value) as (keyof Config)[]){if(value[field]!==old[field])Object.assign(values,{[field]:value[field]})}},{deep:true})
-onMounted(async()=>{if(props.getConnection)try{connection.value=await props.getConnection()}catch(e){notify.error((e as Error).message)}})
+watch(()=>props.config,(value,old)=>{
+  for(const field of Object.keys(value) as (keyof Config)[]){
+    if(value[field]!==old[field])Object.assign(values,{[field]:value[field]})
+  }
+  if(value.openrouter_key_configured!==undefined)values.openrouter_key_configured=value.openrouter_key_configured
+},{deep:true})
 
-async function execute(fn:()=>Promise<unknown>,success:string){busy.value=true;try{await fn();if(success)notify.success(success)}catch(e){notify.error((e as Error).message)}finally{busy.value=false}}
-async function saveKey(){validating.value=true;await execute(async()=>{const result=await props.saveKey(key.value);if(result)connection.value=result as GeminiConnection;key.value='';if(!result||connection.value?.status==='valid')notify.success(result?'Conexão validada. Chave armazenada no Windows.':'Chave armazenada no Windows.');else notify.error(connection.value?.message||'Não foi possível validar a conexão.')},'');validating.value=false}
-async function testConnection(){if(!props.testConnection)return;validating.value=true;await execute(async()=>{connection.value=await props.testConnection!();if(connection.value.status==='valid')notify.success('Conexão Gemini validada. Catálogo atualizado.');else notify.error(connection.value.message)},'');validating.value=false}
-async function saveSettings(){if(values.clip_preferred_seconds>values.clip_max_seconds){notify.error('A duração preferida deve ser menor ou igual à máxima.');return}if(!missingModel.value)await execute(()=>props.saveConfig({...values}),'Configurações salvas.')}
-async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await execute(async()=>{const result=await props.pick(kind);if(result)values[field]=result},'')}
+onMounted(async()=>{
+  if(props.getConnection)try{connection.value=await props.getConnection()}catch(e){notify.error((e as Error).message)}
+})
+
+async function execute(fn:()=>Promise<unknown>,success:string){
+  busy.value=true
+  try{
+    await fn()
+    if(success)notify.success(success)
+  }catch(e){
+    notify.error((e as Error).message)
+  }finally{
+    busy.value=false
+  }
+}
+
+async function saveKey(){
+  validating.value=true
+  await execute(async()=>{
+    const result=await props.saveKey(key.value.trim())
+    if(result)connection.value=result as GeminiConnection
+    key.value=''
+    if(!result||connection.value?.status==='valid')notify.success(result?'Conexão validada. Chave armazenada no Windows.':'Chave armazenada no Windows.')
+    else notify.error(connection.value?.message||'Não foi possível validar a conexão.')
+  },'')
+  validating.value=false
+}
+
+async function saveOpenRouterKey(){
+  const saveFn=props.saveOpenRouterKey||props.saveOpenrouterKey
+  if(!saveFn){
+    notify.error('Função para salvar chave OpenRouter não está disponível.')
+    return
+  }
+  validating.value=true
+  await execute(async()=>{
+    await saveFn(openrouterKey.value.trim())
+    openrouterKey.value=''
+    values.openrouter_key_configured=true
+    if(props.config)props.config.openrouter_key_configured=true
+    notify.success('Chave OpenRouter armazenada no Windows com segurança.')
+  },'')
+  validating.value=false
+}
+
+async function testConnection(){
+  if(!props.testConnection)return
+  validating.value=true
+  await execute(async()=>{
+    connection.value=await props.testConnection!()
+    if(connection.value.status==='valid')notify.success('Conexão Gemini validada. Catálogo atualizado.')
+    else notify.error(connection.value.message)
+  },'')
+  validating.value=false
+}
+
+async function saveSettings(){
+  if(values.clip_preferred_seconds>values.clip_max_seconds){
+    notify.error('A duração preferida deve ser menor ou igual à máxima.')
+    return
+  }
+  if(values.ai_provider==='openrouter'&&!values.openrouter_model?.trim()){
+    notify.error('Informe um modelo do OpenRouter.')
+    return
+  }
+  if(!missingModel.value)await execute(()=>props.saveConfig({...values}),'Configurações salvas.')
+}
+
+async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
+  await execute(async()=>{
+    const result=await props.pick(kind)
+    if(result)values[field]=result
+  },'')
+}
 </script>
 
 <template>
@@ -44,7 +172,7 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
       <div>
         <p class="breadcrumb">Preferências do aplicativo</p>
         <h1>Configurações</h1>
-        <p>Ajuste os motores de IA, ferramentas de mídia e regras editoriais de cortes.</p>
+        <p>Ajuste os motores de IA, aceleração local de hardware e regras editoriais de cortes.</p>
       </div>
     </header>
 
@@ -69,131 +197,320 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
               <span class="cat-title">{{cat.title}}</span>
               <span class="cat-sub">{{cat.sub}}</span>
             </div>
-            <div class="cat-indicator" :class="index===0?(config.asr_available&&config.tools_available?'ready':'warn'):index===1?(config.gemini_key_configured?'ready':'warn'):'ready'"></div>
+            <div
+              class="cat-indicator"
+              :class="index===0?(config.asr_available&&config.tools_available?'ready':'warn'):index===1?((values.ai_provider==='openrouter'?(values.openrouter_key_configured||config.openrouter_key_configured):config.gemini_key_configured)?'ready':'warn'):'ready'"
+            ></div>
           </AppButton>
         </nav>
 
         <div class="settings-sidebar-card">
           <div class="card-head">
             <Monitor :size="16"/>
-            <strong>Ambiente Local-First</strong>
+            <strong>Arquitetura Local-First</strong>
           </div>
-          <p>Transcrição e renderização rodam 100% no seu computador usando CPU. Nenhum vídeo é enviado para a nuvem.</p>
+          <p>Transcrição e renderização de vídeo rodam 100% no seu computador usando CPU. Nenhum trecho de vídeo é transferido para a nuvem.</p>
         </div>
       </aside>
 
       <!-- Coluna direita: Painel Principal do Formulário -->
       <main class="settings-content-pane">
-        <form id="settings-content" role="tabpanel" :aria-labelledby="'settings-tab-'+settingsStep" class="settings-main" :class="{'settings-gemini':settingsStep===1}" @submit.prevent="saveSettings" @invalid.capture="invalidSetting">
-          
-          <!-- Etapa 0: Recursos Locais -->
-          <section v-show="settingsStep===0" data-settings-step="0" class="setting-section local-resources">
-            <div class="section-title-wrap">
-              <div class="section-icon"><Cpu :size="20"/></div>
-              <div>
-                <h2>Processamento local</h2>
-                <p>Transcrição e renderização usam a CPU. Escolha os recursos já instalados.</p>
-              </div>
-            </div>
-
-            <div class="readiness-banner">
-              <div class="readiness-item" :class="{ok:config.asr_available}">
-                <CheckCircle2 v-if="config.asr_available" :size="16"/>
-                <AlertCircle v-else :size="16"/>
-                <span>{{config.asr_available?'Modelo Whisper local pronto':'Modelo local não encontrado'}}</span>
-              </div>
-              <div class="readiness-item" :class="{ok:config.tools_available}">
-                <CheckCircle2 v-if="config.tools_available" :size="16"/>
-                <AlertCircle v-else :size="16"/>
-                <span>{{config.tools_available?'FFmpeg e ffprobe prontos':'Ferramentas FFmpeg não encontradas'}}</span>
-              </div>
-            </div>
-
-            <div class="local-resource-row">
-              <label class="field">
-                Pasta do modelo Whisper
-                <span class="input-action">
-                  <input v-model="values.asr_model_path" required placeholder="Caminho para o diretório do modelo Whisper..."/>
-                  <AppButton type="button" class="icon-button" title="Escolher pasta do modelo" @click="pick('model','asr_model_path')"><FolderOpen :size="18"/></AppButton>
-                </span>
-                <small>Modelo multilíngue com suporte ao português; arquivos ficam locais.</small>
-              </label>
-
-              <div class="field-pair">
-                <label class="field">
-                  FFmpeg
-                  <span class="input-action">
-                    <input v-model="values.ffmpeg" required placeholder="Caminho para o executável ffmpeg..."/>
-                    <AppButton type="button" class="icon-button" title="Localizar FFmpeg" @click="pick('ffmpeg','ffmpeg')"><FolderOpen :size="17"/></AppButton>
-                  </span>
-                </label>
-                <label class="field">
-                  ffprobe
-                  <span class="input-action">
-                    <input v-model="values.ffprobe" required placeholder="Caminho para o executável ffprobe..."/>
-                    <AppButton type="button" class="icon-button" title="Localizar ffprobe" @click="pick('ffprobe','ffprobe')"><FolderOpen :size="17"/></AppButton>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </section>
-
-          <!-- Etapa 1: Gemini & Seleção de Modelo -->
-          <div v-show="settingsStep===1" data-settings-step="1" class="gemini-sections-wrap">
-            <section class="credential-panel">
+        <form
+          id="settings-content"
+          role="tabpanel"
+          :aria-labelledby="'settings-tab-'+settingsStep"
+          class="settings-main"
+          @submit.prevent="saveSettings"
+          @invalid.capture="invalidSetting"
+        >
+          <!-- Etapa 0: Recursos Locais (Grid de 2 Colunas) -->
+          <div v-show="settingsStep===0" data-settings-step="0" class="step-grid-2col local-resources">
+            <!-- Coluna 1: Diagnóstico e Ambiente Local -->
+            <section class="setting-section">
               <div class="section-title-wrap">
-                <div class="section-icon"><KeyRound :size="20"/></div>
-                <div class="title-with-pill">
-                  <h2>Chave Gemini</h2>
-                  <span class="status-pill" :data-status="validating?'running':connection?.status==='valid'?'completed':'pending'">
-                    <i></i>{{statusLabel}}
-                  </span>
+                <div class="section-icon"><Cpu :size="20"/></div>
+                <div>
+                  <h2>Diagnóstico do ambiente</h2>
+                  <p>Processamento 100% local em CPU. Sem dependência de nuvem para mídia.</p>
                 </div>
               </div>
 
-              <p class="section-desc">Armazenada no Gerenciador de Credenciais do Windows. O aplicativo não exibe a chave salva.</p>
+              <div class="readiness-banner-vertical">
+                <div class="readiness-card" :class="{ok:config.asr_available}">
+                  <div class="readiness-card-icon">
+                    <CheckCircle2 v-if="config.asr_available" :size="20"/>
+                    <AlertCircle v-else :size="20"/>
+                  </div>
+                  <div class="readiness-card-info">
+                    <strong>Whisper (Transcrição de Áudio)</strong>
+                    <span>{{config.asr_available?'Modelo local encontrado e pronto para uso':'Modelo local não encontrado no diretório'}}</span>
+                  </div>
+                </div>
 
-              <AppButton v-if="connection?.status==='invalid'||connection?.status==='unavailable'" type="button" class="text-button" @click="notify.error(connection!.message)">
-                Ver motivo da falha
-              </AppButton>
-
-              <label class="field">
-                {{config.gemini_key_configured?'Substituir chave':'Adicionar chave'}}
-                <input type="password" @keydown.enter.prevent="!busy&&key.trim()&&saveKey()" v-model="key" autocomplete="new-password" placeholder="Cole sua chave de API do Google Gemini..."/>
-              </label>
-
-              <div class="credential-buttons-row">
-                <AppButton type="button" class="button secondary" data-action="save-key" :disabled="busy||!key.trim()" @click="saveKey">
-                  <KeyRound :size="16"/>{{validating?'Validando…':'Salvar e validar'}}
-                </AppButton>
-                <AppButton type="button" class="button secondary" data-action="test-gemini" :disabled="busy||!config.gemini_key_configured" @click="testConnection">
-                  {{validating?'Validando…':'Testar conexão / Atualizar modelos'}}
-                </AppButton>
+                <div class="readiness-card" :class="{ok:config.tools_available}">
+                  <div class="readiness-card-icon">
+                    <CheckCircle2 v-if="config.tools_available" :size="20"/>
+                    <AlertCircle v-else :size="20"/>
+                  </div>
+                  <div class="readiness-card-info">
+                    <strong>FFmpeg & ffprobe (Corte e Renderização)</strong>
+                    <span>{{config.tools_available?'Ferramentas multimídia detectadas e operacionais':'Executáveis não encontrados nos caminhos informados'}}</span>
+                  </div>
+                </div>
               </div>
 
-              <p v-if="connection?.checked_at" class="test-timestamp">Último teste: {{new Date(connection.checked_at).toLocaleString('pt-BR')}}</p>
-              <p class="api-cost-note">O teste consulta apenas o catálogo. Não gera conteúdo nem consome cota de geração.</p>
+              <div class="helper-info-card">
+                <strong>Privacidade e velocidade</strong>
+                <p>Seus vídeos brutos permanecem na máquina local. A transcrição opera com modelo multilíngue acelerado por CPU, garantindo rapidez e zero custos de infraestrutura externa.</p>
+              </div>
             </section>
 
+            <!-- Coluna 2: Caminhos dos Executáveis e Modelos -->
             <section class="setting-section">
+              <div class="section-title-wrap">
+                <div class="section-icon"><FolderOpen :size="20"/></div>
+                <div>
+                  <h2>Caminhos e executáveis</h2>
+                  <p>Aponte as pastas dos modelos e ferramentas no disco.</p>
+                </div>
+              </div>
+
+              <div class="fields-stack">
+                <label class="field">
+                  Pasta do modelo Whisper
+                  <span class="input-action">
+                    <input v-model="values.asr_model_path" required placeholder="Caminho para o diretório do modelo Whisper..."/>
+                    <AppButton type="button" class="icon-button" title="Escolher pasta do modelo" @click="pick('model','asr_model_path')"><FolderOpen :size="18"/></AppButton>
+                  </span>
+                  <small>Modelo multilíngue com suporte ao português (whisper-small).</small>
+                </label>
+
+                <label class="field">
+                  Executável FFmpeg
+                  <span class="input-action">
+                    <input v-model="values.ffmpeg" required placeholder="Caminho para ffmpeg.exe..."/>
+                    <AppButton type="button" class="icon-button" title="Localizar FFmpeg" @click="pick('ffmpeg','ffmpeg')"><FolderOpen :size="17"/></AppButton>
+                  </span>
+                  <small>Usado para extração de áudio, face-tracking e codificação de vídeo.</small>
+                </label>
+
+                <label class="field">
+                  Executável ffprobe
+                  <span class="input-action">
+                    <input v-model="values.ffprobe" required placeholder="Caminho para ffprobe.exe..."/>
+                    <AppButton type="button" class="icon-button" title="Localizar ffprobe" @click="pick('ffprobe','ffprobe')"><FolderOpen :size="17"/></AppButton>
+                  </span>
+                  <small>Usado para inspeção técnica e validação dos streams de vídeo.</small>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <!-- Etapa 1: IA & Provedor -->
+          <div v-show="settingsStep===1" data-settings-step="1" class="step-ia-wrap">
+            <!-- Full Width: Seletor Visual de Provedor -->
+            <section class="setting-section provider-selector-section">
               <div class="section-title-wrap">
                 <div class="section-icon"><Sparkles :size="20"/></div>
                 <div>
-                  <h2>Seleção de trechos</h2>
-                  <p>Projetos novos seguem da transcrição para a análise com Gemini automaticamente. O motor dimensiona as chamadas pelo conteúdo.</p>
+                  <h2>Provedor de inteligência artificial</h2>
+                  <p>Selecione o serviço de IA utilizado após a transcrição para analisar argumentos e sugerir cortes.</p>
                 </div>
               </div>
 
-              <label class="field">
-                Modelo Gemini
-                <AppSelect v-model="values.gemini_model" label="Modelo Gemini" data-field="gemini-model" :options="modelOptions" required :disabled="busy||!models.length"/>
-                <small v-if="missingModel" class="warning-text">O modelo salvo não aparece no catálogo. Escolha outro modelo explicitamente.</small>
-                <small v-else>{{models.length?models.length+' modelos disponíveis no catálogo.':'Teste a conexão para carregar os modelos disponíveis.'}}</small>
-              </label>
+              <div class="provider-switch-row">
+                <label class="provider-radio-card" :class="{selected: values.ai_provider==='gemini'}" @click="values.ai_provider='gemini'">
+                  <input
+                    type="radio"
+                    v-model="values.ai_provider"
+                    value="gemini"
+                    data-field="provider-gemini"
+                    @change="values.ai_provider='gemini'"
+                  />
+                  <div class="provider-card-content">
+                    <div class="provider-card-header">
+                      <strong>Google Gemini</strong>
+                      <span class="badge" :class="config.gemini_key_configured?'badge-ready':'badge-warn'">
+                        {{config.gemini_key_configured?'Chave pronta':'Sem chave'}}
+                      </span>
+                    </div>
+                    <small>Gemini 2.5 Flash nativo com catálogo sincronizado e validação direta de modelos da Google.</small>
+                  </div>
+                </label>
 
+                <label class="provider-radio-card" :class="{selected: values.ai_provider==='openrouter'}" @click="values.ai_provider='openrouter'">
+                  <input
+                    type="radio"
+                    v-model="values.ai_provider"
+                    value="openrouter"
+                    data-field="provider-openrouter"
+                    @change="values.ai_provider='openrouter'"
+                  />
+                  <div class="provider-card-content">
+                    <div class="provider-card-header">
+                      <strong>OpenRouter</strong>
+                      <span class="badge" :class="(values.openrouter_key_configured||config.openrouter_key_configured)?'badge-ready':'badge-warn'">
+                        {{(values.openrouter_key_configured||config.openrouter_key_configured)?'Chave pronta':'Sem chave'}}
+                      </span>
+                    </div>
+                    <small>Modelos gratuitos (:free) como Llama 3.3 70B, Gemma ou DeepSeek sem custos de geração.</small>
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <!-- 2 Colunas Lado a Lado: Credencial (Esquerda) e Seleção de Modelo (Direita) -->
+            <div class="provider-details-grid">
+              <!-- PROVEDOR: GEMINI -->
+              <template v-if="values.ai_provider==='gemini'">
+                <!-- Coluna 1: Credencial Gemini -->
+                <section class="credential-panel">
+                  <div class="section-title-wrap">
+                    <div class="section-icon"><KeyRound :size="20"/></div>
+                    <div class="title-with-pill">
+                      <h2>Chave Gemini</h2>
+                      <span class="status-pill" :data-status="validating?'running':connection?.status==='valid'?'completed':'pending'">
+                        <i></i>{{statusLabel}}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p class="section-desc">Armazenada no Gerenciador de Credenciais do Windows. O aplicativo não exibe a chave salva.</p>
+
+                  <AppButton v-if="connection?.status==='invalid'||connection?.status==='unavailable'" type="button" class="text-button" @click="notify.error(connection!.message)">
+                    Ver motivo da falha
+                  </AppButton>
+
+                  <label class="field">
+                    {{config.gemini_key_configured?'Substituir chave':'Adicionar chave'}}
+                    <input type="password" @keydown.enter.prevent="!busy&&key.trim()&&saveKey()" v-model="key" autocomplete="new-password" placeholder="Cole sua chave de API do Google Gemini..."/>
+                  </label>
+
+                  <div class="credential-buttons-row">
+                    <AppButton type="button" class="button secondary" data-action="save-key" :disabled="busy||!key.trim()" @click="saveKey">
+                      <KeyRound :size="16"/>{{validating?'Validando…':'Salvar e validar'}}
+                    </AppButton>
+                    <AppButton type="button" class="button secondary" data-action="test-gemini" :disabled="busy||!config.gemini_key_configured" @click="testConnection">
+                      {{validating?'Validando…':'Testar conexão / Catálogo'}}
+                    </AppButton>
+                  </div>
+
+                  <p v-if="connection?.checked_at" class="test-timestamp">Último teste: {{new Date(connection.checked_at).toLocaleString('pt-BR')}}</p>
+                  <p class="api-cost-note">O teste consulta apenas o catálogo. Não gera conteúdo nem consome cota de geração.</p>
+                </section>
+
+                <!-- Coluna 2: Seleção de Trechos / Modelo Gemini -->
+                <section class="setting-section">
+                  <div class="section-title-wrap">
+                    <div class="section-icon"><Sparkles :size="20"/></div>
+                    <div>
+                      <h2>Seleção de trechos</h2>
+                      <p>Projetos novos seguem da transcrição para a análise com Gemini automaticamente.</p>
+                    </div>
+                  </div>
+
+                  <label class="field">
+                    Modelo Gemini
+                    <AppSelect v-model="values.gemini_model" label="Modelo Gemini" data-field="gemini-model" :options="modelOptions" required :disabled="busy||!models.length"/>
+                    <small v-if="missingModel" class="warning-text">O modelo salvo não aparece no catálogo. Escolha outro modelo explicitamente.</small>
+                    <small v-else>{{models.length?models.length+' modelos disponíveis no catálogo.':'Teste a conexão para carregar os modelos disponíveis.'}}</small>
+                  </label>
+
+                  <div class="helper-info-card">
+                    <strong>Chamadas dimensionadas automaticamente</strong>
+                    <p>O motor particiona transcrições longas em janelas com sobreposição para garantir coerência dos argumentos sem estourar limites.</p>
+                  </div>
+                </section>
+              </template>
+
+              <!-- PROVEDOR: OPENROUTER -->
+              <template v-else-if="values.ai_provider==='openrouter'">
+                <!-- Coluna 1: Credencial OpenRouter -->
+                <section class="credential-panel">
+                  <div class="section-title-wrap">
+                    <div class="section-icon"><KeyRound :size="20"/></div>
+                    <div class="title-with-pill">
+                      <h2>Chave OpenRouter</h2>
+                      <span class="status-pill" :data-status="(values.openrouter_key_configured||config.openrouter_key_configured)?'completed':'pending'">
+                        <i></i>{{openrouterStatusLabel}}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p class="section-desc">Armazenada no Gerenciador de Credenciais do Windows. Obtenha sua chave gratuita em <strong>openrouter.ai/keys</strong>.</p>
+
+                  <label class="field">
+                    {{(values.openrouter_key_configured||config.openrouter_key_configured)?'Substituir chave OpenRouter':'Adicionar chave OpenRouter'}}
+                    <input
+                      type="password"
+                      @keydown.enter.prevent="!busy&&openrouterKey.trim()&&saveOpenRouterKey()"
+                      v-model="openrouterKey"
+                      autocomplete="new-password"
+                      placeholder="Cole sua chave sk-or-v1-..."
+                    />
+                  </label>
+
+                  <div class="credential-buttons-row">
+                    <AppButton type="button" class="button secondary" data-action="save-openrouter-key" :disabled="busy||!openrouterKey.trim()" @click="saveOpenRouterKey">
+                      <KeyRound :size="16"/>{{validating?'Salvando…':'Salvar chave OpenRouter'}}
+                    </AppButton>
+                  </div>
+
+                  <div class="helper-info-card">
+                    <strong>Zero custos com modelos :free</strong>
+                    <p>Modelos com sufixo <code>:free</code> no OpenRouter têm cotas diárias generosas e não exigem saldo pré-pago ou cartão de crédito cadastrado.</p>
+                  </div>
+                </section>
+
+                <!-- Coluna 2: Modelo OpenRouter & Chips Rápidos -->
+                <section class="setting-section">
+                  <div class="section-title-wrap">
+                    <div class="section-icon"><Sparkles :size="20"/></div>
+                    <div>
+                      <h2>Modelo OpenRouter</h2>
+                      <p>Selecione um modelo gratuito sugerido ou informe qualquer modelo do catálogo.</p>
+                    </div>
+                  </div>
+
+                  <div class="quick-chips-wrap">
+                    <span class="chips-label">Modelos populares gratuitos:</span>
+                    <div class="quick-chips">
+                      <button
+                        v-for="m in freeModels"
+                        :key="m.id"
+                        type="button"
+                        class="model-chip"
+                        :class="{active: values.openrouter_model===m.id}"
+                        @click="values.openrouter_model=m.id"
+                      >
+                        <div class="chip-title-row">
+                          <strong>{{m.name}}</strong>
+                          <span v-if="m.id.endsWith(':free')" class="chip-badge">Grátis</span>
+                        </div>
+                        <small>{{m.desc}}</small>
+                      </button>
+                    </div>
+                  </div>
+
+                  <label class="field">
+                    Identificador do modelo
+                    <input
+                      v-model="values.openrouter_model"
+                      data-field="openrouter-model"
+                      required
+                      placeholder="Ex: openrouter/free, meta-llama/llama-3.3-70b-instruct:free..."
+                    />
+                    <small>Você pode digitar qualquer modelo suportado pelo OpenRouter (ex: <code>meta-llama/llama-3.3-70b-instruct:free</code>).</small>
+                  </label>
+                </section>
+              </template>
+            </div>
+
+            <!-- Full Width: Ajustes Avançados -->
+            <section class="setting-section advanced-section">
               <details class="analysis-advanced">
-                <summary>Ajustes avançados de análise</summary>
-                <p>Você pode manter os padrões. A janela define quanto tempo da transcrição é analisado por vez; o limite de caracteres divide textos muito grandes. Esses valores não definem a duração dos cortes.</p>
+                <summary>Ajustes avançados de análise (Ambos os provedores)</summary>
+                <p>A janela define quanto tempo da transcrição é analisado por vez; o limite de caracteres divide textos muito grandes. Esses valores não definem a duração dos cortes.</p>
                 <div class="field-pair">
                   <label class="field">
                     Janela de análise (segundos)
@@ -209,45 +526,66 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
             </section>
           </div>
 
-          <!-- Etapa 2: Preferências dos Cortes -->
-          <section v-show="settingsStep===2" data-settings-step="2" class="setting-section">
-            <div class="section-title-wrap">
-              <div class="section-icon"><Scissors :size="20"/></div>
-              <div>
-                <h2>Coerência, duração e pausas</h2>
-                <p>Até 10 cortes por vídeo, com mínimo de 1 minuto e máximo de 5 minutos. Priorize concluir o argumento. Configurações valem para os próximos trabalhos.</p>
+          <!-- Etapa 2: Preferências dos Cortes (Grid de 2 Colunas) -->
+          <div v-show="settingsStep===2" data-settings-step="2" class="step-grid-2col">
+            <!-- Coluna 1: Duração dos Cortes -->
+            <section class="setting-section">
+              <div class="section-title-wrap">
+                <div class="section-icon"><Scissors :size="20"/></div>
+                <div>
+                  <h2>Duração e extensão dos cortes</h2>
+                  <p>Mínimo de 1 minuto e máximo de 5 minutos. Prioriza concluir o argumento.</p>
+                </div>
               </div>
-            </div>
 
-            <div class="field-pair">
-              <label class="field">
-                Duração preferida (segundos)
-                <input type="number" data-field="clip-preferred" v-model.number="values.clip_preferred_seconds" min="60" max="300" required/>
-                <small>Uma preferência recomendada; não força encerrar o raciocínio bruscamente.</small>
-              </label>
-              <label class="field">
-                Duração máxima (segundos)
-                <input type="number" data-field="clip-max" v-model.number="values.clip_max_seconds" min="60" max="300" required/>
-                <small>De 60 a 300 segundos (1 a 5 minutos). Não recorta palavras para caber.</small>
-              </label>
-            </div>
+              <div class="field-pair">
+                <label class="field">
+                  Duração preferida (segundos)
+                  <input type="number" data-field="clip-preferred" v-model.number="values.clip_preferred_seconds" min="60" max="300" required/>
+                  <small>Alvo recomendado; não força encerrar o raciocínio bruscamente.</small>
+                </label>
+                <label class="field">
+                  Duração máxima (segundos)
+                  <input type="number" data-field="clip-max" v-model.number="values.clip_max_seconds" min="60" max="300" required/>
+                  <small>De 60 a 300 segundos (1 a 5 minutos). Não recorta palavras para caber.</small>
+                </label>
+              </div>
 
-            <label class="field">
-              Pausas entre falas
-              <AppSelect data-field="pause-mode" v-model="values.pause_mode" label="Pausas entre falas" :options="[{value:'preserve',label:'Preservar todas as pausas'},{value:'conservative',label:'Encurtar silêncios longos com verificação no áudio'}]"/>
-              <small>Detecção de voz e volume, com margens de proteção. Respirações curtas permanecem. Confira as junções na revisão.</small>
-            </label>
+              <div class="helper-info-card">
+                <strong>Critério editorial</strong>
+                <p>O algoritmo propõe até 10 cortes por vídeo longo, selecionando argumentos completos com início, contexto e clímax identificáveis.</p>
+              </div>
+            </section>
 
-            <label class="check-row">
-              <input type="checkbox" data-field="thought-summaries" v-model="values.show_thought_summaries"/>
-              <span>Mostrar resumos de análise enviados pelo Gemini</span>
-            </label>
+            <!-- Coluna 2: Pausas e Apresentação -->
+            <section class="setting-section">
+              <div class="section-title-wrap">
+                <div class="section-icon"><Sliders :size="20"/></div>
+                <div>
+                  <h2>Pausas e inteligência editorial</h2>
+                  <p>Configure o tratamento de silêncios e a visibilidade dos resumos.</p>
+                </div>
+              </div>
 
-            <details class="thought-help">
-              <summary>Sobre os resumos do Gemini</summary>
-              <p class="subtle">Disponibilidade depende do modelo e da API. Resumos não mostram o pensamento interno completo. Modelos com pensamento habilitado podem consumir mais tokens.</p>
-            </details>
-          </section>
+              <div class="fields-stack">
+                <label class="field">
+                  Pausas entre falas
+                  <AppSelect data-field="pause-mode" v-model="values.pause_mode" label="Pausas entre falas" :options="[{value:'preserve',label:'Preservar todas as pausas'},{value:'conservative',label:'Encurtar silêncios longos com verificação no áudio'}]"/>
+                  <small>Detecção de voz e volume, com margens de proteção. Respirações curtas permanecem.</small>
+                </label>
+
+                <label class="check-row">
+                  <input type="checkbox" data-field="thought-summaries" v-model="values.show_thought_summaries"/>
+                  <span>Mostrar resumos de análise enviados pela IA</span>
+                </label>
+
+                <details class="thought-help">
+                  <summary>Sobre os resumos de raciocínio</summary>
+                  <p class="subtle">Disponibilidade depende do modelo e da API. Resumos mostram o tema e as evidências identificadas pelo modelo.</p>
+                </details>
+              </div>
+            </section>
+          </div>
 
           <!-- Barra Persistente de Ações -->
           <div class="setting-save">
@@ -274,19 +612,23 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
 }
 
 .settings-hub-layout {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
+  width: 100%;
 }
 
 .settings-nav-sidebar {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: sticky;
+  top: 20px;
 }
 
 .settings-tiles {
@@ -321,8 +663,8 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
 
 .settings-category-btn.selected {
   background: var(--color-accent-subtle, var(--accent-soft));
-  border-color: var(--color-accent, #6366f1);
-  color: var(--color-accent-text, var(--accent));
+  border-color: var(--color-accent, #d97724);
+  color: var(--color-accent-light, #f9a35c);
 }
 
 .cat-num {
@@ -396,35 +738,86 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
 
 .settings-content-pane {
   min-width: 0;
+  width: 100%;
 }
 
 .settings-main {
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 14px);
-  padding: 24px;
+  padding: 26px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Grids que aproveitam a largura de visualização */
+.step-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+.step-ia-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+.provider-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+.setting-section {
+  background: var(--color-surface-hover, var(--soft));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.credential-panel {
+  background: var(--color-surface-hover, var(--soft));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fields-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .section-title-wrap {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
 .section-icon {
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  background: var(--color-surface-hover, var(--soft));
-  color: var(--color-accent, #6366f1);
+  background: var(--color-surface, var(--panel));
+  color: var(--color-accent-light, #f9a35c);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid var(--color-border-subtle, var(--line));
 }
 
 .title-with-pill {
@@ -435,60 +828,266 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
 }
 
 .section-title-wrap h2 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  margin: 0 0 4px;
+  margin: 0 0 3px;
   color: var(--color-text-primary, var(--ink));
 }
 
 .section-title-wrap p {
   margin: 0;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   color: var(--color-text-muted, var(--muted));
+  line-height: 1.4;
 }
 
-.readiness-banner {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.readiness-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
+.section-desc {
   font-size: 0.8rem;
   color: var(--color-text-muted, var(--muted));
+  margin: 0;
+  line-height: 1.45;
 }
 
-.readiness-item.ok {
+/* Cards de Provedor */
+.provider-switch-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.provider-radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-subtle, var(--line));
+  background: var(--color-surface, var(--panel));
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.provider-radio-card input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--color-accent, #d97724);
+}
+
+.provider-radio-card:hover {
+  border-color: var(--color-accent, #d97724);
+  background: rgba(217, 119, 36, 0.04);
+}
+
+.provider-radio-card.selected {
+  border-color: var(--color-accent, #d97724);
+  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.1));
+  box-shadow: 0 0 0 1px var(--color-accent, #d97724);
+}
+
+.provider-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.provider-card-header strong {
+  font-size: 0.95rem;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.provider-card-content small {
+  font-size: 0.77rem;
+  color: var(--color-text-muted, var(--muted));
+  line-height: 1.4;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.badge-ready {
+  background: rgba(16, 185, 129, 0.15);
   color: #10b981;
-  border-color: rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Helper Cards */
+.helper-info-card {
+  padding: 13px 15px;
+  border-radius: 10px;
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.helper-info-card strong {
+  font-size: 0.82rem;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.helper-info-card p {
+  margin: 0;
+  font-size: 0.77rem;
+  line-height: 1.45;
+  color: var(--color-text-muted, var(--muted));
+}
+
+/* Readiness Cards Verticais no Step 0 */
+.readiness-banner-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.readiness-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  transition: all 0.2s ease;
+}
+
+.readiness-card.ok {
+  border-color: rgba(16, 185, 129, 0.3);
   background: rgba(16, 185, 129, 0.08);
+}
+
+.readiness-card-icon {
+  margin-top: 1px;
+  color: #f59e0b;
+}
+
+.readiness-card.ok .readiness-card-icon {
+  color: #10b981;
+}
+
+.readiness-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.readiness-card-info strong {
+  font-size: 0.85rem;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.readiness-card-info span {
+  font-size: 0.77rem;
+  color: var(--color-text-muted, var(--muted));
+}
+
+/* Chips Rápidos de Modelo */
+.quick-chips-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chips-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, var(--muted));
+  font-weight: 500;
+}
+
+.quick-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.model-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border-subtle, var(--line));
+  background: var(--color-surface, var(--panel));
+  color: var(--color-text-primary, var(--ink));
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+}
+
+.model-chip:hover {
+  border-color: var(--color-accent, #d97724);
+  background: rgba(217, 119, 36, 0.05);
+}
+
+.model-chip.active {
+  border-color: var(--color-accent, #d97724);
+  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.12));
+}
+
+.chip-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 6px;
+}
+
+.chip-title-row strong {
+  font-size: 0.8rem;
+  color: var(--color-text-primary, var(--ink));
+}
+
+.chip-badge {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.model-chip small {
+  font-size: 0.69rem;
+  color: var(--color-text-muted, var(--muted));
+  line-height: 1.3;
 }
 
 .credential-buttons-row {
   display: flex;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 4px;
   flex-wrap: wrap;
 }
 
 .test-timestamp {
   font-size: 0.75rem;
   color: var(--color-text-muted, var(--muted));
-  margin-top: 10px;
+  margin: 0;
 }
 
 .api-cost-note {
   font-size: 0.77rem;
   color: var(--color-text-muted, var(--muted));
-  margin-top: 6px;
+  margin: 0;
 }
 
 .warning-text {
@@ -503,7 +1102,7 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
   gap: 12px;
   padding-top: 18px;
   border-top: 1px solid var(--color-border-subtle, var(--line));
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .setting-save .actions {
@@ -511,8 +1110,23 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){await
   gap: 8px;
 }
 
-@media (max-width: 900px) {
+/* Responsividade fluida */
+@media (max-width: 1100px) {
+  .step-grid-2col,
+  .provider-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
   .settings-hub-layout {
+    grid-template-columns: 1fr;
+  }
+  .settings-nav-sidebar {
+    position: static;
+  }
+  .provider-switch-row,
+  .quick-chips {
     grid-template-columns: 1fr;
   }
 }

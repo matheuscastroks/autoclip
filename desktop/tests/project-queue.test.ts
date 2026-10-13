@@ -1,7 +1,8 @@
-import {mount} from '@vue/test-utils'
-import {it,expect} from 'vitest'
+import {mount,flushPromises} from '@vue/test-utils'
+import {it,expect,vi} from 'vitest'
+vi.mock('../src/api',()=>({api:{projects:vi.fn().mockResolvedValue([]),jobs:vi.fn().mockResolvedValue([{id:'other',status:'running'}]),config:vi.fn().mockResolvedValue({}),pick:vi.fn(),create:vi.fn(),importProject:vi.fn()}}))
 import ProjectQueue from '../src/components/ProjectQueue.vue'
-import ProjectLibrary from '../src/components/ProjectLibrary.vue'
+import App from '../src/App.vue'
 import {latestJob} from '../src/format'
 
 it('shows stage, queue position and removal independently of current tab',async()=>{
@@ -11,10 +12,11 @@ it('shows stage, queue position and removal independently of current tab',async(
  await w.findAll('button')[1].trigger('click');expect(w.emitted('cancel')?.[0]).toEqual(['b'])
  w.unmount()
 })
-it('allows creating and importing another project while work is active',()=>{
- const w=mount(ProjectLibrary,{props:{projects:[],busy:false,activeProjects:['other']}})
+it('allows creating and importing another project while work is active',async()=>{
+ const w=mount(App)
+ await flushPromises()
  expect(w.get('.new-project-action').attributes('disabled')).toBeUndefined()
- expect(w.findAll('.actions button')[0].attributes('disabled')).toBeUndefined()
+ expect(w.get('.header-import-action').attributes('disabled')).toBeUndefined()
  w.unmount()
 })
 it('keeps running progress in focus when a newer job is queued',()=>{

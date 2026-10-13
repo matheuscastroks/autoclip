@@ -2,7 +2,7 @@
 import AppButton from './AppButton.vue'
 import AppSelect from './AppSelect.vue'
 import {computed,ref} from 'vue'
-import {Search,Film,Trash2,FolderOpen,Plus,FileVideo,ListOrdered,LayoutGrid,List,Clock,Sparkles,Layers} from '@lucide/vue'
+import {Search,Film,Trash2,Plus,FileVideo,ListOrdered,LayoutGrid,List,Clock,Sparkles} from '@lucide/vue'
 import type {Project} from '../types'
 import {time,labels,stages} from '../format'
 
@@ -41,31 +41,6 @@ function timeAgo(value:number){
 
 <template>
   <div class="library-container">
-    <!-- Header Principal da Biblioteca -->
-    <header class="library-hero-header">
-      <div class="hero-title-area">
-        <span class="library-eyebrow">
-          <Layers :size="13"/>
-          Biblioteca Local Desktop
-        </span>
-        <div class="title-with-badge">
-          <h1>Seus Projetos</h1>
-          <span class="project-count-badge">{{projects.length}}</span>
-        </div>
-        <p class="hero-description">Transforme vídeos longos em cortes verticais de alta retenção prontos para publicação.</p>
-      </div>
-
-      <div class="hero-actions actions">
-        <AppButton class="button secondary import-btn" @click="$emit('import')" :disabled="busy">
-          <FolderOpen :size="16"/>
-          <span>Importar projeto</span>
-        </AppButton>
-        <AppButton class="button primary new-project-action" @click="$emit('create')" :disabled="busy">
-          <Plus :size="17"/>
-          <span>Novo projeto</span>
-        </AppButton>
-      </div>
-    </header>
 
     <!-- Banner Proeminente da Fila Global de Processamento -->
     <aside v-if="activeProjects?.length" class="global-queue-banner" @click="$emit('queue')">
@@ -92,7 +67,7 @@ function timeAgo(value:number){
           placeholder="Buscar projetos por título ou nome do arquivo…"
           aria-label="Buscar projetos"
         />
-        <span v-if="query" class="clear-search" @click="query=''">✕</span>
+        <button v-if="query" type="button" class="clear-search" aria-label="Limpar busca" @click="query=''">✕</button>
       </div>
 
       <div class="toolbar-controls">
@@ -111,9 +86,13 @@ function timeAgo(value:number){
             type="button"
             class="view-btn"
             :class="{active:viewMode==='grid'}"
+            role="radio"
+            :aria-checked="viewMode==='grid'"
+            :tabindex="viewMode==='grid'?0:-1"
             title="Visualização em Grade de Mídia"
             aria-label="Grade de Mídia"
             @click="viewMode='grid'"
+            @keydown.right.prevent="viewMode='list'"
           >
             <LayoutGrid :size="16"/>
           </button>
@@ -121,9 +100,13 @@ function timeAgo(value:number){
             type="button"
             class="view-btn"
             :class="{active:viewMode==='list'}"
+            role="radio"
+            :aria-checked="viewMode==='list'"
+            :tabindex="viewMode==='list'?0:-1"
             title="Visualização em Tabela Estruturada"
             aria-label="Tabela Estruturada"
             @click="viewMode='list'"
+            @keydown.left.prevent="viewMode='grid'"
           >
             <List :size="16"/>
           </button>
@@ -138,7 +121,12 @@ function timeAgo(value:number){
         :key="project.id"
         class="media-project-card"
         :data-project-id="project.id"
+        tabindex="0"
+        role="button"
+        :aria-label="'Abrir projeto: ' + (project.title || project.name)"
         @click="$emit('open',project.id)"
+        @keydown.enter.prevent="$emit('open',project.id)"
+        @keydown.space.prevent="$emit('open',project.id)"
       >
         <!-- Thumbnail 16:9 com Badges Flutuantes -->
         <div class="card-thumbnail-wrap">
@@ -229,7 +217,12 @@ function timeAgo(value:number){
         :key="project.id"
         class="project-row"
         :data-project-id="project.id"
+        tabindex="0"
+        role="button"
+        :aria-label="'Abrir projeto: ' + (project.title || project.name)"
         @click="$emit('open',project.id)"
+        @keydown.enter.prevent="$emit('open',project.id)"
+        @keydown.space.prevent="$emit('open',project.id)"
       >
         <div class="project-name">
           <span class="video-thumb" :class="{manual:project.is_manual}">
@@ -330,65 +323,6 @@ function timeAgo(value:number){
   gap: 20px;
 }
 
-/* Hero Header */
-.library-hero-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  padding-bottom: 4px;
-}
-.hero-title-area {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.library-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-accent, #d97724);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.title-with-badge {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.title-with-badge h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-text-primary, #f2f4f7);
-  margin: 0;
-  line-height: 1.2;
-}
-.project-count-badge {
-  background: var(--color-surface-raised, #1e232b);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  color: var(--color-accent, #d97724);
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-.hero-description {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--color-text-muted, #9aa4b2);
-  max-width: 60ch;
-}
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.new-project-action {
-  font-weight: 600;
-}
 
 /* Banner de Fila */
 .global-queue-banner {
@@ -737,10 +671,6 @@ function timeAgo(value:number){
 @media (max-width: 768px) {
   .empty-quick-steps {
     grid-template-columns: 1fr;
-  }
-  .library-hero-header {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 </style>

@@ -34,6 +34,8 @@ dist/
 .workflow-test-tmp/
 .autoclip/
 desktop/node_modules/
+node_modules/
+scratch/
 desktop/dist/
 desktop/coverage/
 *.lnk
