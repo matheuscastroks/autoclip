@@ -30,8 +30,31 @@ def smooth_track(samples,hold_us=1_000_000):
         points.append(CropPoint(output_us=t,center_x=position));last_t=t
     return points
 
+def simplify_crop_points(points,max_segments=60,epsilon=0.005):
+    if len(points)<=2:return points
+    t0=points[0].output_us;t_total=points[-1].output_us-t0 or 1
+    def rdp(pts,eps):
+        if len(pts)<=2:return pts
+        p1,p2=pts[0],pts[-1]
+        x1,y1=(p1.output_us-t0)/t_total,p1.center_x
+        x2,y2=(p2.output_us-t0)/t_total,p2.center_x
+        dx,dy=x2-x1,y2-y1;mag=math.hypot(dx,dy)
+        max_dist,index=-1.0,-1
+        for i in range(1,len(pts)-1):
+            p=pts[i];px,py=(p.output_us-t0)/t_total,p.center_x
+            dist=abs(py-y1) if mag==0 else abs(dy*px-dx*py+x2*y1-y2*x1)/mag
+            if dist>max_dist:max_dist,index=dist,i
+        if max_dist>eps:return rdp(pts[:index+1],eps)[:-1]+rdp(pts[index:],eps)
+        return [p1,p2]
+    curr_eps=epsilon;res=rdp(points,curr_eps)
+    while len(res)-1>max_segments:
+        curr_eps*=1.5;res=rdp(points,curr_eps)
+    return res
+
 def crop_expression(points):
-    # Piecewise linear interpolation, clamped to frame edges. Filter-file avoids Windows argv limits.
+    # Piecewise linear interpolation, clamped to frame edges. Capped to safe FFmpeg evaluator limit (~60 terms).
+    if not points:return 'max(0,min(iw-1080,(iw-1080)/2))'
+    if len(points)>60:points=simplify_crop_points(points,max_segments=60)
     value=f'{points[0].center_x:.8f}'
     for a,b in zip(points,points[1:]):
         dt=(b.output_us-a.output_us)/1e6

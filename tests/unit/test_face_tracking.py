@@ -71,3 +71,13 @@ def test_short_empty_span_and_origin_offset_preserve_output_timeline(tmp_path,mo
     from engine.contracts import PipelineError
     with pytest.raises(PipelineError,match='cancelled'):
         tracking.track_faces(source,edl,ReframeConfig(model_path=model),tmp_path/'ffmpeg',cancelled=lambda:True,detector_factory=lambda _:Detector())
+
+def test_crop_expression_simplifies_large_point_lists():
+    from engine.media.face_tracking import crop_expression
+    from engine.contracts import CropPoint
+    # 500 samples micro-jittering across a timeline
+    points=[CropPoint(output_us=i*500_000,center_x=0.5+0.05*(i%5)) for i in range(500)]
+    expr=crop_expression(points)
+    assert expr.count('clip(')<=60
+    assert 'max(0,min(iw-1080' in expr
+
