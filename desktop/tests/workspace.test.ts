@@ -9,19 +9,19 @@ import {notify,resetNotifications} from '../src/notifications'
 const project={id:'p',name:'Projeto de teste',title:'Entrevista',path:'/fixture',duration_us:30000000,status:'failed',has_transcript:true,word_count:100,revisions:[],has_analysis:false,is_manual:false,warnings:[],created_at:'2026-10-12T12:00:00Z',updated_at:0,source:null,error:null}
 const config={asr_model_path:'/model',gemini_model:'gemini-2.5-flash',max_calls:10,window_seconds:600,max_text_chars:60000,ffmpeg:'/ffmpeg',ffprobe:'/ffprobe',asr_available:true,tools_available:true,gemini_key_configured:true}
 describe('workspace interactions',()=>{
-  it('places copy and editorial review beside the portrait player',()=>{
+  it('places publication copy and download beside the portrait player',()=>{
     const w=mount(ReviewPanel,{props:{revisions:[{revision_id:'r',title:'Corte',technical_pass:true,review_status:'needs_review',warnings:[]}],manual:false,mediaUrl:'/r.mp4',sourceUrl:''}})
     expect(w.get('.clip-preview').find('.preview-label').exists()).toBe(false)
     expect(w.get('.clip-information .preview-label').text()).toBe('Corte')
-    expect(w.find('.clip-information .review-editorial').exists()).toBe(true);w.unmount()
+    expect(w.find('.clip-information .review-editorial').exists()).toBe(false);expect(w.find('a[download]').exists()).toBe(true);w.unmount()
   })
   it('aligns the reviewed cut with an external sidebar selection outside the filter',async()=>{
     const rows=[{revision_id:'a',title:'Para conferir',technical_pass:true,review_status:'needs_review',warnings:[],content_hash:'a'},{revision_id:'b',title:'Aprovada',technical_pass:true,review_status:'approved',warnings:[],content_hash:'b'}]
     const w=mount(ReviewPanel,{props:{revisions:rows,manual:false,mediaUrl:'/a.mp4',sourceUrl:'',selectedRevision:'a'}})
-    await w.findAll('.cuts-filters button').find(b=>b.text()==='Para revisar')!.trigger('click')
+    await w.findAll('.cuts-filters button').find(b=>b.text()==='Prontos')!.trigger('click')
     await w.setProps({selectedRevision:'b',mediaUrl:'/b.mp4'})
     expect(w.get('.preview-label').text()).toBe('Aprovada');expect(w.get('.clip-preview>video').attributes('src')).toBe('/b.mp4')
-    expect(w.get('[data-action=approve]').attributes('disabled')).toBeDefined();w.unmount()
+    expect(w.find('[data-action=approve]').exists()).toBe(false);w.unmount()
   })
   it('filters projects by name and opens a real row',async()=>{
     const w=mount(ProjectLibrary,{props:{projects:[project],busy:false}})
@@ -58,12 +58,11 @@ describe('workspace interactions',()=>{
     expect(w.text()).toContain('Prévia manual')
     expect(w.find('[data-action=approve]').exists()).toBe(false)
   })
-  it('requires all five checks before approving',async()=>{
+  it('allows technically valid download without editorial checks',async()=>{
     const w=mount(ReviewPanel,{props:{manual:false,mediaUrl:'/fixture-preview.mp4',sourceUrl:'',revisions:[{revision_id:'r',title:'Corte teste',rationale:'Fixture somente',technical_pass:true,review_status:'needs_review',duration_us:30000000,start_us:0,end_us:30000000,caption_words:[],warnings:[],content_hash:'fixture'}]}})
-    expect((w.get('[data-action=approve]').element as HTMLButtonElement).disabled).toBe(true)
-    for(const check of w.findAll('input[type=checkbox]'))await check.setValue(true)
-    await w.get('[data-action=approve]').trigger('click')
-    expect(w.emitted('decision')?.[0]?.[0]).toMatchObject({revision_id:'r',decision:'approved'})
+    expect(w.find('[data-action=approve]').exists()).toBe(false)
+    expect(w.get('a[download]').attributes('href')).toBe('/fixture-preview.mp4?download=1')
+    expect(w.emitted('decision')).toBeUndefined()
   })
   it('shows selection pending instead of fake clips',()=>{
     const w=mount(ReviewPanel,{props:{revisions:[],manual:false,mediaUrl:'',sourceUrl:''}})

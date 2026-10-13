@@ -22,10 +22,10 @@ describe('workflow visibility',()=>{
     expect(w.get('[data-stage=transcribe]').text()).toContain('Na fila')
     w.unmount()
   })
-  it('keeps review pending while any ready preview still needs a human decision',()=>{
+  it('omits review and permits export of technically valid previews',()=>{
     const revisions=[{revision_id:'a',title:'A',technical_pass:true,review_status:'approved',warnings:[]},{revision_id:'b',title:'B',technical_pass:true,review_status:'needs_review',warnings:[]}]
     const w=mount(ProjectWorkspace,{props:{project,transcript:null,revisions,jobs:[],sourceUrl:'',previewUrl:'',busy:false}})
-    expect(w.get('[data-stage=review]').text()).toContain('Sua próxima ação');w.unmount()
+    expect(w.find('[data-stage=review]').exists()).toBe(false);expect(w.get('[data-stage=export]').text()).toContain('Exportar prontos');w.unmount()
   })
   it.each(['running','completed'])('does not show an old project error while the current job is %s',status=>{
     const oldFailure={...project,error:{code:'PROVIDER_UNAVAILABLE',message:'Falha antiga'}}

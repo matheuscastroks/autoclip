@@ -163,16 +163,13 @@ def export_approved(project_root:Path,revision_ids=None):
         if revision_ids is not None and revision['revision_id'] not in revision_ids:continue
         folder=root/'revisions'/revision['revision_id']
         if (folder/'deleted.json').is_file():continue
-        decision_path=folder/'review.json'
-        if not decision_path.exists(): continue
-        decision=ReviewDecision.model_validate_json(decision_path.read_bytes())
-        if decision.decision!='approved': continue
+        decision=None
         edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
         caps=CaptionArtifact.model_validate_json((folder/'captions.json').read_bytes())
         rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
         qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
-        if decision.revision_id!=edl.revision_id or decision.content_hash!=review_fingerprint(root,edl.revision_id) or not qa.technical_pass or file_hash(rendered.path)!=rendered.sha256:
-            raise PipelineError('STALE_REVIEW','export','Review or render is invalid for this revision.')
+        if rendered.revision_id!=edl.revision_id or caps.edl_revision_id!=edl.revision_id or not qa.technical_pass or file_hash(rendered.path)!=rendered.sha256:
+            raise PipelineError('EXPORT_INVALID','export','Render is invalid for this revision.')
         package_hash=object_hash({'review':decision,'edl':edl,'caption':caps,'render':rendered})
         target=root/'exports'/revision['revision_id']/package_hash[:16];target.mkdir(parents=True,exist_ok=True)
         if (target/'manifest.json').exists() and json.loads((target/'manifest.json').read_text(encoding='utf-8'))['package_hash']!=package_hash:
@@ -182,8 +179,11 @@ def export_approved(project_root:Path,revision_ids=None):
             if not dest.exists(): shutil.copyfile(src,dest)
             if file_hash(src)!=file_hash(dest): raise PipelineError('EXPORT_INVALID','export','Export checksum mismatch.')
         atomic_json(target/'words.json',caps.words)
-        atomic_json(target/'metadata.json',{'schema_version':'1.0','source':state.source,'review':decision,'candidate':json.loads((folder/'candidate.json').read_text(encoding='utf-8')),'opening':{'text':caps.opening_text,'duration_us':caps.opening_duration_us},'caption_revision_id':str(caps.revision_id),'transcript_id':str(edl.transcript_id),'render':rendered,'qa':qa})
+        from engine.editorial.social_copy import publication_description
+        publication_candidate=json.loads((folder/'candidate.json').read_text(encoding='utf-8'))
+        publication={'title':publication_candidate.get('title_suggestion',''),'description':publication_description(publication_candidate.get('description_suggestion',''),publication_candidate.get('title_suggestion',''))}
+        atomic_json(target/'metadata.json',{'publication':publication,'schema_version':'1.0','source':state.source,'review':decision,'candidate':json.loads((folder/'candidate.json').read_text(encoding='utf-8')),'opening':{'text':caps.opening_text,'duration_us':caps.opening_duration_us},'caption_revision_id':str(caps.revision_id),'transcript_id':str(edl.transcript_id),'render':rendered,'qa':qa})
         atomic_json(target/'manifest.json',{'schema_version':'1.0','revision_id':revision['revision_id'],'package_hash':package_hash,'files':{p.name:{'sha256':file_hash(p),'bytes':p.stat().st_size} for p in target.iterdir() if p.is_file() and p.name!='manifest.json'}})
         exported.append(str(target))
-    if not exported: raise PipelineError('REVIEW_REQUIRED','export','No human-approved revisions available.')
+    if not exported: raise PipelineError('NO_READY_CLIPS','export','No technically valid clips available.')
     return exported

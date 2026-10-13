@@ -74,13 +74,12 @@ describe('review identity across refresh and failures',()=>{
     await w.get('[title="Atualizar projetos"]').trigger('click');await flushPromises()
     expect(w.get('video').attributes('src')).toBe('/media/source');w.unmount()
   })
-  it('preserves selected B video and target after a review refresh',async()=>{
+  it('offers download for selected B without editorial approval',async()=>{
     setup();const w=await open();await w.get('#tab-cuts').trigger('click');await flushPromises()
     await w.findAll('.clip-item')[1].trigger('click');await flushPromises()
     expect(w.get('.clip-preview > video').attributes('src')).toBe('/media/B')
-    for(const checkbox of w.findAll('.review-checks input[type=checkbox]'))await checkbox.setValue(true)
-    await w.get('[data-action=approve]').trigger('click');await flushPromises()
-    expect(api.decide).toHaveBeenCalledWith('p',expect.objectContaining({revision_id:'B'}))
+    expect(w.find('[data-action=approve]').exists()).toBe(false)
+    expect(w.get('a[download]').attributes('href')).toBe('/media/B?download=1')
     expect(w.get('.clip-preview > video').attributes('src')).toBe('/media/B')
     expect(w.get('.clip-item.selected').text()).toContain('Corte B');w.unmount()
   })

@@ -6,6 +6,7 @@ from engine.pipeline.artifacts import atomic_json
 from engine.editorial.review import review_fingerprint,record_review
 from engine.pipeline.runner import export_approved
 from .projects import read_json
+from engine.editorial.social_copy import publication_description
 
 def revision_folder(root,revision):
     try:name=str(UUID(revision))
@@ -29,9 +30,8 @@ def list_revisions(root:Path):
             for path in (caps.ass_path,caps.srt_path):
                 if not path.resolve().is_relative_to(root.resolve()):raise ValueError('Caption outside project')
             decision=read_json(folder/'review.json',{}) or {};fingerprint=review_fingerprint(root,edl.revision_id)
-            status=decision.get('decision','needs_review')
-            if status=='approved' and decision.get('content_hash')!=fingerprint:status='stale_review'
-            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':any((root/'exports'/rid).glob('*/manifest.json')),'title':candidate.title_suggestion or 'Corte para revisar','rationale':candidate.rationale,'description':candidate.description_suggestion,'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
+            status='ready' if qa.technical_pass else 'invalid'
+            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':any((root/'exports'/rid).glob('*/manifest.json')),'title':candidate.title_suggestion or 'Corte','rationale':candidate.rationale,'description':publication_description(candidate.description_suggestion,candidate.title_suggestion),'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
                 'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
                 'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.get('notes',''),
@@ -79,7 +79,7 @@ def decide(root,revision,decision,checks,notes,content_hash):
     return record.model_dump(mode='json')
 
 def export(root):
-    if not (Path(root)/'project.json').is_file():raise HTTPException(400,'Nenhum corte aprovado para exportar.')
+    if not (Path(root)/'project.json').is_file():raise HTTPException(400,'Nenhum corte pronto para exportar.')
     packages=export_approved(root)
-    if not packages:raise HTTPException(400,'Revise e aprove pelo menos um corte antes de exportar.')
+    if not packages:raise HTTPException(400,'Gere pelo menos um corte tecnicamente válido antes de exportar.')
     return {'paths':packages}

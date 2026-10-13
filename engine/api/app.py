@@ -206,11 +206,22 @@ def create_app(workspace:Path,token:str)->FastAPI:
         if asset!='thumbnail':asset_path(root,asset)
         return {'url':make_ticket(token,pid,asset)}
     @app.get('/api/v1/projects/{pid}/media/{asset}')
-    def media(pid:str,asset:str):
+    def media(pid:str,asset:str,download:bool=False):
         root=Path(store.get(pid)['path'])
         if asset=='thumbnail':
             from .thumbnails import thumbnail
             return FileResponse(thumbnail(root,settings.get()['ffmpeg']),media_type='image/jpeg')
+        if download:
+            from engine.contracts import RenderArtifact,ExportValidation
+            from engine.pipeline.artifacts import file_hash
+            folder=reviews.revision_folder(root,asset)
+            try:
+                qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
+                rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
+                path=asset_path(root,asset)
+                if not qa.technical_pass or rendered.revision_id.__str__()!=asset or path!=rendered.path.resolve() or file_hash(path)!=rendered.sha256:raise ValueError('invalid render')
+            except (OSError,ValueError):raise HTTPException(409,'O corte não passou pela validação técnica. Gere a prévia novamente.')
+            return FileResponse(path,media_type='video/mp4',filename='corte-'+asset+'.mp4')
         return FileResponse(asset_path(root,asset),media_type='video/mp4')
 
     @app.get('/api/v1/jobs')
@@ -251,8 +262,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
         with jobs.lock:
             editable(pid)
             root=Path(store.get(pid)['path']);ids=set(value.revision_ids)
-            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['review_status']=='approved' and r['technical_pass']}
-            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam estar aprovados e válidos.')
+            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['technical_pass']}
+            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam passar pela validação técnica.')
             from engine.pipeline.runner import export_approved
             return {'paths':export_approved(root,ids)}
     @app.get('/api/v1/projects/{pid}/revisions')

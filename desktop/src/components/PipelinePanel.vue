@@ -7,17 +7,16 @@ import {active,labels,latestJob} from '../format'
 import {notifyJob,notify} from '../notifications'
 const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean;revisions?:Revision[];analysis?:AnalysisView|null;sourceUrl?:string;selectedCount?:number}>()
 defineEmits<{transcribe:[];analyze:[];render:[];analysis:[];review:[];cancel:[id:string];resume:[id:string];replaceSource:[id:string];generate:[];export:[]}>()
-const names=[['import','Importar vídeo'],['transcribe','Transcrever'],['analyze','Analisar temas'],['choose','Escolher trechos'],['render','Gerar prévias'],['review','Revisar'],['export','Exportar']] as const
-const groups=[{title:'Preparação automática',description:'O motor importa, transcreve e identifica os temas.',steps:names.slice(0,3)},{title:'Seleção e entrega',description:'Escolha os trechos, gere as prévias e revise antes de exportar.',steps:names.slice(3)}]
+const names=[['import','Importar vídeo'],['transcribe','Transcrever'],['analyze','Analisar temas'],['choose','Escolher trechos'],['render','Gerar prévias'],['export','Exportar']] as const
+const groups=[{title:'Preparação automática',description:'O motor importa, transcreve e identifica os temas.',steps:names.slice(0,3)},{title:'Seleção e entrega',description:'Escolha os trechos, gere os vídeos e baixe para publicar.',steps:names.slice(3)}]
 const job=computed(()=>latestJob(props.jobs))
 const recovery=computed(()=>job.value&&['failed','cancelled','interrupted'].includes(job.value.status))
 const importRecovery=computed(()=>recovery.value&&!props.project.source&&['prepare','import'].includes(job.value?.operation||''))
-const approved=computed(()=>props.revisions?.some(r=>r.review_status==='approved'))
+const approved=computed(()=>props.revisions?.some(r=>r.technical_pass))
 watch(job,value=>{if(value&&['failed','interrupted'].includes(value.status))notifyJob(value)},{immediate:true})
 const processing=computed(()=>props.jobs.some(j=>active(j.status)))
 function state(step:string){
   if(step==='choose')return props.selectedCount?'completed':props.project.has_analysis?'waiting':'pending'
-  if(step==='review')return props.hasCuts?(props.revisions?.length&&props.revisions.every(r=>['approved','rejected'].includes(r.review_status))?'completed':'waiting'):'pending'
   if(step==='export'&&props.revisions?.some(r=>r.exported))return 'completed'
   if(step==='import'&&importRecovery.value)return job.value!.status
   const progress=job.value?.progress?.steps[step]
@@ -45,13 +44,12 @@ function state(step:string){
           <AppButton v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':recovery?'Continuar análise':'Iniciar análise'}}</AppButton>
           <AppButton v-if="id==='choose'&&!project.is_manual" class="button small secondary" :disabled="busy||processing||!project.has_analysis" @click="$emit('render')">{{selectedCount?selectedCount+' trechos selecionados · Ajustar':'Escolher trechos'}}</AppButton>
           <AppButton v-if="id==='render'&&!project.is_manual&&!processing" class="button small primary" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">Gerar prévias</AppButton>
-          <AppButton v-if="id==='review'&&(hasCuts||project.is_manual)" class="button small secondary" @click="$emit('review')">Revisar cortes</AppButton>
-          <AppButton v-if="id==='export'&&approved" class="button small primary" :disabled="busy||processing" @click="$emit('export')">Exportar aprovados</AppButton>
+          <AppButton v-if="id==='export'&&approved" class="button small primary" :disabled="busy||processing" @click="$emit('export')">Exportar prontos</AppButton>
         </div>
       </li></ol></section></div>
     <div class="analysis-overview" v-if="project.has_transcript"><div><strong>{{analysis?.state==='completed'?'Análise concluída':analysis?.proposals.length?'Análise parcial disponível':'Acompanhe a análise'}}</strong><p v-if="analysis">{{analysis.completed_windows}}/{{analysis.total_windows}} janelas · {{analysis.topic_groups.length}} temas · {{analysis.proposals.length}} propostas</p></div><AppButton class="button small secondary" @click="$emit('analysis')">Ver análise</AppButton></div>
     <div v-if="job&&!importRecovery" class="pipeline-activity" aria-live="polite"><p v-if="['analyze','prepare'].includes(job.operation)&&project.has_transcript">{{job.requests_used||0}} chamada(s) Gemini{{job.request_mode==='automatic'?' · planejamento automático':' de '+job.request_limit}}</p><AppButton v-if="job.error" type="button" class="text-button" @click="notifyJob(job,true)">Ver motivo da falha</AppButton><p v-if="job.exports?.length">{{job.exports.length}} pacote(s) exportado(s).</p><AppButton v-if="recovery&&!['analyze','render'].includes(job.operation)" class="button small secondary" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="14"/>Continuar preparação</AppButton></div>
     <AppButton v-if="project.error&&!job" type="button" class="text-button" @click="notify.error(project.error.message)">Ver motivo da falha</AppButton>
-    <footer class="pipeline-note">Preparação automática até a análise. Geração, revisão e exportação sob seu controle.</footer>
+    <footer class="pipeline-note">Preparação automática até a análise. Geração e download sob seu controle.</footer>
   </section>
 </template>

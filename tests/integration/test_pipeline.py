@@ -2,7 +2,7 @@ import subprocess,json
 from pathlib import Path
 import pytest
 
-def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
+def test_pipeline_resume_and_export_without_review_gate(tmp_path,ffmpeg,ffprobe):
     from engine.contracts import (Word,TranscriptArtifact,Candidate,EditorialFlags,AnalysisArtifact,PipelineConfig,ASRConfig,AnalysisConfig,ExportConfig,PipelineError,EditorialChecks)
     from engine.pipeline.runner import run_project,export_approved
     from engine.media.importer import import_source
@@ -34,8 +34,7 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
     assert any(p['phase']=='render' and p['processed_us']>0 for p in progress)
     assert any(p['phase']=='verify' and p['completed_items']==0 for p in progress)
     assert create_report(root).exists()
-    with pytest.raises(PipelineError) as e:export_approved(root)
-    assert e.value.code=='REVIEW_REQUIRED'
+    assert export_approved(root) # Technical validation is sufficient; no human review file exists.
     resumed=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber())
     assert counts=={'asr':1,'llm':1} and resumed.revisions==state.revisions
     revision=state.revisions[0]['revision_id']
@@ -50,15 +49,14 @@ def test_pipeline_resume_and_export_review_gate(tmp_path,ffmpeg,ffprobe):
     next_batch=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber())
     assert len(next_batch.revisions)==2
     assert review_fingerprint(root,__import__('uuid').UUID(revision))==old_fingerprint
-    assert export_approved(root)==packages
+    assert export_approved(root,[revision])==packages
     from engine.api.reviews import set_deleted
     set_deleted(root,revision,True)
-    with pytest.raises(PipelineError) as deleted:export_approved(root)
-    assert deleted.value.code=='REVIEW_REQUIRED'
+    with pytest.raises(PipelineError) as deleted:export_approved(root,[revision])
+    assert deleted.value.code=='NO_READY_CLIPS'
     set_deleted(root,revision,False)
-    assert export_approved(root)==packages
-    cap_file=root/'revisions'/revision/'captions.json'
-    altered=json.loads(cap_file.read_text(encoding='utf-8'));altered['words'][0]['display_text']='Alterado depois da aprovação'
-    atomic_json(cap_file,altered)
-    with pytest.raises(PipelineError) as stale:export_approved(root)
-    assert stale.value.code=='STALE_REVIEW'
+    assert export_approved(root,[revision])==packages
+    render=json.loads((root/'revisions'/revision/'render.json').read_text())
+    Path(render['path']).write_bytes(b'corrupted')
+    with pytest.raises(PipelineError) as stale:export_approved(root,[revision])
+    assert stale.value.code=='EXPORT_INVALID'

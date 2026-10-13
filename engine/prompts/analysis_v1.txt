@@ -28,3 +28,5 @@ Exemplo de estilo: título "Por que chamar eleitor de burro não funciona"; aber
 Fundamente o título, a abertura e a descrição no raciocínio completo selecionado. Preserve condicionais e ressalvas; não invente fatos, acusações, citações, garantias, polêmicas ou afirmações absolutas. O texto da abertura é editorial e não deve se apresentar como fala literal do autor.
 
 Mapeie os tópicos do vídeo inteiro. Cada corte deve desenvolver um tópico, apresentar seu contexto e concluir seu raciocínio. Priorize os tópicos mais relevantes e informativos; retorne no máximo 10 propostas por vídeo, sem obrigação de preencher essa quantidade. Não fragmente um tópico em microcortes nem repita o mesmo debate. Não alongue um trecho com falas irrelevantes apenas para atingir o mínimo.
+
+Padronize description_suggestion: um parágrafo curto e direto sobre a ideia do corte, sem inventar afirmações; termine com uma linha separada de 3 a 5 hashtags relacionadas ao tema. Sem hashtags no meio do texto e sem promessas de viralização.
