@@ -22,7 +22,7 @@ const summary=computed(()=>{
 })
 const unavailable=computed(()=>scoped.value.filter(e=>['thoughts_unavailable','thoughts_disabled','analysis_cache_reused'].includes(e.kind)).at(-1))
 const validated=computed(()=>scoped.value.filter(e=>['window_validated','analysis_cache_reused'].includes(e.kind)).at(-1))
-const status=computed(()=>latest.value?.message||(job.value&&active(job.value.status)?'Aguardando feedback da análise.':'Este trabalho não registrou resumos do Gemini.'))
+const status=computed(()=>latest.value?.message||(job.value&&active(job.value.status)?'Aguardando feedback da análise.':'Este trabalho não registrou resumos da IA.'))
 const budgetNotice=computed(()=>{
   const planned=events.value.find(e=>e.kind==='analysis_started')?.windows
   if(job.value?.requests_used===0&&(job.value.error?.code==='PROVIDER_BUDGET'||(planned&&job.value.request_limit!=null&&planned>job.value.request_limit)))return `Limite de ${job.value.request_limit} tentativa(s) insuficiente${planned?' para '+planned+' janelas':''}. Nenhuma solicitação de análise foi enviada. Inicie uma nova análise para usar o planejamento automático de chamadas.`
@@ -33,8 +33,8 @@ function onScroll(){if(scrollArea.value&&scrollArea.value.scrollHeight-scrollAre
 async function toggleFollow(){following.value=!following.value;await nextTick();if(following.value&&scrollArea.value)scrollArea.value.scrollTop=scrollArea.value.scrollHeight}
 </script>
 <template>
-  <section v-if="job" class="analysis-feedback" aria-label="Análise do Gemini">
-    <div class="feedback-heading"><h4>Análise do Gemini</h4><span class="feedback-state" role="status">{{labels[job.status]||job.status}}</span></div><small v-if="context?.window_index">Janela {{context.window_index}} · {{context.attempt===0?'resultado reaproveitado':'tentativa '+(context.attempt||job.requests_used)}}</small>
+  <section v-if="job" class="analysis-feedback" aria-label="Análise de IA">
+    <div class="feedback-heading"><h4>Análise de IA</h4><span class="feedback-state" role="status">{{labels[job.status]||job.status}}</span></div><small v-if="context?.window_index">Janela {{context.window_index}} · {{context.attempt===0?'resultado reaproveitado':'tentativa '+(context.attempt||job.requests_used)}}</small>
     <template v-if="summary"><div class="summary-toolbar"><small class="feedback-origin">Resumo enviado pelo Gemini</small><AppButton type="button" class="text-button" data-action="toggle-follow" :aria-pressed="following" @click="toggleFollow">{{following?'Pausar acompanhamento':'Acompanhar atualizações'}}</AppButton></div><div ref="scrollArea" class="thought-scroll hidden-scrollbar" role="region" aria-label="Resumo da análise atual" tabindex="0" @scroll="onScroll"><p class="thought-text">{{summary}}</p></div></template>
     <p v-else class="feedback-status">{{budgetNotice||unavailable?.message||status}}</p>
     <p v-if="summary&&latest?.kind!=='thought_summary'" class="feedback-status">Aplicativo: {{status}}</p>

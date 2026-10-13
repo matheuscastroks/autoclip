@@ -21,12 +21,15 @@ from engine.adapters.openshorts.transcriber import model_fingerprint
 CODE_ROOT=Path(__file__).resolve().parents[1]
 
 def code_hash(*relative):
-    return object_hash({p:file_hash(CODE_ROOT/p) for p in relative})
+    from engine.pipeline.fingerprints import safe_file_hash
+    return object_hash({p:safe_file_hash(CODE_ROOT/p) for p in relative})
 
 def _asr_worker(audio,config,root,cancelled):
     folder=root/'work'/uuid.uuid4().hex;folder.mkdir(parents=True)
     atomic_json(folder/'audio.json',audio);atomic_json(folder/'config.json',config)
-    result=run_process([sys.executable,'-X','utf8','-m','engine.worker',str(folder/'audio.json'),str(folder/'config.json'),str(folder/'transcript.json')],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
+    from engine.system.subprocesses import engine_cmd
+    cmd = engine_cmd('worker', folder/'audio.json', folder/'config.json', folder/'transcript.json', module='engine.worker')
+    result=run_process(cmd,cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
     if result.returncode:
         raise PipelineError('ASR_FAILED','transcribe','Local worker failed; check model and runtime.')
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())

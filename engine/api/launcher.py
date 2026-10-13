@@ -5,13 +5,16 @@ import psutil
 from engine.pipeline.artifacts import atomic_json
 from .projects import read_json
 
-def server_command(workspace):return [sys.executable,'-X','utf8','-m','engine.api.server',str(Path(workspace).resolve())]
+def server_command(workspace):
+    from engine.system.subprocesses import engine_cmd
+    return engine_cmd('serve', str(Path(workspace).resolve()), module='engine.api.server')
 
 def owned_instance(session,workspace):
     try:
         if Path(session.get('workspace','')).resolve()!=Path(workspace).resolve():return False
-        p=psutil.Process(session['pid']);cmd=p.cmdline()
-        return abs(p.create_time()-session['worker_created'])<.1 and 'engine.api.server' in cmd and str(Path(workspace).resolve()) in cmd
+        p=psutil.Process(session['pid']);cmd=p.cmdline();cmd_str=' '.join(cmd)
+        matches='engine.api.server' in cmd_str or 'serve' in cmd
+        return abs(p.create_time()-session['worker_created'])<.1 and matches and str(Path(workspace).resolve()) in cmd_str
     except (KeyError,ValueError,psutil.Error):return False
 
 def ready(session):
@@ -26,7 +29,9 @@ def ready(session):
 
 def start_server(workspace):
     workspace=Path(workspace).resolve()
-    if not (workspace/'desktop/dist/index.html').is_file():raise RuntimeError('A interface ainda não foi compilada. Reinstale ou prepare a versão local do aplicativo.')
+    from .app import get_frontend_dist
+    dist=get_frontend_dist(workspace)
+    if not dist or not (dist/'index.html').is_file():raise RuntimeError('A interface ainda não foi compilada. Reinstale ou prepare a versão local do aplicativo.')
     root=workspace/'.autoclip';root.mkdir(exist_ok=True)
     with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
     session={'port':port,'token':secrets.token_urlsafe(32),'workspace':str(workspace)}

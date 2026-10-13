@@ -386,18 +386,18 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
     </div>
   </dialog>
 
-  <!-- MODAL DE ANÁLISE GEMINI -->
+  <!-- MODAL DE ANÁLISE DE IA -->
   <dialog ref="analysisDialog" class="modal">
     <form @submit.prevent="start('analyze',{window_seconds:windowSeconds,max_text_chars:config?.max_text_chars||60000})">
       <header>
         <div>
-          <h2>Analisar com Gemini</h2>
+          <h2>Analisar com {{config?.ai_provider==='openrouter'?'OpenRouter':'Gemini'}}</h2>
           <p>O motor organiza as chamadas para analisar toda a transcrição.</p>
         </div>
         <AppButton type="button" class="icon-button" title="Fechar" @click="analysisDialog?.close()"><X :size="19"/></AppButton>
       </header>
       <div class="analysis-summary">
-        <strong>{{config?.gemini_model}}</strong>
+        <strong>{{config?.ai_provider==='openrouter'?config?.openrouter_model:config?.gemini_model}}</strong>
         <span>Preferência {{config?.clip_preferred_seconds||60}} s · máximo {{config?.clip_max_seconds||180}} s · {{config?.show_thought_summaries===false?'resumos desativados':'resumos da API quando disponíveis'}}</span>
         <span>{{project?.word_count.toLocaleString('pt-BR')}} palavras disponíveis</span>
       </div>
@@ -408,11 +408,11 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
           <small>Quantidade de transcrição por solicitação. Pode manter o padrão; não define o tamanho dos cortes.</small>
         </label>
       </details>
-      <p class="subtle">A transcrição em texto será enviada ao Gemini. Chamadas automáticas conforme o conteúdo, com novas tentativas para falhas recuperáveis. Você pode cancelar; a API pode gerar custos.</p>
-      <div v-if="!config?.gemini_key_configured" class="subtle">Configure sua chave Gemini nas configurações primeiro.</div>
+      <p class="subtle">A transcrição em texto será enviada ao {{config?.ai_provider==='openrouter'?'OpenRouter':'Gemini'}}. Chamadas automáticas conforme o conteúdo, com novas tentativas para falhas recuperáveis. Você pode cancelar; a API pode gerar custos.</p>
+      <div v-if="!keyConfigured" class="subtle">Configure sua chave {{config?.ai_provider==='openrouter'?'OpenRouter':'Gemini'}} nas configurações primeiro.</div>
       <footer>
         <AppButton type="button" class="button secondary" @click="analysisDialog?.close()">Cancelar</AppButton>
-        <AppButton class="button primary" :disabled="busy||!config?.gemini_key_configured">Iniciar análise</AppButton>
+        <AppButton class="button primary" :disabled="busy||!keyConfigured">Iniciar análise</AppButton>
       </footer>
     </form>
   </dialog>

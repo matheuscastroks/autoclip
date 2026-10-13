@@ -72,8 +72,9 @@ def _isolated_request(root,cancelled,timeout,**kwargs):
     root.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='gemini-',dir=root) as folder:
         folder=Path(folder);request=folder/'request.json';response=folder/'response.json'
-        atomic_json(request,{'model':kwargs['model'],'contents':kwargs['contents'],'timeout_s':timeout,'events_path':str(kwargs['events_path']) if kwargs.get('events_path') else None,'context':kwargs.get('context',{}),'show_thought_summaries':kwargs.get('show_thought_summaries',True)})
-        try:r=run_process([sys.executable,'-X','utf8','-m','engine.adapters.gemini.request_worker',str(request),str(response)],cancelled=cancelled,timeout_s=timeout+10,capture_output=True,text=True,encoding='utf-8')
+        from engine.system.subprocesses import engine_cmd
+        cmd = engine_cmd('gemini-worker', str(request), str(response), module='engine.adapters.gemini.request_worker')
+        try:r=run_process(cmd,cancelled=cancelled,timeout_s=timeout+10,capture_output=True,text=True,encoding='utf-8')
         except PipelineError as exc:
             if exc.code=='PROCESS_TIMEOUT':raise WorkerRequestError({'transport':True,'type':'ProcessTimeout'}) from None
             raise

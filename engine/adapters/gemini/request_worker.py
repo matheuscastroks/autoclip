@@ -10,6 +10,10 @@ from engine.pipeline.artifacts import atomic_json
 from engine.pipeline.analysis_events import EventWriter
 from engine.contracts import PipelineError
 
+def run_worker(request: Path, out: Path):
+    sys.argv = [sys.argv[0], str(request), str(out)]
+    return main()
+
 def main():
     request,out=map(Path,sys.argv[1:3]);data=json.loads(request.read_text(encoding='utf-8'));client=None
     try:

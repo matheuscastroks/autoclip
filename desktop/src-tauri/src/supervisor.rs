@@ -55,7 +55,18 @@ pub fn workspace() -> Result<PathBuf, String> {
             return Ok(dir.to_path_buf());
         }
     }
-    Err("Abra o aplicativo dentro do checkout ou configure AUTOCLIP_WORKSPACE.".into())
+    #[cfg(windows)]
+    if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
+        let p = PathBuf::from(local_appdata).join("AutoClip");
+        let _ = std::fs::create_dir_all(&p);
+        return Ok(p);
+    }
+    if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+        let p = PathBuf::from(home).join(".autoclip");
+        let _ = std::fs::create_dir_all(&p);
+        return Ok(p);
+    }
+    Err("Não foi possível inicializar a pasta de trabalho do AutoClip.".into())
 }
 pub struct Supervisor {
     child: Child,
@@ -64,11 +75,33 @@ pub struct Supervisor {
 }
 impl Supervisor {
     pub fn start(root: &Path) -> Result<(Self, Session), String> {
-        let python = root.join(".venv/Scripts/python.exe");
-        let mut command = Command::new(python);
+        let executable = std::env::current_exe().unwrap_or_default();
+        let exe_dir = executable.parent().unwrap_or(Path::new("."));
+        let sidecar_candidates = [
+            exe_dir.join("autoclip-engine.exe"),
+            exe_dir.join("bin").join("autoclip-engine.exe"),
+            exe_dir.join("autoclip-engine-x86_64-pc-windows-msvc.exe"),
+            exe_dir.join("bin").join("autoclip-engine-x86_64-pc-windows-msvc.exe"),
+            exe_dir.join("autoclip-engine"),
+            exe_dir.join("bin").join("autoclip-engine"),
+        ];
+
+        let mut command = if let Some(bin) = sidecar_candidates.iter().find(|p| p.is_file()) {
+            let mut cmd = Command::new(bin);
+            cmd.arg("desktop-session").arg(root);
+            cmd
+        } else {
+            let python = root.join(".venv/Scripts/python.exe");
+            if !python.is_file() {
+                return Err("Motor do AutoClip (autoclip-engine.exe) não encontrado no diretório da aplicação.".into());
+            }
+            let mut cmd = Command::new(python);
+            cmd.args(["-X", "utf8", "-m", "engine.api.desktop_session"])
+                .arg(root);
+            cmd
+        };
+
         command
-            .args(["-X", "utf8", "-m", "engine.api.desktop_session"])
-            .arg(root)
             .current_dir(root)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -80,7 +113,7 @@ impl Supervisor {
         }
         let mut child = command
             .spawn()
-            .map_err(|_| "Não foi possível iniciar Python. Confira o ambiente local.")?;
+            .map_err(|e| format!("Não foi possível iniciar o motor do AutoClip: {}", e))?;
         let input = child.stdin.take().ok_or("Canal do motor indisponível.")?;
         let output = BufReader::new(
             child

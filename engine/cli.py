@@ -22,6 +22,12 @@ def main(argv=None):
     for name in ['review','export']:
         p=sub.add_parser(name);p.add_argument('--project',type=Path,required=True)
     approve=sub.add_parser('approve');approve.add_argument('revision');approve.add_argument('--project',type=Path,required=True)
+    ds=sub.add_parser('desktop-session');ds.add_argument('workspace',type=Path)
+    serve_p=sub.add_parser('serve');serve_p.add_argument('workspace',type=Path)
+    worker_p=sub.add_parser('worker');worker_p.add_argument('audio',type=Path);worker_p.add_argument('config',type=Path);worker_p.add_argument('output',type=Path)
+    jw_p=sub.add_parser('job-worker');jw_p.add_argument('folder',type=Path)
+    gw_p=sub.add_parser('gemini-worker');gw_p.add_argument('request',type=Path);gw_p.add_argument('response',type=Path)
+    ow_p=sub.add_parser('openrouter-worker');ow_p.add_argument('request',type=Path);ow_p.add_argument('response',type=Path)
     a=parser.parse_args(argv)
     try:
         if a.command=='doctor':
@@ -33,6 +39,29 @@ def main(argv=None):
         if a.command=='auth':
             secret=getpass.getpass('Chave Gemini (entrada oculta, armazenada no Credential Manager): ')
             set_gemini_key(secret);print('Credencial armazenada localmente.');return 0
+        if a.command=='desktop-session':
+            from engine.api.desktop_session import DesktopSession
+            session=DesktopSession(a.workspace.resolve())
+            print(json.dumps(session.handshake()),flush=True)
+            for line in sys.stdin:
+                if line.strip()=='close':
+                    result=session.close();print(json.dumps({'result':result}),flush=True);return 0
+            return 0
+        if a.command=='serve':
+            from engine.api.server import serve
+            serve(a.workspace.resolve());return 0
+        if a.command=='worker':
+            from engine.worker import run_worker
+            run_worker(a.audio,a.config,a.output);return 0
+        if a.command=='job-worker':
+            from engine.api.job_worker import main as jw_main
+            return jw_main(a.folder)
+        if a.command=='gemini-worker':
+            from engine.adapters.gemini.request_worker import run_worker as gw_main
+            return gw_main(a.request,a.response)
+        if a.command=='openrouter-worker':
+            from engine.adapters.openrouter.request_worker import run_worker as ow_main
+            return ow_main(a.request,a.response)
         root=a.project.resolve()
         if a.command=='run':
             ffmpeg,ffprobe=locate_tools()

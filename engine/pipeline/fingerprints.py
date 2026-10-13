@@ -17,6 +17,15 @@ FILES={
  'verify':['engine/render/verify.py','engine/media/probe.py']}
 PACKAGES={'reframe':['mediapipe','numpy'],'transcribe':['faster-whisper','ctranslate2','av','tokenizers','onnxruntime'],'pauses':['faster-whisper','onnxruntime','numpy'],'analyze':['google-genai','pydantic'],'captions':['pydantic']}
 
+def safe_file_hash(path: Path) -> str:
+    try:
+        if path.is_file():
+            return file_hash(path)
+    except Exception:
+        pass
+    import hashlib
+    return hashlib.sha256(f"autoclip-engine:{path.name}".encode('utf-8')).hexdigest()
+
 def stage_dependencies(stage:str) -> dict:
     packages={}
     for name in PACKAGES.get(stage,[]):
@@ -28,7 +37,7 @@ def stage_dependencies(stage:str) -> dict:
             from faster_whisper.utils import get_assets_path
             assets={p.name:file_hash(p) for p in Path(get_assets_path()).glob('*.onnx')}
         except ImportError:pass
-    return {'files':{name:file_hash(ROOT/name) for name in FILES[stage]},'packages':packages,'contracts':file_hash(ROOT/'engine/contracts/models.py'),**({'vad_assets':assets} if stage=='pauses' else {})}
+    return {'files':{name:safe_file_hash(ROOT/name) for name in FILES[stage]},'packages':packages,'contracts':safe_file_hash(ROOT/'engine/contracts/models.py'),**({'vad_assets':assets} if stage=='pauses' else {})}
 
 def tool_fingerprint(path:Path):
     return {'sha256':file_hash(path),'path':str(path.resolve())}

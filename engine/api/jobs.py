@@ -11,9 +11,9 @@ from engine.pipeline.artifacts import object_hash,file_hash
 ACTIVE=('running','pending','cancelling')
 
 def render_recipe(settings):
-    from engine.pipeline.fingerprints import stage_dependencies,ROOT
+    from engine.pipeline.fingerprints import stage_dependencies,ROOT,safe_file_hash
     keys=('clip_max_seconds','pause_mode','ffmpeg','ffprobe')
-    return object_hash({'settings':{k:settings.get(k) for k in keys},'stages':{stage:stage_dependencies(stage) for stage in ('edit_plan','captions','reframe','render','verify')},'contracts':file_hash(ROOT/'engine/contracts/models.py')})
+    return object_hash({'settings':{k:settings.get(k) for k in keys},'stages':{stage:stage_dependencies(stage) for stage in ('edit_plan','captions','reframe','render','verify')},'contracts':safe_file_hash(ROOT/'engine/contracts/models.py')})
 
 def legacy_render_compatible(request,job,settings):
     """Adopt old recipes only when their settings and implementation still match."""
@@ -35,8 +35,9 @@ class JobManager:
         process=self.processes.get(job['id'])
         if process:return process.poll() is None
         try:
-            p=psutil.Process(job.get('pid',0));cmd=p.cmdline()
-            return abs(p.create_time()-job.get('worker_created',0))<.1 and 'engine.api.job_worker' in cmd and str(self.root/job['id']) in cmd
+            p=psutil.Process(job.get('pid',0));cmd=p.cmdline();cmd_str=' '.join(cmd)
+            matches='engine.api.job_worker' in cmd_str or 'job-worker' in cmd
+            return abs(p.create_time()-job.get('worker_created',0))<.1 and matches and str(self.root/job['id']) in cmd_str
         except (psutil.Error,ValueError):return False
 
     def status(self,job_id):
@@ -179,7 +180,9 @@ class JobManager:
                 try:
                     kwargs={'cwd':str(self.workspace),'stdout':(folder/'stdout.log').open('wb'),'stderr':subprocess.STDOUT}
                     if os.name=='nt':kwargs['creationflags']=subprocess.CREATE_NO_WINDOW
-                    try:process=self.spawn([sys.executable,'-X','utf8','-m','engine.api.job_worker',str(folder)],**kwargs)
+                    from engine.system.subprocesses import engine_cmd
+                    cmd = engine_cmd('job-worker', str(folder), module='engine.api.job_worker')
+                    try:process=self.spawn(cmd,**kwargs)
                     finally:kwargs['stdout'].close()
                     self.processes[job['id']]=process;job['pid']=process.pid
                     try:job['worker_created']=psutil.Process(process.pid).create_time() if process.pid>0 else 0

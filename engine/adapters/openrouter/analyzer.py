@@ -58,8 +58,10 @@ def _isolated_request(root, cancelled, timeout, **kwargs):
             'events_path': str(kwargs['events_path']) if kwargs.get('events_path') else None,
             'context': kwargs.get('context', {})
         })
+        from engine.system.subprocesses import engine_cmd
+        cmd = engine_cmd('openrouter-worker', str(request), str(response), module='engine.adapters.openrouter.request_worker')
         try:
-            run_process([sys.executable, '-X', 'utf8', '-m', 'engine.adapters.openrouter.request_worker', str(request), str(response)], cancelled=cancelled, timeout_s=timeout+10, capture_output=True, text=True, encoding='utf-8')
+            run_process(cmd, cancelled=cancelled, timeout_s=timeout+10, capture_output=True, text=True, encoding='utf-8')
         except PipelineError as exc:
             if exc.code == 'PROCESS_TIMEOUT':
                 raise WorkerRequestError({'transport': True, 'type': 'ProcessTimeout'}) from None

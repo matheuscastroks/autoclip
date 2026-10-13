@@ -48,14 +48,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[desktop]"
 
-      - name: Build Python Engine Sidecar
-        run: |
-          python scripts/build_engine_sidecar.py
-
-      - name: Install Frontend Dependencies
+      - name: Install Frontend Dependencies & Build Frontend
         run: |
           cd desktop
           npm ci
+          npm run build
+
+      - name: Build Python Engine Sidecar
+        run: |
+          python scripts/build_engine_sidecar.py
 
       - name: Build Tauri App & Publish Release
         uses: tauri-apps/tauri-action@v0
@@ -73,5 +74,8 @@ jobs:
             - **Zero Configuração:** Não requer Python, Node ou Git instalado.
             - **Hardware Profiling:** Detecta sua CPU, RAM e GPU e recomenda o modelo Whisper ideal.
             - **Instalação Automática:** Baixa o FFmpeg e o modelo Whisper com barra de progresso visual no primeiro uso.
+            
+            > **Aviso do Windows SmartScreen:** Como o AutoClip é um software open-source recente e distribuído de forma independente, o Windows SmartScreen pode exibir o alerta *"O Windows protegeu o seu computador"*.
+            > Para continuar a instalação com total segurança: clique em **"Mais informações"** e depois em **"Executar assim mesmo"**. Todo o código é aberto e os executáveis são compilados de forma transparente via GitHub Actions.
           releaseDraft: false
           prerelease: false

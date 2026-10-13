@@ -16,6 +16,10 @@ def _clean_json_text(raw_text: str) -> str:
         text = match.group(1).strip()
     return text
 
+def run_worker(request: Path, out: Path):
+    sys.argv = [sys.argv[0], str(request), str(out)]
+    return main()
+
 def main():
     request, out = map(Path, sys.argv[1:3])
     data = json.loads(request.read_text(encoding='utf-8'))

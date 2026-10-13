@@ -34,10 +34,12 @@ def build():
         "--name=autoclip-engine",
         "--clean",
         "--noconfirm",
-        "--onedir",
+        "--onefile",
         "--distpath", str(ROOT_DIR / "build" / "engine-dist"),
         "--workpath", str(ROOT_DIR / "build" / "engine-build"),
-        "--collect-data=engine",
+        "--collect-all=engine",
+        "--collect-all=uvicorn",
+        "--collect-all=starlette",
         "--collect-data=faster_whisper",
         "--hidden-import=uvicorn",
         "--hidden-import=fastapi",
@@ -48,14 +50,26 @@ def build():
         "--hidden-import=keyring.backends.Windows",
         "--hidden-import=engine.system.profiler",
         "--hidden-import=engine.system.provisioner",
-        str(ENTRY_POINT)
+        "--hidden-import=engine.system.subprocesses",
     ]
+
+    dist_folder = ROOT_DIR / "desktop" / "dist"
+    if (dist_folder / "index.html").is_file():
+        sep = ";" if os.name == "nt" else ":"
+        pyinstaller_cmd.append(f"--add-data={dist_folder}{sep}desktop/dist")
+        print(f"Bundling frontend from: {dist_folder}")
+    else:
+        print(f"Notice: frontend dist not found at {dist_folder}; ensure it is built if frontend bundling is required.")
+
+    pyinstaller_cmd.append(str(ENTRY_POINT))
 
     print(f"Executing: {' '.join(pyinstaller_cmd)}")
     subprocess.check_call(pyinstaller_cmd, cwd=str(ROOT_DIR))
 
     exe_name = "autoclip-engine.exe" if os.name == "nt" else "autoclip-engine"
-    built_binary = ROOT_DIR / "build" / "engine-dist" / "autoclip-engine" / exe_name
+    built_binary = ROOT_DIR / "build" / "engine-dist" / exe_name
+    if not built_binary.exists():
+        built_binary = ROOT_DIR / "build" / "engine-dist" / "autoclip-engine" / exe_name
 
     target_standard = TAURI_BIN_DIR / exe_name
     target_triple = TAURI_BIN_DIR / f"autoclip-engine-{triple}{Path(exe_name).suffix}"

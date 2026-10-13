@@ -250,7 +250,7 @@ function triggerErrorDetails(){
               <span>Próximo Passo</span>
             </div>
             <div class="hero-body-text">
-              <h3>Identificar temas e propostas com IA Gemini</h3>
+              <h3>Identificar temas e propostas com Inteligência Artificial</h3>
               <p>A transcrição com {{project.word_count.toLocaleString('pt-BR')}} palavras está pronta. Descubra os momentos com maior potencial de engajamento.</p>
             </div>
             <div class="hero-action-buttons">

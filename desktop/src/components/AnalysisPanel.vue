@@ -214,7 +214,7 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       <div class="resume-info">
         <strong>Análise parcial · {{analysis?.completed_windows}} de {{analysis?.total_windows}} janelas validadas</strong>
         <p>Faltam {{remainingWindows}} janela{{remainingWindows===1?'':'s'}} para concluir a análise completa. Você já pode consultar as propostas validadas ou continuar o processamento agora.</p>
-        <small v-if="analysis?.state==='failed'||analysis?.state==='interrupted'">Se a análise foi interrompida por limite de cota do Gemini (erro 429), aguarde alguns segundos antes de continuar.</small>
+        <small v-if="analysis?.state==='failed'||analysis?.state==='interrupted'">Se a análise foi interrompida por limite de cota da IA (erro 429), aguarde alguns segundos antes de continuar.</small>
       </div>
       <AppButton class="button primary resume-analysis-btn" data-action="resume-analysis" :disabled="busy" @click="emit('resume')">
         <RotateCcw :size="16"/>Continuar análise das {{remainingWindows}} janelas restantes

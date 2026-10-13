@@ -1,4 +1,4 @@
-import secrets
+import secrets, sys
 from pathlib import Path
 from fastapi import FastAPI,HTTPException,Request,Query
 from fastapi.responses import JSONResponse,FileResponse
@@ -76,6 +76,24 @@ class Decision(Input):
 class SystemProvisionInput(Input):
     model_id:str='Systran/faster-whisper-small'
     install_ffmpeg:bool=True
+
+def get_frontend_dist(workspace: Path) -> Path | None:
+    p = workspace / 'desktop/dist'
+    if (p / 'index.html').is_file():
+        return p
+    if getattr(sys, 'frozen', False):
+        if hasattr(sys, '_MEIPASS'):
+            p = Path(sys._MEIPASS) / 'desktop/dist'
+            if (p / 'index.html').is_file():
+                return p
+            p = Path(sys._MEIPASS) / 'dist'
+            if (p / 'index.html').is_file():
+                return p
+        exe_dir = Path(sys.executable).parent
+        for candidate in [exe_dir / 'desktop/dist', exe_dir / 'dist', exe_dir / 'resources/dist']:
+            if (candidate / 'index.html').is_file():
+                return candidate
+    return None
 
 def create_app(workspace:Path,token:str)->FastAPI:
     workspace=Path(workspace).resolve();store=ProjectStore(workspace/'.autoclip/library.sqlite');settings=Settings(workspace)
@@ -335,6 +353,6 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/projects/{pid}/exports')
     def export(pid:str):return reviews.export(Path(store.get(pid)['path']))
 
-    dist=workspace/'desktop/dist'
-    if dist.is_dir():app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')
+    dist=get_frontend_dist(workspace)
+    if dist and dist.is_dir():app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')
     return app
