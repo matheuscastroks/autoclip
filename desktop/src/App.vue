@@ -3,16 +3,22 @@ import AppButton from './components/AppButton.vue'
 import {computed,onMounted,onUnmounted,ref} from 'vue'
 import {Scissors,Layers,Settings2,HardDrive,Plus,FileVideo,Link,FolderOpen,X,RefreshCw,LoaderCircle,ListOrdered,Sparkles,Check,AlertTriangle} from '@lucide/vue'
 import {api} from './api'
-import type {Project,Config,Job,Transcript,Revision,Decision,AnalysisView,AnalysisSelection} from './types'
+import type {Project,Config,Job,Transcript,Revision,Decision,AnalysisView,AnalysisSelection,HardwareProfile} from './types'
 import {active} from './format'
 import ProjectLibrary from './components/ProjectLibrary.vue'
 import ProjectWorkspace from './components/ProjectWorkspace.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import GlobalQueueModal from './components/GlobalQueueModal.vue'
+import OnboardingModal from './components/OnboardingModal.vue'
 import AppToaster from './components/AppToaster.vue'
 import {notify,createJobNotifier} from './notifications'
 const projects=ref<Project[]>([]),config=ref<Config|null>(null),jobs=ref<Job[]>([]),project=ref<Project|null>(null),transcript=ref<Transcript|null>(null),revisions=ref<Revision[]>([])
-const showGlobalQueue=ref(false)
+const showGlobalQueue=ref(false),hardwareProfile=ref<HardwareProfile|null>(null),onboardingDismissed=ref(false)
+const showOnboarding=computed(()=>{
+  if(onboardingDismissed.value||!config.value)return false
+  return !config.value.tools_available||!config.value.asr_available
+})
+async function onDependenciesConfigured(){config.value=await api.config()}
 const activeJobsCount=computed(()=>jobs.value.filter(j=>active(j.status)).length)
 const keyConfigured=computed(()=>{
   if(!config.value)return false
@@ -87,7 +93,7 @@ async function cancelJob(id:string){await action(async()=>{await api.cancel(id);
 async function replaceSource(id:string){await action(async()=>{const path=await api.pick('video');if(!path)return;await api.resume(id,{source_input:path});await refresh();notify.success('Arquivo selecionado. A preparação será retomada neste projeto.')})}
 async function retryClip(value:{job_id:string;candidate_id:string}){await action(async()=>{await api.resume(value.job_id,{candidate_id:value.candidate_id});await refresh();notify.success('Corte enviado para a fila novamente.')})}
 async function resumeJob(id:string){await action(async()=>{await api.resume(id);await refresh()})}
-onMounted(async()=>{try{await Promise.all([refresh(),api.config().then(value=>config.value=value)])}catch(e){notify.error((e as Error).message)}finally{initial.value=false};timer=setInterval(refresh,3000)})
+onMounted(async()=>{try{await Promise.all([refresh(),api.config().then(value=>config.value=value),api.systemProfile().then(res=>hardwareProfile.value=res.profile).catch(()=>{})])}catch(e){notify.error((e as Error).message)}finally{initial.value=false};timer=setInterval(refresh,3000)})
 onUnmounted(()=>{if(timer)clearInterval(timer)})
 </script>
 <template>
@@ -410,6 +416,19 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
       </footer>
     </form>
   </dialog>
+
+  <OnboardingModal
+    v-if="showOnboarding"
+    :profile="hardwareProfile"
+    :tools-missing="!config?.tools_available"
+    :asr-missing="!config?.asr_available"
+    :gemini-key-configured="Boolean(config?.gemini_key_configured)"
+    :openrouter-key-configured="Boolean(config?.openrouter_key_configured)"
+    @close="onboardingDismissed = true"
+    @configured="onDependenciesConfigured"
+    @save-key="saveKey"
+    @save-open-router-key="saveOpenRouterKey"
+  />
 </template>
 
 <style scoped>

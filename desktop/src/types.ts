@@ -14,3 +14,6 @@ export interface Proposal {opening_text?:string;description?:string;candidate_id
 export interface AnalysisView {schema_version:string;state:string;job_id:string|null;analysis_hash:string|null;model:string|null;completed_windows:number;total_windows:number;topic_groups:{id:string;label:string;topic_ids:string[];summaries:string[];evidence_word_ids:string[]}[];proposals:Proposal[]}
 export interface AnalysisSelection {schema_version:string;analysis_hash:string|null;candidate_ids:string[]}
 export interface Decision {revision_id:string;decision:'approved'|'rejected';checks:Checks;notes:string;content_hash:string}
+export interface HardwareProfile {cpu_physical_cores:number;cpu_logical_cores:number;ram_total_gb:number;ram_available_gb:number;has_cuda:boolean;gpu_name:string|null;vram_gb:number;recommended_tier:number;recommended_model_id:string;tier_title:string;tier_description:string}
+export interface ProvisionStatus {status:'idle'|'downloading'|'extracting'|'extracting_ffmpeg'|'ready'|'failed'|'cancelled';stage:string;item:string;downloaded_bytes:number;total_bytes:number;speed_bps:number;percent:number;error:string|null;model_path?:string|null;ffmpeg_path?:string|null;ffprobe_path?:string|null}
+export interface ProvisionRequest {model_id:string;install_ffmpeg:boolean}

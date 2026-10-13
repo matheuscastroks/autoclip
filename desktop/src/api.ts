@@ -1,4 +1,4 @@
-import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection,AnalysisView,AnalysisSelection} from './types'
+import type {Project,Config,Job,Revision,Transcript,Decision,GeminiConnection,AnalysisView,AnalysisSelection,HardwareProfile,ProvisionStatus,ProvisionRequest} from './types'
 let token=''
 export function initializeSession(){
   token=new URLSearchParams(location.hash.slice(1)).get('session')||''
@@ -42,5 +42,9 @@ export const api={
   geminiConnection:()=>request<GeminiConnection>('/config/gemini'),
   testGemini:()=>post<GeminiConnection>('/config/gemini/test'),
   decide:(id:string,decision:Decision)=>post(`/projects/${id}/revisions/${decision.revision_id}/decision`,{decision:decision.decision,checks:decision.checks,notes:decision.notes,content_hash:decision.content_hash}),
-  openFolder:(id:string)=>post(`/projects/${id}/open-folder`),shutdown:()=>post('/shutdown')
+  openFolder:(id:string)=>post(`/projects/${id}/open-folder`),shutdown:()=>post('/shutdown'),
+  systemProfile:()=>request<{schema_version:string;profile:HardwareProfile}>('/system/profile'),
+  provision:(body:ProvisionRequest)=>post<ProvisionStatus>('/system/provision',body),
+  provisionStatus:()=>request<ProvisionStatus>('/system/provision/status'),
+  cancelProvision:()=>post<{cancelled:boolean}>('/system/provision/cancel')
 }
