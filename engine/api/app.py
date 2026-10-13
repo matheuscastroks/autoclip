@@ -57,6 +57,8 @@ class NewProject(Input):
     max_calls:int|None=Field(default=None,ge=1,le=100)
 class Picker(Input):
     kind:str
+class BulkCuts(Input):
+    revision_ids:list[str]=Field(min_length=1,max_length=1000)
 class Decision(Input):
     decision:str
     checks:EditorialChecks
@@ -233,6 +235,25 @@ def create_app(workspace:Path,token:str)->FastAPI:
         from .native import open_directory
         open_directory(Path(store.get(pid)['path']));return {'opened':True}
     from . import reviews
+    @app.post('/api/v1/projects/{pid}/revisions/bulk-delete')
+    def bulk_delete(pid:str,value:BulkCuts):
+        with jobs.lock:
+            editable(pid,cut_delete=True)
+            root=Path(store.get(pid)['path'])
+            ids=set(value.revision_ids)
+            available={r['revision_id'] for r in reviews.list_revisions(root)}
+            if not ids<=available:raise HTTPException(409,'A lista de cortes mudou. Atualize antes de excluir.')
+            for rid in ids:reviews.set_deleted(root,rid,True)
+            return {'deleted':len(ids)}
+    @app.post('/api/v1/projects/{pid}/revisions/bulk-export')
+    def bulk_export(pid:str,value:BulkCuts):
+        with jobs.lock:
+            editable(pid)
+            root=Path(store.get(pid)['path']);ids=set(value.revision_ids)
+            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['review_status']=='approved' and r['technical_pass']}
+            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam estar aprovados e válidos.')
+            from engine.pipeline.runner import export_approved
+            return {'paths':export_approved(root,ids)}
     @app.get('/api/v1/projects/{pid}/revisions')
     def revisions(pid:str):return reviews.list_revisions(Path(store.get(pid)['path']))
     @app.get('/api/v1/projects/{pid}/deleted-revisions')

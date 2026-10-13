@@ -152,11 +152,12 @@ def resume_project(project_root:Path,config:PipelineConfig|None=None) -> Project
     config=config or PipelineConfig.model_validate_json((root/'config.json').read_bytes())
     return run_project(source,config,root)
 
-def export_approved(project_root:Path):
+def export_approved(project_root:Path,revision_ids=None):
     root=Path(project_root).resolve();state=ProjectRun.model_validate_json((root/'project.json').read_bytes())
     if file_hash(state.source.local_path)!=state.source.sha256: raise PipelineError('SOURCE_CHANGED','export','Source changed.')
     exported=[]
     for revision in state.revisions:
+        if revision_ids is not None and revision['revision_id'] not in revision_ids:continue
         folder=root/'revisions'/revision['revision_id']
         if (folder/'deleted.json').is_file():continue
         decision_path=folder/'review.json'

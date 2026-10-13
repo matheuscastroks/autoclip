@@ -6,6 +6,8 @@ def test_partial_project_cannot_approve_or_export(client,tmp_path):
     assert client.get(f'/api/v1/projects/{pid}/revisions').json()==[]
     assert client.post(f'/api/v1/projects/{pid}/revisions/unknown/decision',json={'decision':'approved','checks':{'completeness':True,'context':True,'qualifications':True,'words_and_boundaries':True,'audiovisual':True},'notes':'Fixture','content_hash':'a'*64}).status_code in (400,404)
     assert client.post(f'/api/v1/projects/{pid}/exports').status_code==400
+    assert client.post(f'/api/v1/projects/{pid}/revisions/bulk-export',json={'revision_ids':['unknown']}).status_code==409
+    assert client.post(f'/api/v1/projects/{pid}/revisions/bulk-delete',json={'revision_ids':['unknown']}).status_code==409
 
 def test_cancelled_native_picker_does_not_create_project(client,monkeypatch):
     from engine.api import native

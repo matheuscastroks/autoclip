@@ -34,3 +34,5 @@ button{font-family:inherit}button:disabled{opacity:.48;cursor:not-allowed}button
 html{scroll-padding-top:calc(var(--shell-height) + 16px)}
 @media(min-width:761px){.cuts-player-rail,.generation-sidebar{top:calc(var(--shell-height) + 16px)}}
 .main-content :where(button,input,textarea,summary,[tabindex]){scroll-margin-top:calc(var(--shell-height) + 16px)}
+
+.bulk-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}.cuts-table .bulk-check{width:40px;min-width:40px!important;padding:10px}.bulk-check input{accent-color:var(--accent);width:16px;height:16px}
