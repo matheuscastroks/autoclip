@@ -9,6 +9,13 @@ def locate_tools():
     found=shutil.which('ffmpeg')
     candidates=[Path(found)] if found else []
     candidates += list((Path.home()/'AppData/Local/Microsoft/WinGet/Packages').glob('Gyan.FFmpeg_*/**/ffmpeg.exe'))
+    try:
+        from engine.system.provisioner import get_storage_base
+        auto_bin = get_storage_base() / 'bin' / ('ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')
+        if auto_bin.is_file():
+            candidates.insert(0, auto_bin)
+    except Exception:
+        pass
     for ffmpeg in candidates:
         ffprobe=ffmpeg.with_name('ffprobe.exe' if os.name=='nt' else 'ffprobe')
         if ffmpeg.is_file() and ffprobe.is_file(): return ffmpeg,ffprobe

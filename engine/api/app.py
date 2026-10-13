@@ -73,6 +73,9 @@ class Decision(Input):
     checks:EditorialChecks
     notes:str=Field(default='',max_length=10000)
     content_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
+class SystemProvisionInput(Input):
+    model_id:str='Systran/faster-whisper-small'
+    install_ffmpeg:bool=True
 
 def create_app(workspace:Path,token:str)->FastAPI:
     workspace=Path(workspace).resolve();store=ProjectStore(workspace/'.autoclip/library.sqlite');settings=Settings(workspace)
@@ -88,6 +91,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
     gemini_connection=GeminiConnection();app.state.gemini_connection=gemini_connection
     from .jobs import JobManager
     jobs=JobManager(store,workspace);app.state.jobs=jobs
+    from engine.system.profiler import profile_hardware
+    from engine.system.provisioner import DependencyProvisioner
+    provisioner=DependencyProvisioner();app.state.provisioner=provisioner
     def describe(row):
         rows=[j for j in store.jobs() if j['project_id']==row['id']]
         executing=[j for j in rows if j['status'] in ('running','cancelling')]
@@ -151,6 +157,25 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def gemini_status():return gemini_connection.status()
     @app.post('/api/v1/config/gemini/test')
     def gemini_test():return gemini_connection.validate()
+    @app.get('/api/v1/system/profile')
+    def system_profile():return {'schema_version':'1.0','profile':profile_hardware().to_dict()}
+    @app.post('/api/v1/system/provision')
+    def system_provision(value:SystemProvisionInput):
+        try:return provisioner.start(value.model_id,value.install_ffmpeg)
+        except RuntimeError as exc:raise HTTPException(409,str(exc))
+    @app.get('/api/v1/system/provision/status')
+    def system_provision_status():
+        st=provisioner.status()
+        if st.get('status')=='ready' and st.get('model_path'):
+            cfg=settings.get();updates={}
+            if st.get('model_path') and cfg.get('asr_model_path')!=st['model_path']:updates['asr_model_path']=st['model_path']
+            if st.get('ffmpeg_path') and cfg.get('ffmpeg')!=st['ffmpeg_path']:updates['ffmpeg']=st['ffmpeg_path']
+            if st.get('ffprobe_path') and cfg.get('ffprobe')!=st['ffprobe_path']:updates['ffprobe']=st['ffprobe_path']
+            if updates:settings.save({**cfg,**updates})
+        return st
+    @app.post('/api/v1/system/provision/cancel')
+    def system_provision_cancel():
+        provisioner.cancel();return {'cancelled':True}
     @app.get('/api/v1/projects')
     def projects():return [describe(row) for row in store.list_projects()]
     @app.post('/api/v1/projects')
