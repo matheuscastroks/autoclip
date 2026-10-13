@@ -15,6 +15,12 @@ def test_analysis_selection_and_worker_snapshot(client,tmp_path):
     view=client.get(f'/api/v1/projects/{pid}/analysis').json()
     assert len(view['proposals'])==2 and view['proposals'][0]['duration_us']==30_000_000
     choice={'analysis_hash':view['analysis_hash'],'candidate_ids':[str(c.id),str(other.id)]}
+    assert client.put(f'/api/v1/projects/{pid}/analysis-selection',json=choice).status_code==422
+    t.words.extend([Word(id='next',text='Outro',start_us=30_000_000,end_us=31_000_000),Word(id='finish',text='Fim',start_us=59_000_000,end_us=60_000_000)])
+    other.start_word_id='next';other.end_word_id='finish';other.evidence_word_ids=['next','finish']
+    a.covered_word_ids=[w.id for w in t.words]
+    atomic_json(root/'transcript.json',t);atomic_json(root/'analysis.json',a)
+    view=client.get(f'/api/v1/projects/{pid}/analysis').json();choice['analysis_hash']=view['analysis_hash']
     assert client.put(f'/api/v1/projects/{pid}/analysis-selection',json=choice).status_code==200
     assert client.get(f'/api/v1/projects/{pid}/analysis-selection').json()['candidate_ids']==choice['candidate_ids']
     invalid={**choice,'analysis_hash':'0'*64}

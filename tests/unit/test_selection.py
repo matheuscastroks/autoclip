@@ -17,3 +17,17 @@ def test_no_or_uncertain_editorial_flags_are_not_automatically_selected():
     t=transcript();c=Candidate.model_validate(payload(t)['candidates'][0]);c.editorial.qualification_preserved='uncertain'
     a=AnalysisArtifact(transcript_id=t.transcript_id,complete=True,covered_word_ids=[w.id for w in t.words],model='fixture',prompt_hash='fixture',payload_hashes=[],candidates=[c])
     assert select_candidates(a,t,SelectionConfig()).candidates==[]
+
+def test_even_small_overlap_is_rejected_but_adjacent_ranges_are_allowed():
+    from engine.editorial.select import select_candidates
+    from engine.contracts import AnalysisArtifact,SelectionConfig,Candidate
+    from uuid import uuid4
+    t=transcript();c=Candidate.model_validate(payload(t)['candidates'][0])
+    first=c.model_copy(update={'end_word_id':'w15'})
+    second=c.model_copy(update={'id':uuid4(),'start_word_id':'w15'})
+    a=AnalysisArtifact(transcript_id=t.transcript_id,complete=True,covered_word_ids=[w.id for w in t.words],model='fixture',prompt_hash='fixture',payload_hashes=[],candidates=[first,second])
+    config=SelectionConfig(min_us=1,max_us=300_000_000)
+    result=select_candidates(a,t,config)
+    assert len(result.candidates)==1 and result.rejected[0]['reason']=='overlapping source interval'
+    second.start_word_id='w16'
+    assert len(select_candidates(a,t,config).candidates)==2

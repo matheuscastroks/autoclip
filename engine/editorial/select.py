@@ -11,8 +11,9 @@ def validate_explicit_candidates(analysis,transcript,config,candidate_ids):
         checked=select_candidates(single,transcript,config)
         if checked.rejected:raise PipelineError('UNSAFE_SELECTION','select',checked.rejected[0]['reason'])
         kept.extend(checked.candidates)
-    # Explicit variants are intentional; overlap and automatic batch limits do not discard them.
-    return CandidateArtifact(transcript_id=transcript.transcript_id,candidates=kept)
+    batch=select_candidates(analysis.model_copy(update={'candidates':kept}),transcript,config)
+    if batch.rejected:raise PipelineError('UNSAFE_SELECTION','select',batch.rejected[0]['reason'])
+    return batch
 
 
 def select_candidates(analysis:AnalysisArtifact,transcript:TranscriptArtifact,config:SelectionConfig) -> CandidateArtifact:
@@ -30,7 +31,7 @@ def select_candidates(analysis:AnalysisArtifact,transcript:TranscriptArtifact,co
             else:
                 start,end=transcript.words[a].start_us,max(w.end_us for w in transcript.words[a:b+1])
                 if not config.min_us<=end-start<=config.max_us: reason=f'duration outside {config.min_us/1e6:g}–{config.max_us/1e6:g} seconds'
-                elif any(max(0,min(end,y)-max(start,x))/(max(end,y)-min(start,x))>=.5 for x,y in ranges): reason='duplicate overlapping candidate'
+                elif any(start<y and end>x for x,y in ranges): reason='overlapping source interval'
                 elif len(kept)>=config.max_clips: reason='maximum candidates reached'
                 else: kept.append(candidate);ranges.append((start,end))
         if reason: rejected.append({'candidate_id':str(candidate.id),'reason':reason})

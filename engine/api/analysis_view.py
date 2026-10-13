@@ -56,6 +56,8 @@ def validate_selection(root,analysis_hash,candidate_ids,max_seconds=180):
     if len(candidate_ids)>10 and AnalysisArtifact.model_validate_json((Path(root)/'analysis.json').read_bytes()).clip_min_seconds>=60:raise HTTPException(422,'Selecione no máximo 10 cortes.')
     eligible={c['candidate_id'] for c in view['proposals'] if c['eligible']}
     if len(candidate_ids)!=len(set(candidate_ids)) or not set(candidate_ids)<=eligible:raise HTTPException(422,'Seleção inválida ou com trechos que precisam de atenção.')
+    ranges=sorted((c['start_us'],c['end_us']) for c in view['proposals'] if c['candidate_id'] in candidate_ids)
+    if any(start<previous_end for (_,previous_end),(start,_) in zip(ranges,ranges[1:])):raise HTTPException(422,'Os cortes selecionados se sobrepõem no vídeo original. Escolha apenas um trecho de cada intervalo.')
     value={'schema_version':'1.0','analysis_hash':analysis_hash,'candidate_ids':candidate_ids}
     return value
 
