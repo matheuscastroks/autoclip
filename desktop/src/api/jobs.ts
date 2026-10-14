@@ -8,4 +8,5 @@ export const jobsApi = {
   cancel: (jobId: string) => post<Job>(`/jobs/${jobId}/cancel`),
   resume: (jobId: string, options?: { source_input?: string; candidate_id?: string }) =>
     post<Job>(`/jobs/${jobId}/resume`, options),
+  clearHistory: () => post<{ cleared: number }>('/jobs/clear-history'),
 };

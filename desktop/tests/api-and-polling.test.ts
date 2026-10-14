@@ -54,6 +54,40 @@ describe('api/client', () => {
 
     await expect(request('/bad-request')).rejects.toThrow('Parâmetro inválido');
   });
+
+  it('executa projectsApi.deletePermanent com query permanent=true', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ deleted: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { projectsApi } = await import('../src/api/projects');
+    const res = await projectsApi.deletePermanent('proj-123');
+    expect(res).toEqual({ deleted: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/projects/proj-123?permanent=true'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('executa jobsApi.clearHistory disparando POST /jobs/clear-history', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ cleared: 5 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { jobsApi } = await import('../src/api/jobs');
+    const res = await jobsApi.clearHistory();
+    expect(res).toEqual({ cleared: 5 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/jobs/clear-history'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
 });
 
 describe('composables/usePolling', () => {

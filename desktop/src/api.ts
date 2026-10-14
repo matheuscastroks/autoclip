@@ -18,6 +18,7 @@ export const api = {
   importProject: projectsApi.import,
   create: projectsApi.create,
   deleteProject: projectsApi.delete,
+  deletePermanent: projectsApi.deletePermanent,
   trash: projectsApi.trash,
   restoreProject: projectsApi.restore,
   openFolder: projectsApi.openFolder,
@@ -41,6 +42,7 @@ export const api = {
   start: jobsApi.start,
   cancel: jobsApi.cancel,
   resume: jobsApi.resume,
+  clearJobHistory: jobsApi.clearHistory,
 
   // Configuração
   config: configApi.get,

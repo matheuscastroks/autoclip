@@ -7,7 +7,8 @@ export const projectsApi = {
   create: (name: string, source_input: string, options: Record<string, unknown> = {}) =>
     post<{ project: Project; job: import('../types').Job }>('/projects', { name, source_input, ...options }),
   import: (path: string) => post<Project>('/projects/import', { path }),
-  delete: (id: string) => del<void>(`/projects/${id}`),
+  delete: (id: string, permanent = true) => del<{ deleted: boolean }>(`/projects/${id}?permanent=${permanent}`),
+  deletePermanent: (id: string) => del<{ deleted: boolean }>(`/projects/${id}?permanent=true`),
   trash: () => request<{ id: string; name: string; deleted_at: string }[]>('/trash'),
   restore: (id: string) => post<void>(`/trash/${id}/restore`),
   openFolder: (id: string) => post<void>(`/projects/${id}/open-folder`),
