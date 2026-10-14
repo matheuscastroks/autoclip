@@ -1046,10 +1046,9 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(217, 119, 36, 0.06) 100%);
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-left: 4px solid var(--color-accent, var(--accent));
-  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel, 8px);
   padding: 20px 24px;
   margin-bottom: 24px;
 }
@@ -1068,7 +1067,7 @@ onUnmounted(() => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-accent, var(--accent));
+  color: var(--color-text-secondary);
 }
 
 .readiness-info h2 {
@@ -1143,7 +1142,7 @@ onUnmounted(() => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-accent, var(--accent));
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
@@ -1185,8 +1184,8 @@ onUnmounted(() => {
 }
 
 .source-switch button.selected {
-  background: var(--color-surface, var(--panel));
-  color: var(--color-accent, var(--accent));
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
@@ -1201,7 +1200,7 @@ onUnmounted(() => {
 }
 
 .studio-file-drop:hover {
-  border-color: var(--color-accent, var(--accent));
+  border-color: var(--color-border-strong);
 }
 
 .drop-prompt {
@@ -1215,8 +1214,9 @@ onUnmounted(() => {
   width: 54px;
   height: 54px;
   border-radius: 14px;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--color-accent, var(--accent));
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
   display: grid;
   place-items: center;
   margin-bottom: 4px;
@@ -1332,7 +1332,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-accent, var(--accent));
+  color: var(--color-text-primary);
   font-size: 0.85rem;
 }
 
