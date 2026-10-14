@@ -111,7 +111,7 @@ function copyDescription(){
   </div>
 
   <el-splitter v-if="!manual&&hasCutsOrGeneration" class="cuts-review-layout">
-    <el-splitter-panel :min="380" class="cuts-review-left-panel">
+    <el-splitter-panel :size="800" :min="380" class="cuts-review-left-panel">
       <div class="panel-inner-container custom-scrollbar">
         <div class="cuts-review-left">
           <!-- BARRA DE FILTROS DOS CORTES -->
@@ -380,10 +380,10 @@ function copyDescription(){
             </div>
           </div>
         </section>
+        </div>
       </div>
     </div>
-  </div>
-</el-splitter-panel>
+  </el-splitter-panel>
 
     <!-- PLAYER VERTICAL 9:16 CALIBRADO (COLUNA DA DIREITA) -->
     <el-splitter-panel :size="320" :min="260" :max="480" class="cuts-player-rail-panel">
