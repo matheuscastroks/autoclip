@@ -258,21 +258,14 @@ function timeAgo(value: number) {
             }}
           </p>
 
-          <!-- Métricas de Cortes e IA -->
+          <!-- Métricas inline limpas (sem cardception/chips) -->
           <div class="project-metrics-row">
-            <div class="metric-chip">
-              <Sparkles :size="13" />
-              <span>{{ project.summary?.proposed ?? '—' }} propostas</span>
-            </div>
-            <div
-              class="metric-chip highlight"
-              v-if="project.summary?.selected || project.summary?.generated"
-            >
-              <span
-                >{{ project.summary?.selected ?? 0 }} selecionados ·
-                {{ project.summary?.generated ?? 0 }} prontos</span
-              >
-            </div>
+            <span class="project-metrics-inline">
+              {{ project.summary?.proposed ?? '—' }} propostas
+              <template v-if="project.summary?.selected || project.summary?.generated">
+                · <span class="highlight-count">{{ project.summary?.selected ?? 0 }} selecionados</span> · {{ project.summary?.generated ?? 0 }} prontos
+              </template>
+            </span>
           </div>
         </div>
 
@@ -288,12 +281,12 @@ function timeAgo(value: number) {
           </span>
 
           <div class="card-actions-group">
-            <el-tooltip content="Excluir projeto" placement="top">
+            <el-tooltip content="Excluir projeto permanentemente" placement="top">
               <AppButton
                 type="button"
                 class="icon-button delete-btn"
                 data-action="delete-project"
-                title="Excluir projeto"
+                title="Excluir projeto permanentemente"
                 :disabled="busy || activeProjects?.includes(project.id)"
                 @click.stop="$emit('delete', project.id)"
               >
@@ -391,7 +384,7 @@ function timeAgo(value: number) {
           type="button"
           class="icon-button"
           data-action="delete-project"
-          title="Excluir projeto"
+          title="Excluir projeto permanentemente"
           :disabled="busy || activeProjects?.includes(project.id)"
           @click.stop="$emit('delete', project.id)"
         >
@@ -400,63 +393,29 @@ function timeAgo(value: number) {
       </div>
     </section>
 
-    <!-- ESTADO 3: ESTADO VAZIO / ONBOARDING INTEGRADO -->
+    <!-- ESTADO 3: ESTADO VAZIO -->
     <section v-if="!filtered.length" class="empty-state studio-empty-state">
       <div class="empty-icon-wrap">
-        <FileVideo :size="40" />
+        <FileVideo :size="32" />
       </div>
-      <h2>{{ projects.length ? 'Nenhum resultado encontrado' : 'Nenhum projeto ainda' }}</h2>
+      <h2>{{ projects.length ? 'Nenhum resultado encontrado' : 'Nenhum projeto' }}</h2>
       <p>
         {{
           projects.length
             ? 'Tente outros termos de busca ou selecione outro filtro de estado.'
-            : 'Comece importando um vídeo longo (entrevista, podcast, palestra) para gerar cortes verticais prontos para redes sociais.'
+            : 'Importe um vídeo para gerar cortes verticais.'
         }}
       </p>
-
-      <div v-if="!projects.length" class="empty-quick-steps">
-        <div class="step-mini-card">
-          <span class="mini-step-num">1</span>
-          <strong>Importe o vídeo</strong>
-          <span>Cole a URL do YouTube ou selecione um arquivo local</span>
-        </div>
-        <div class="step-mini-card">
-          <span class="mini-step-num">2</span>
-          <strong>Transcrição & IA</strong>
-          <span>O Whisper transcreve e o Gemini acha os melhores ganchos</span>
-        </div>
-        <div class="step-mini-card">
-          <span class="mini-step-num">3</span>
-          <strong>Cortes Verticais</strong>
-          <span>Revise o vídeo 9:16 com legendas e baixe para postar</span>
-        </div>
-      </div>
 
       <AppButton
         v-if="!projects.length"
         class="button primary start-first-btn"
         @click="$emit('create')"
       >
-        <Plus :size="18" />
-        <span>Criar meu primeiro projeto</span>
+        <Plus :size="16" />
+        <span>Novo projeto</span>
       </AppButton>
     </section>
-
-    <!-- Rodapé da Biblioteca -->
-    <footer class="library-footer-bar">
-      <AppButton class="button secondary small trash-access-btn" @click="$emit('trash')">
-        <Trash2 :size="14" />
-        <span>Lixeira de projetos</span>
-      </AppButton>
-
-      <div class="library-privacy-guarantee">
-        <span
-          ><span class="local-dot"></span>Privacidade Local-First: Mídia e transcrição ficam no seu
-          computador</span
-        >
-        <span>A análise inteligente envia somente o texto transcrito</span>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -684,23 +643,16 @@ function timeAgo(value: number) {
 }
 .project-metrics-row {
   display: flex;
-  gap: 8px;
   margin-top: 4px;
 }
-.metric-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--color-surface-raised, #1e232b);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.74rem;
+.project-metrics-inline {
+  font-size: 0.78rem;
   color: var(--color-text-muted, #9aa4b2);
+  font-variant-numeric: tabular-nums;
 }
-.metric-chip.highlight {
+.project-metrics-inline .highlight-count {
   color: var(--color-accent, #d97724);
-  border-color: rgba(217, 119, 36, 0.3);
+  font-weight: 500;
 }
 .card-footer {
   padding: 10px 16px;
@@ -727,93 +679,43 @@ function timeAgo(value: number) {
 
 /* Estado Vazio */
 .studio-empty-state {
-  background: var(--color-surface, #16191f);
-  border: 1px dashed var(--color-border-subtle, #2a303c);
-  border-radius: 16px;
+  background: var(--color-surface, #121518);
+  border: 1px dashed var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: 12px;
   padding: 48px 24px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .empty-icon-wrap {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  background: var(--color-accent-soft, #2e1f12);
-  color: var(--color-accent, #d97724);
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: var(--color-surface-raised, #181b20);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  color: var(--color-text-muted, #9aa4b2);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .studio-empty-state h2 {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--color-text-primary, #f2f4f7);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 .studio-empty-state p {
   color: var(--color-text-muted, #9aa4b2);
-  max-width: 48ch;
+  max-width: 44ch;
   margin: 0;
-}
-.empty-quick-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  max-width: 720px;
-  margin: 16px 0;
-  text-align: left;
-}
-.step-mini-card {
-  background: var(--color-surface-raised, #1e232b);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 10px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.mini-step-num {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--color-accent, #d97724);
-}
-.step-mini-card strong {
-  font-size: 0.85rem;
-  color: var(--color-text-primary, #f2f4f7);
-}
-.step-mini-card span {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #9aa4b2);
-  line-height: 1.35;
+  font-size: 0.88rem;
 }
 .start-first-btn {
-  font-weight: 600;
-  padding: 10px 20px;
-}
-
-/* Rodapé */
-.library-footer-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-border-subtle, #2a303c);
-  flex-wrap: wrap;
-}
-.library-privacy-guarantee {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #9aa4b2);
-}
-
-@media (max-width: 768px) {
-  .empty-quick-steps {
-    grid-template-columns: 1fr;
-  }
+  font-weight: 500;
+  padding: 8px 16px;
+  margin-top: 4px;
 }
 </style>

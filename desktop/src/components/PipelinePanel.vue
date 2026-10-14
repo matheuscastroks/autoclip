@@ -201,11 +201,6 @@ function triggerErrorDetails() {
       <section class="dashboard-hero-column">
         <!-- ESTADO 1: ATENÇÃO / FALHA (Última Falha & Ação Contextual de Retomada) -->
         <article v-if="hasFailure" class="state-hero-card attention-mode" data-state="attention">
-          <div class="hero-header-badge attention-badge">
-            <AlertCircle :size="14" />
-            <span>A geração precisa de atenção</span>
-          </div>
-
           <div class="hero-body-text">
             <h3>
               {{ importRecovery ? 'Falha na importação do vídeo' : 'A geração precisa de atenção' }}
@@ -213,7 +208,7 @@ function triggerErrorDetails() {
             <p>
               {{
                 importRecovery
-                  ? 'O link do YouTube foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
+                  ? 'O link foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
                   : 'Uma das prévias apresentou erro durante a renderização. Os resultados preservados continuam disponíveis.'
               }}
             </p>
@@ -284,21 +279,16 @@ function triggerErrorDetails() {
           class="state-hero-card processing-mode"
           data-state="processing"
         >
-          <div class="hero-header-badge processing-badge">
-            <LoaderCircle class="spin" :size="14" />
-            <span>Processando seu projeto</span>
-          </div>
-
           <div class="hero-body-text">
             <h3>Processamento em andamento</h3>
-            <p>O motor AutoClip está executando a etapa atual em segundo plano de forma local.</p>
+            <p>Executando etapa atual em segundo plano.</p>
           </div>
 
           <div class="processing-status-strip">
             <el-progress
               :indeterminate="true"
               :percentage="75"
-              :stroke-width="5"
+              :stroke-width="4"
               :show-text="false"
               color="#d97724"
               class="stage-progress indeterminate"
@@ -314,7 +304,7 @@ function triggerErrorDetails() {
               :disabled="job.status === 'cancelling'"
               @click="$emit('cancel', job.id)"
             >
-              <Square :size="14" />Cancelar processamento
+              <Square :size="14" />Cancelar
             </AppButton>
           </div>
         </article>
@@ -323,16 +313,9 @@ function triggerErrorDetails() {
         <article v-else class="state-hero-card ready-mode" data-state="ready">
           <!-- CASO A: Transcrição Pendente -->
           <template v-if="!project.has_transcript">
-            <div class="hero-header-badge ready-badge">
-              <Sparkles :size="14" />
-              <span>Próximo Passo</span>
-            </div>
             <div class="hero-body-text">
-              <h3>Transcrever áudio original com Whisper local</h3>
-              <p>
-                O vídeo original está pronto. Gere a transcrição completa com marcação temporal
-                precisa usando o modelo local.
-              </p>
+              <h3>Transcrição pendente</h3>
+              <p>Gere a transcrição com marcação temporal para habilitar a curadoria.</p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -340,23 +323,16 @@ function triggerErrorDetails() {
                 :disabled="busy || !project.source || processing"
                 @click="$emit('transcribe')"
               >
-                <Play :size="15" />Transcrever vídeo agora
+                <Play :size="15" />Transcrever áudio
               </AppButton>
             </div>
           </template>
 
           <!-- CASO B: Análise Pendente -->
           <template v-else-if="!project.has_analysis">
-            <div class="hero-header-badge ready-badge">
-              <Sparkles :size="14" />
-              <span>Próximo Passo</span>
-            </div>
             <div class="hero-body-text">
-              <h3>Identificar temas e propostas com Inteligência Artificial</h3>
-              <p>
-                A transcrição com {{ project.word_count.toLocaleString('pt-BR') }} palavras está
-                pronta. Descubra os momentos com maior potencial de engajamento.
-              </p>
+              <h3>Análise pendente</h3>
+              <p>Analise o conteúdo transcrito ({{ project.word_count.toLocaleString('pt-BR') }} palavras) para descobrir os melhores cortes.</p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -364,24 +340,16 @@ function triggerErrorDetails() {
                 :disabled="busy || processing"
                 @click="$emit('analyze')"
               >
-                <Sparkles :size="15" />Iniciar análise inteligente
+                <Sparkles :size="15" />Analisar transcrição
               </AppButton>
             </div>
           </template>
 
           <!-- CASO C: Seleção Pendente -->
           <template v-else-if="!hasCuts && (!selectedCount || selectedCount === 0)">
-            <div class="hero-header-badge ready-badge">
-              <Scissors :size="14" />
-              <span>Curadoria Pronta</span>
-            </div>
             <div class="hero-body-text">
-              <h3>Curadoria editorial de cortes disponível</h3>
-              <p>
-                A IA encontrou {{ analysis?.proposals.length || 0 }} propostas e
-                {{ analysis?.topic_groups.length || 0 }} temas. Escolha os melhores trechos na tela
-                de curadoria.
-              </p>
+              <h3>Curadoria de cortes disponível</h3>
+              <p>{{ analysis?.proposals.length || 0 }} propostas e {{ analysis?.topic_groups.length || 0 }} temas identificados.</p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -389,23 +357,16 @@ function triggerErrorDetails() {
                 :disabled="busy"
                 @click="$emit('analysis')"
               >
-                <Scissors :size="15" />Abrir Curadoria e Selecionar Cortes
+                <Scissors :size="15" />Selecionar cortes
               </AppButton>
             </div>
           </template>
 
           <!-- CASO D: Pronto para Renderizar Cortes -->
           <template v-else-if="!hasCuts && selectedCount && selectedCount > 0">
-            <div class="hero-header-badge ready-badge">
-              <Film :size="14" />
-              <span>Pronto para Renderização</span>
-            </div>
             <div class="hero-body-text">
-              <h3>{{ selectedCount }} trecho(s) selecionado(s) para renderização</h3>
-              <p>
-                Seus cortes escolhidos estão prontos para virar vídeos verticais 9:16 com
-                enquadramento dinâmico e legendas automáticas.
-              </p>
+              <h3>{{ selectedCount }} corte(s) pronto(s) para renderização</h3>
+              <p>Gere as prévias verticais 9:16 com enquadramento e legendas.</p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -413,7 +374,7 @@ function triggerErrorDetails() {
                 :disabled="busy || !selectedCount || !project.has_analysis"
                 @click="$emit('generate')"
               >
-                <Film :size="15" />Gerar {{ selectedCount }} Prévia(s) Vertical(is)
+                <Film :size="15" />Gerar {{ selectedCount }} corte(s)
               </AppButton>
               <AppButton class="button secondary" @click="$emit('analysis')">
                 Ajustar seleção
@@ -423,20 +384,13 @@ function triggerErrorDetails() {
 
           <!-- CASO E: Cortes Prontos para Revisão / Exportação -->
           <template v-else>
-            <div class="hero-header-badge ready-badge">
-              <Check :size="14" />
-              <span>Cortes Prontos</span>
-            </div>
             <div class="hero-body-text">
-              <h3>{{ revisions?.length || 0 }} corte(s) gerado(s) disponíveis para revisão</h3>
-              <p>
-                Assista aos vídeos verticais 9:16, faça ajustes finos nas legendas e baixe os
-                arquivos finais para publicação.
-              </p>
+              <h3>{{ revisions?.length || 0 }} corte(s) gerado(s)</h3>
+              <p>Revise os cortes verticais e exporte os arquivos aprovados.</p>
             </div>
             <div class="hero-action-buttons">
               <AppButton class="button primary hero-primary-btn" @click="$emit('review')">
-                <Play :size="15" />Abrir Estúdio de Revisão 9:16
+                <Play :size="15" />Revisar cortes
               </AppButton>
               <AppButton
                 v-if="approved"

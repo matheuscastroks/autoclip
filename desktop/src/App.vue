@@ -121,16 +121,26 @@ async function loadCover(row: Project) {
     coverPending.delete(row.id);
   }
 }
+const projectToDelete = ref<Project | null>(null);
+const deleteConfirmDialog = ref<HTMLDialogElement>();
+
 async function deleteProject(id: string) {
   const row = projects.value.find(p => p.id === id);
-  if (
-    !confirm(
-      'Mover ' +
-        (row?.title || row?.name || 'projeto') +
-        ' para a lixeira? O original será preservado.'
-    )
-  )
-    return;
+  if (!row) return;
+  projectToDelete.value = row;
+  if (deleteConfirmDialog.value?.showModal) {
+    deleteConfirmDialog.value.showModal();
+  } else {
+    await confirmDeleteProject();
+  }
+}
+
+async function confirmDeleteProject() {
+  if (!projectToDelete.value) return;
+  const id = projectToDelete.value.id;
+  try {
+    deleteConfirmDialog.value?.close();
+  } catch {}
   await action(async () => {
     await api.deletePermanent(id);
     if (project.value?.id === id) {
@@ -139,7 +149,9 @@ async function deleteProject(id: string) {
     }
     delete covers.value[id];
     await refresh();
+    notify.success('Projeto excluído com sucesso.');
   });
+  projectToDelete.value = null;
 }
 async function deleteClip(id: string) {
   if (
@@ -724,14 +736,13 @@ onUnmounted(() => {
       @close="showGlobalQueue = false"
     />
 
-    <!-- CENTRO DE IMPORTAÇÃO E CRIAÇÃO DE PROJETOS DO ESTÚDIO -->
+    <!-- MODAL DE NOVO PROJETO (MINIMALISTA LINEAR / 1080P SAFE) -->
     <dialog ref="dialog" class="modal studio-dialog">
       <form @submit.prevent="create" class="studio-import-form">
         <header class="studio-dialog-header">
           <div class="studio-dialog-title-wrap">
-            <span class="dialog-eyebrow"><Scissors :size="13" />Estúdio de Criação</span>
             <h2>Novo projeto</h2>
-            <p>Comece com um vídeo. O original será preservado.</p>
+            <p>Selecione um vídeo local ou informe um link do YouTube.</p>
           </div>
           <AppButton
             type="button"
@@ -739,7 +750,7 @@ onUnmounted(() => {
             title="Fechar"
             @click="dialog?.close()"
           >
-            <X :size="19" />
+            <X :size="18" />
           </AppButton>
         </header>
 
@@ -755,7 +766,7 @@ onUnmounted(() => {
               sourceInput = '';
             "
           >
-            <FileVideo :size="17" />Arquivo local
+            <FileVideo :size="15" />Arquivo local
           </AppButton>
           <AppButton
             type="button"
@@ -767,25 +778,16 @@ onUnmounted(() => {
               sourceInput = '';
             "
           >
-            <Link :size="17" />Link do YouTube
+            <Link :size="15" />Link do YouTube
           </AppButton>
         </div>
 
         <!-- Área de Origem: Arquivo Local -->
         <div v-if="sourceKind === 'file'" class="file-drop studio-file-drop">
-          <div v-if="sourceInput" class="selected-file-card">
-            <div class="file-icon-badge"><FileVideo :size="28" /></div>
-            <div class="file-info-col">
+          <div v-if="sourceInput" class="selected-file-row">
+            <div class="file-meta">
               <strong>{{ sourceInput.split(/[\\/]/).pop() }}</strong>
-              <small class="file-path-text" :title="sourceInput">{{ sourceInput }}</small>
-              <el-tag
-                size="small"
-                type="success"
-                effect="dark"
-                class="status-pill ready-pill"
-                data-status="ready"
-                >Vídeo pronto para importação</el-tag
-              >
+              <small :title="sourceInput">{{ sourceInput }}</small>
             </div>
             <AppButton
               type="button"
@@ -793,30 +795,28 @@ onUnmounted(() => {
               :disabled="busy"
               @click="pickVideo"
             >
-              <FolderOpen :size="14" />Trocar vídeo
+              Trocar
             </AppButton>
           </div>
           <div v-else class="drop-prompt">
-            <div class="drop-icon-wrap"><FileVideo :size="34" /></div>
-            <strong>Escolha um vídeo do seu computador</strong>
-            <p>Formatos recomendados: MP4, MOV, MKV ou WebM (HD / 4K)</p>
             <AppButton
               type="button"
               class="button secondary pick-video-btn"
               :disabled="busy"
               @click="pickVideo"
             >
-              <FolderOpen :size="16" />Selecionar vídeo
+              <FolderOpen :size="15" />Selecionar arquivo de vídeo
             </AppButton>
+            <small class="subtle">Formatos suportados: MP4, MOV, MKV, WebM</small>
           </div>
         </div>
 
         <!-- Área de Origem: Link do YouTube -->
         <div v-else class="url-input-container">
-          <label class="field url-field"
-            >URL do vídeo
+          <label class="field url-field">
+            URL do vídeo
             <div class="url-field-wrapper">
-              <Link :size="16" class="url-field-icon" />
+              <Link :size="15" class="url-field-icon" />
               <input
                 type="url"
                 v-model="sourceInput"
@@ -826,80 +826,35 @@ onUnmounted(() => {
             </div>
             <small
               v-if="!isYouTubeUrl"
-              style="color: var(--color-warning-text, #f59e0b); font-weight: 500"
+              style="color: var(--color-warning-text); font-weight: 500"
             >
-              Aviso: O link informado parece não ser do YouTube (youtube.com ou youtu.be).
+              Informe um link válido do YouTube.
             </small>
-            <small v-else-if="sourceInput.trim()" style="color: #10b981; font-weight: 500">
-              ✓ Link do YouTube reconhecido. O vídeo e o áudio serão baixados com qualidade
-              original.
-            </small>
-            <small v-else>Use conteúdo autorizado para processamento.</small>
           </label>
         </div>
 
         <!-- Nome do Projeto -->
-        <label class="field project-name-field"
-          >Nome do projeto
+        <label class="field project-name-field">
+          Nome do projeto
           <input
             v-model="newName"
-            placeholder="Ex.: Entrevista sobre educação"
+            placeholder="Ex.: Entrevista com especialista"
             maxlength="100"
             required
           />
-          <small>Identificador do projeto na sua biblioteca local.</small>
         </label>
 
-        <!-- Resumo do Fluxo e Parâmetros da IA -->
-        <div class="analysis-summary studio-pipeline-card">
-          <div class="summary-pipeline-header">
-            <Sparkles :size="15" />
-            <strong>{{
-              setupMissing
-                ? 'Importar vídeo · concluir configuração depois'
-                : 'Importar → Transcrever → Analisar'
-            }}</strong>
-          </div>
-          <div class="summary-details">
-            <span
-              >{{
-                (config?.ai_provider === 'openrouter'
-                  ? config?.openrouter_model
-                  : config?.gemini_model) || 'Modelo de IA'
-              }}
-              · preferência {{ config?.clip_preferred_seconds || 60 }} s · máximo
-              {{ config?.clip_max_seconds || 180 }} s</span
-            >
-            <span
-              >Geração de prévias manual ·
-              {{
-                config?.pause_mode === 'preserve'
-                  ? 'pausas preservadas'
-                  : 'redução conservadora de pausas'
-              }}</span
-            >
-          </div>
-        </div>
-
-        <p v-if="!setupMissing" class="subtle pipeline-cost-notice">
-          {{
-            config?.ai_provider === 'openrouter'
-              ? 'A transcrição será analisada automaticamente pelo OpenRouter. As chamadas são dimensionadas pelo conteúdo.'
-              : 'A transcrição será analisada automaticamente pelo Gemini. As chamadas são dimensionadas pelo conteúdo; a API pode gerar custos.'
-          }}
-        </p>
-
         <div v-if="setupMissing" class="readiness-items studio-setup-warning">
-          <span>Configuração incompleta para o processamento automático.</span>
+          <span>Configuração de processamento incompleta.</span>
           <AppButton
             type="button"
-            class="button secondary"
+            class="button secondary small"
             @click="
               dialog?.close();
               navigate('settings');
             "
           >
-            Abrir configurações
+            Configurar
           </AppButton>
         </div>
 
@@ -918,15 +873,48 @@ onUnmounted(() => {
               (sourceKind === 'url' && !isYouTubeUrl)
             "
           >
-            <LoaderCircle v-if="busy" class="spin" :size="16" />
-            {{ setupMissing ? 'Importar vídeo' : 'Criar projeto' }}
+            <LoaderCircle v-if="busy" class="spin" :size="15" />
+            Criar projeto
           </AppButton>
         </footer>
       </form>
     </dialog>
-
-    <!-- LIXEIRA -->
-    <dialog ref="trashDialog" class="modal">
+ 
+     <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO PERMANENTE -->
+     <dialog ref="deleteConfirmDialog" class="modal delete-confirm-modal">
+       <div class="delete-confirm-content">
+         <header>
+           <h2>Excluir projeto permanentemente?</h2>
+           <AppButton
+             type="button"
+             class="icon-button"
+             title="Fechar"
+             @click="deleteConfirmDialog?.close()"
+           >
+             <X :size="19" />
+           </AppButton>
+         </header>
+         <p class="delete-warning-text">
+           O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> e todos os seus arquivos de vídeo, transcrições e cortes serão removidos do computador. Esta ação não pode ser desfeita.
+         </p>
+         <div class="delete-actions">
+           <AppButton type="button" class="button secondary" @click="deleteConfirmDialog?.close()">
+             Cancelar
+           </AppButton>
+           <AppButton
+             type="button"
+             class="button danger delete-confirm-action"
+             :disabled="busy"
+             @click="confirmDeleteProject"
+           >
+             Excluir permanentemente
+           </AppButton>
+         </div>
+       </div>
+     </dialog>
+ 
+     <!-- LIXEIRA -->
+     <dialog ref="trashDialog" class="modal">
       <div class="trash-content">
         <header>
           <h2>{{ trashKind === 'projects' ? 'Lixeira de projetos' : 'Lixeira de cortes' }}</h2>
@@ -1358,5 +1346,38 @@ onUnmounted(() => {
 .studio-submit-btn {
   font-weight: 600;
   padding: 9px 20px;
+}
+
+.delete-confirm-modal {
+  max-width: 460px;
+}
+.delete-confirm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.delete-warning-text {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #9aa4b2);
+  margin: 0;
+}
+.delete-warning-text strong {
+  color: var(--color-text-primary, #f2f4f7);
+}
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+.button.danger {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+.button.danger:hover:not(:disabled) {
+  background: #b91c1c;
 }
 </style>

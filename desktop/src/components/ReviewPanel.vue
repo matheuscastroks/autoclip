@@ -259,15 +259,6 @@ function copyDescription() {
             >
               {{ label }}
             </AppButton>
-            <el-tooltip content="Ver cortes movidos para a lixeira" placement="top">
-              <AppButton
-                type="button"
-                class="button secondary cuts-trash"
-                @click="$emit('deleted')"
-              >
-                <Trash2 :size="14" />Lixeira de cortes
-              </AppButton>
-            </el-tooltip>
           </div>
 
           <!-- BANNER DE RETOMADA SE O JOB FOI INTERROMPIDO -->
@@ -335,9 +326,6 @@ function copyDescription() {
                 </AppButton>
                 <AppButton class="button small secondary" @click="bulk = []"
                   >Limpar seleção</AppButton
-                >
-                <span v-if="!exportableBulk" class="subtle"
-                  >A exportação exige todos os selecionados tecnicamente válidos.</span
                 >
               </div>
 
@@ -563,7 +551,7 @@ function copyDescription() {
 
               <!-- Controle de Decisão Editorial (Aprovar / Descartar) -->
               <div class="cut-decision-controls" v-if="current && !manual">
-                <span class="decision-heading">Decisão Editorial:</span>
+                <span class="decision-heading">Decisão:</span>
                 <div class="decision-btn-group">
                   <AppButton
                     type="button"

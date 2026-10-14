@@ -214,7 +214,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
         store.get(pid)
         if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs() if j['project_id']==pid and (not cut_delete or j['operation'] not in ('transcribe','analyze'))):raise HTTPException(409,'Aguarde ou cancele a geração, exportação ou importação antes de excluir este corte.' if cut_delete else 'Aguarde ou cancele a tarefa antes de excluir ou restaurar.')
     @app.delete('/api/v1/projects/{pid}')
-    def delete_project(pid:str,permanent:bool=True):
+    def delete_project(pid:str,permanent:bool=False):
         import shutil
         with jobs.lock:
             editable(pid)

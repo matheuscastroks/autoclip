@@ -449,7 +449,6 @@ function choose(id: string) {
         <div class="panel-inner-container">
           <div class="column-panel-header">
             <div class="panel-header-title">
-              <span class="selection-step-badge">01</span>
               <h3>Temas</h3>
             </div>
             <span class="panel-counter-badge">{{
@@ -545,7 +544,6 @@ function choose(id: string) {
         <div class="panel-inner-container">
           <div class="column-panel-header">
             <div class="panel-header-title">
-              <span class="selection-step-badge">02</span>
               <h3>Propostas</h3>
             </div>
             <span class="panel-counter-badge">{{ filtered.length }} de {{ proposals.length }}</span>
@@ -755,7 +753,6 @@ function choose(id: string) {
           <section v-if="current" class="proposal-detail custom-scrollbar">
             <div class="inspection-head-bar">
               <div class="inspection-step-wrap">
-                <span class="selection-step-badge">03</span>
                 <span class="inspection-title-step">Inspeção Editorial</span>
               </div>
               <div class="inspection-time-badge">
@@ -812,29 +809,19 @@ function choose(id: string) {
             </div>
 
             <!-- GANCHO SOCIAL (PRIMEIROS 7 SEGUNDOS) -->
-            <div class="opening-copy-card">
-              <div class="hook-header">
-                <span class="hook-tag"
-                  ><Sparkles :size="13" /> Gancho Social · Primeiros 7 segundos</span
-                >
-              </div>
-              <div class="opening-copy">
-                <small class="hook-label">Frase de abertura · primeiros 7 segundos</small>
-                <p class="hook-text">
-                  "{{
-                    current.opening_text ||
-                    'A próxima análise poderá sugerir uma frase curta para este trecho.'
-                  }}"
-                </p>
-              </div>
+            <div class="opening-copy editorial-section-block">
+              <span class="editorial-section-label">Frase de abertura · primeiros 7 segundos</span>
+              <p class="hook-text">
+                "{{
+                  current.opening_text ||
+                  'A próxima análise poderá sugerir uma frase curta para este trecho.'
+                }}"
+              </p>
             </div>
 
-            <!-- RACIOCÍNIO EDITORIAL E POR QUE FUNCIONA -->
-            <div class="inspection-block rationale-card">
-              <div class="block-title">
-                <Sparkles :size="15" />
-                <strong>Por que este corte funciona</strong>
-              </div>
+            <!-- RACIOCÍNIO EDITORIAL -->
+            <div class="inspection-block rationale-card editorial-section-block">
+              <span class="editorial-section-label">Justificativa editorial</span>
               <p class="proposal-rationale">{{ current.rationale }}</p>
               <div class="editorial-flags">
                 <span
@@ -1770,38 +1757,28 @@ function choose(id: string) {
 }
 
 /* SOCIAL OPENING HOOK - EDITORIAL PULL-QUOTE */
-.opening-copy-card {
-  background: rgba(217, 119, 36, 0.04);
-  border: none;
-  border-left: 3px solid var(--color-accent, #d97724);
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px;
+/* EDITORIAL SECTION BLOCK */
+.editorial-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
 }
 
-.hook-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.editorial-section-label {
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-accent-light, #f9a35c);
-  margin-bottom: 4px;
-}
-
-.hook-label {
-  display: block;
-  font-size: 0.72rem;
   color: var(--color-text-muted, var(--muted));
-  margin-bottom: 3px;
 }
 
 .hook-text {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--color-text-primary, var(--ink));
-  line-height: 1.35;
+  line-height: 1.4;
   margin: 0;
   font-style: italic;
 }
@@ -1811,7 +1788,7 @@ function choose(id: string) {
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 4px 0;
+  padding: 10px 0;
 }
 
 .block-title {

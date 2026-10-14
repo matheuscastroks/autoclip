@@ -47,9 +47,9 @@ const key = ref(''),
 const settingsStep = ref(0);
 
 const settingsCategories = [
-  { num: '01', title: 'Recursos locais', sub: 'Whisper, FFmpeg e hardware local', icon: Cpu },
-  { num: '02', title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves de API', icon: Sparkles },
-  { num: '03', title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo', icon: Scissors },
+  { title: 'Recursos locais', sub: 'Whisper, FFmpeg e aceleração', icon: Cpu },
+  { title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves', icon: Sparkles },
+  { title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo', icon: Scissors },
 ];
 const settingsLabels = ['Recursos locais', 'IA e modelos', 'Duração dos cortes'];
 
@@ -252,9 +252,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
   <div class="settings-workspace">
     <header class="page-heading">
       <div>
-        <p class="breadcrumb">Preferências do aplicativo</p>
         <h1>Configurações</h1>
-        <p>Ajuste os motores de IA, aceleração local de hardware e regras editoriais de cortes.</p>
       </div>
     </header>
 
@@ -279,7 +277,6 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
             :class="{ selected: settingsStep === index }"
             @click="settingsStep = index"
           >
-            <span class="cat-num">{{ cat.num }}</span>
             <div class="cat-content">
               <span class="cat-title">{{ cat.title }}</span>
               <span class="cat-sub">{{ cat.sub }}</span>
@@ -325,10 +322,8 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
             <!-- Coluna 1: Diagnóstico e Ambiente Local -->
             <section class="setting-section">
               <div class="section-title-wrap">
-                <div class="section-icon"><Cpu :size="20" /></div>
                 <div>
-                  <h2>Diagnóstico do ambiente</h2>
-                  <p>Processamento 100% local em CPU. Sem dependência de nuvem para mídia.</p>
+                  <h2>Ambiente local</h2>
                 </div>
               </div>
 

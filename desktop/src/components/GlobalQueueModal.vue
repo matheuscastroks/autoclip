@@ -39,7 +39,11 @@ const displayJobs = computed(() =>
 
 function projectName(pid: string): string {
   const p = projectMap.value.get(pid);
-  return p?.title || p?.name || 'Projeto finalizado';
+  const name = p?.title || p?.name;
+  if (!name || /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(name) || /^[0-9a-f]{16,}/i.test(name)) {
+    return 'Projeto finalizado';
+  }
+  return name;
 }
 
 function handleKey(e: KeyboardEvent) {
@@ -91,8 +95,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
             >
             <AppButton
               v-if="filter === 'all' && recentJobs.length > 0"
-              class="queue-tab"
-              style="margin-left: 8px; color: var(--el-color-danger, #ef4444)"
+              class="queue-tab queue-clear-action"
               title="Limpar tarefas concluídas ou falhadas"
               :disabled="busy"
               @click="$emit('clearHistory')"
@@ -111,11 +114,10 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 
       <el-scrollbar class="queue-modal-body" max-height="65vh">
         <div v-if="displayJobs.length" class="queue-jobs-list">
-          <el-card
+          <div
             v-for="job in displayJobs"
             :key="job.id"
-            shadow="never"
-            class="queue-job-card"
+            class="queue-job-row"
             :data-status="job.status"
           >
             <div class="job-card-top">
@@ -177,7 +179,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                   "
                   :indeterminate="!job.progress?.total_items"
                   :color="'#D97724'"
-                  :stroke-width="6"
+                  :stroke-width="4"
                   :show-text="false"
                   style="margin-bottom: 6px"
                 />
@@ -206,7 +208,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                 }}
               </AppButton>
             </div>
-          </el-card>
+          </div>
         </div>
 
         <el-empty
@@ -217,23 +219,19 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
           class="queue-empty-state"
         >
           <template #image>
-            <ListOrdered :size="48" style="color: var(--color-accent-light, #f9a35c)" />
+            <ListOrdered :size="40" style="color: var(--color-text-muted, #9aa4b2)" />
           </template>
           <p>
             {{
               filter === 'active'
-                ? 'Quando você iniciar importação, transcrição ou geração, as tarefas aparecerão aqui.'
-                : 'Nenhuma tarefa recente foi registrada na sessão.'
+                ? 'Tarefas em execução ou pendentes aparecerão aqui.'
+                : 'Nenhuma tarefa recente no histórico.'
             }}
           </p>
         </el-empty>
       </el-scrollbar>
 
       <footer class="queue-modal-footer">
-        <span class="queue-hint"
-          >O motor gerencia até 2 tarefas simultâneas com trava de API Gemini para evitar
-          concorrência.</span
-        >
         <AppButton class="button secondary" @click="$emit('close')">Fechar</AppButton>
       </footer>
     </div>
@@ -336,23 +334,27 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 .queue-jobs-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
+.queue-job-row,
 .queue-job-card {
-  --el-card-bg-color: var(--color-surface, var(--panel));
-  --el-card-border-color: var(--color-border-subtle, var(--line));
-  --el-card-border-radius: 12px;
-  --el-card-padding: 14px 16px;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  background: transparent;
+}
+.queue-job-row:last-child,
+.queue-job-card:last-child {
+  border-bottom: none;
+}
+.queue-clear-action {
+  margin-left: 8px;
+  color: #ef4444 !important;
 }
 .job-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .project-jump-btn {
   display: inline-flex;
