@@ -98,11 +98,11 @@ function triggerErrorDetails(){
       <div class="headline-meta">
         <h2 class="project-main-title">{{project.title||project.name}}</h2>
         <p class="project-tags-strip">
-          <span v-if="project.source?.channel||project.source?.attribution" class="source-author">{{project.source.channel||project.source.attribution}}</span>
+          <el-tag v-if="project.source?.channel||project.source?.attribution" size="small" effect="plain" class="source-author">{{project.source.channel||project.source.attribution}}</el-tag>
           <span v-if="project.duration_us" class="meta-dot">·</span>
-          <span v-if="project.duration_us">{{time(project.duration_us)}}</span>
+          <el-tag v-if="project.duration_us" size="small" effect="plain"><Clock :size="11"/> {{time(project.duration_us)}}</el-tag>
           <span class="meta-dot">·</span>
-          <span>{{project.word_count.toLocaleString('pt-BR')}} palavras</span>
+          <el-tag size="small" effect="plain">{{project.word_count.toLocaleString('pt-BR')}} palavras</el-tag>
         </p>
       </div>
 
@@ -213,7 +213,16 @@ function triggerErrorDetails(){
           </div>
 
           <div class="processing-status-strip">
-            <div role="progressbar" class="stage-progress indeterminate" aria-label="Progresso da tarefa"><span></span></div>
+            <el-progress
+              :indeterminate="true"
+              :percentage="75"
+              :stroke-width="5"
+              :show-text="false"
+              color="#d97724"
+              class="stage-progress indeterminate"
+              role="progressbar"
+              aria-label="Progresso da tarefa"
+            />
             <small>Status: {{labels[job.status]||job.status}}</small>
           </div>
 
