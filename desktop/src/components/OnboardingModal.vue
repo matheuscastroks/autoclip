@@ -1,45 +1,50 @@
 <script setup lang="ts">
-import {ref,computed,onMounted,onUnmounted} from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ElSteps, ElStep, ElProgress, ElTag, ElAlert } from 'element-plus';
 import {
-  ElSteps,
-  ElStep,
-  ElProgress,
-  ElTag,
-  ElAlert,
-} from 'element-plus'
-import {Cpu,HardDrive,Sparkles,Check,CheckCircle2,AlertTriangle,LoaderCircle,Download,X,KeyRound} from '@lucide/vue'
-import type {HardwareProfile,ProvisionStatus} from '../types'
-import {api} from '../api'
+  Cpu,
+  HardDrive,
+  Sparkles,
+  Check,
+  CheckCircle2,
+  AlertTriangle,
+  LoaderCircle,
+  Download,
+  X,
+  KeyRound,
+} from '@lucide/vue';
+import type { HardwareProfile, ProvisionStatus } from '../types';
+import { api } from '../api';
 
 const props = defineProps<{
-  profile: HardwareProfile | null
-  toolsMissing: boolean
-  asrMissing: boolean
-  geminiKeyConfigured?: boolean
-  openrouterKeyConfigured?: boolean
-}>()
+  profile: HardwareProfile | null;
+  toolsMissing: boolean;
+  asrMissing: boolean;
+  geminiKeyConfigured?: boolean;
+  openrouterKeyConfigured?: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'configured'): void
-  (e: 'saveKey', key: string): void
-  (e: 'saveOpenRouterKey', key: string): void
-}>()
+  (e: 'close'): void;
+  (e: 'configured'): void;
+  (e: 'saveKey', key: string): void;
+  (e: 'saveOpenRouterKey', key: string): void;
+}>();
 
-const step = ref<'diagnosis' | 'downloading' | 'apikey'>('diagnosis')
+const step = ref<'diagnosis' | 'downloading' | 'apikey'>('diagnosis');
 const stepIndex = computed(() => {
-  if (step.value === 'diagnosis') return 0
-  if (step.value === 'downloading') return 1
-  return 2
-})
-const selectedTier = ref<number>(props.profile?.recommended_tier || 2)
-const installFfmpeg = ref<boolean>(props.toolsMissing)
-const busy = ref<boolean>(false)
-const error = ref<string | null>(null)
+  if (step.value === 'diagnosis') return 0;
+  if (step.value === 'downloading') return 1;
+  return 2;
+});
+const selectedTier = ref<number>(props.profile?.recommended_tier || 2);
+const installFfmpeg = ref<boolean>(props.toolsMissing);
+const busy = ref<boolean>(false);
+const error = ref<string | null>(null);
 
-const apiKeyProvider = ref<'gemini' | 'openrouter'>('gemini')
-const apiKeyInput = ref<string>('')
-const keySaved = ref<boolean>(false)
+const apiKeyProvider = ref<'gemini' | 'openrouter'>('gemini');
+const apiKeyInput = ref<string>('');
+const keySaved = ref<boolean>(false);
 
 const tiers = [
   {
@@ -47,28 +52,28 @@ const tiers = [
     id: 'Systran/faster-whisper-base',
     title: 'Tier 1 (Leve)',
     desc: 'Whisper Base · ~140 MB · Baixo consumo de RAM e CPU',
-    speed: 'Ultrarrápido'
+    speed: 'Ultrarrápido',
   },
   {
     tier: 2,
     id: 'Systran/faster-whisper-small',
     title: 'Tier 2 (Equilibrado)',
     desc: 'Whisper Small · ~460 MB · Equilíbrio ideal de precisão e velocidade',
-    speed: 'Padrão'
+    speed: 'Padrão',
   },
   {
     tier: 3,
     id: 'Systran/faster-whisper-large-v3-turbo',
     title: 'Tier 3 (Alta Performance)',
     desc: 'Whisper Large v3 Turbo · ~800 MB · Fidelidade máxima em português',
-    speed: 'Máxima Precisão'
-  }
-]
+    speed: 'Máxima Precisão',
+  },
+];
 
 const selectedModelId = computed(() => {
-  const t = tiers.find(item => item.tier === selectedTier.value)
-  return t ? t.id : 'Systran/faster-whisper-small'
-})
+  const t = tiers.find(item => item.tier === selectedTier.value);
+  return t ? t.id : 'Systran/faster-whisper-small';
+});
 
 const provisionStatus = ref<ProvisionStatus>({
   status: 'idle',
@@ -78,22 +83,22 @@ const provisionStatus = ref<ProvisionStatus>({
   total_bytes: 0,
   speed_bps: 0,
   percent: 0,
-  error: null
-})
+  error: null,
+});
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function pollStatus() {
   try {
-    const st = await api.provisionStatus()
-    provisionStatus.value = st
+    const st = await api.provisionStatus();
+    provisionStatus.value = st;
     if (st.status === 'ready') {
-      stopPolling()
-      step.value = 'apikey'
-      emit('configured')
+      stopPolling();
+      step.value = 'apikey';
+      emit('configured');
     } else if (st.status === 'failed' || st.status === 'cancelled') {
-      stopPolling()
-      error.value = st.error || 'A instalação foi interrompida.'
+      stopPolling();
+      error.value = st.error || 'A instalação foi interrompida.';
     }
   } catch (e) {
     // keep polling
@@ -101,74 +106,74 @@ async function pollStatus() {
 }
 
 function startPolling() {
-  stopPolling()
-  pollTimer = setInterval(pollStatus, 800)
+  stopPolling();
+  pollTimer = setInterval(pollStatus, 800);
 }
 
 function stopPolling() {
   if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
+    clearInterval(pollTimer);
+    pollTimer = null;
   }
 }
 
 async function startProvision() {
-  busy.value = true
-  error.value = null
-  step.value = 'downloading'
+  busy.value = true;
+  error.value = null;
+  step.value = 'downloading';
   try {
     await api.provision({
       model_id: selectedModelId.value,
-      install_ffmpeg: installFfmpeg.value
-    })
-    startPolling()
+      install_ffmpeg: installFfmpeg.value,
+    });
+    startPolling();
   } catch (e) {
-    error.value = (e as Error).message
-    step.value = 'diagnosis'
+    error.value = (e as Error).message;
+    step.value = 'diagnosis';
   } finally {
-    busy.value = false
+    busy.value = false;
   }
 }
 
 async function cancelProvision() {
   try {
-    await api.cancelProvision()
-    stopPolling()
-    step.value = 'diagnosis'
+    await api.cancelProvision();
+    stopPolling();
+    step.value = 'diagnosis';
   } catch {}
 }
 
 async function handleSaveKey() {
-  if (!apiKeyInput.value.trim()) return
-  busy.value = true
-  error.value = null
+  if (!apiKeyInput.value.trim()) return;
+  busy.value = true;
+  error.value = null;
   try {
     if (apiKeyProvider.value === 'gemini') {
-      emit('saveKey', apiKeyInput.value.trim())
+      emit('saveKey', apiKeyInput.value.trim());
     } else {
-      emit('saveOpenRouterKey', apiKeyInput.value.trim())
+      emit('saveOpenRouterKey', apiKeyInput.value.trim());
     }
-    keySaved.value = true
+    keySaved.value = true;
   } catch (e) {
-    error.value = (e as Error).message
+    error.value = (e as Error).message;
   } finally {
-    busy.value = false
+    busy.value = false;
   }
 }
 
 function finish() {
-  emit('close')
+  emit('close');
 }
 
 onMounted(() => {
   if (props.profile) {
-    selectedTier.value = props.profile.recommended_tier
+    selectedTier.value = props.profile.recommended_tier;
   }
-})
+});
 
 onUnmounted(() => {
-  stopPolling()
-})
+  stopPolling();
+});
 </script>
 
 <template>
@@ -176,16 +181,17 @@ onUnmounted(() => {
     <div class="onboarding-container">
       <header class="onboarding-header">
         <div class="header-badge">
-          <Sparkles :size="18"/>
+          <Sparkles :size="18" />
           <span>Instalação Zero-Config</span>
         </div>
         <h2>Configuração Inicial do AutoClip</h2>
         <p class="header-subtitle">
-          Configuramos as ferramentas multimídia e o modelo Whisper diretamente no seu computador para garantir edição de cortes 100% offline.
+          Configuramos as ferramentas multimídia e o modelo Whisper diretamente no seu computador
+          para garantir edição de cortes 100% offline.
         </p>
       </header>
 
-      <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px;">
+      <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px">
         <el-steps :active="stepIndex" finish-status="success" align-center>
           <el-step title="Diagnóstico" description="Hardware e Modelo" />
           <el-step title="Instalação" description="Download Offline" />
@@ -197,21 +203,34 @@ onUnmounted(() => {
       <section v-if="step === 'diagnosis'" class="onboarding-step">
         <div v-if="profile" class="hardware-diagnosis-card">
           <div class="diagnosis-header">
-            <Cpu :size="17"/>
+            <Cpu :size="17" />
             <strong>Diagnóstico de Hardware</strong>
           </div>
           <div class="diagnosis-grid">
             <div class="diag-item">
               <span class="diag-label">Processador (CPU)</span>
-              <span class="diag-val">{{ profile.cpu_physical_cores }} núcleos físicos ({{ profile.cpu_logical_cores }} threads)</span>
+              <span class="diag-val"
+                >{{ profile.cpu_physical_cores }} núcleos físicos ({{
+                  profile.cpu_logical_cores
+                }}
+                threads)</span
+              >
             </div>
             <div class="diag-item">
               <span class="diag-label">Memória RAM</span>
-              <span class="diag-val">{{ profile.ram_total_gb }} GB ({{ profile.ram_available_gb }} GB livres)</span>
+              <span class="diag-val"
+                >{{ profile.ram_total_gb }} GB ({{ profile.ram_available_gb }} GB livres)</span
+              >
             </div>
             <div class="diag-item">
               <span class="diag-label">Aceleração Gráfica (GPU)</span>
-              <span class="diag-val">{{ profile.gpu_name ? profile.gpu_name + ' (' + profile.vram_gb + ' GB VRAM)' : (profile.has_cuda ? 'GPU NVIDIA CUDA detectada' : 'Modo CPU otimizado') }}</span>
+              <span class="diag-val">{{
+                profile.gpu_name
+                  ? profile.gpu_name + ' (' + profile.vram_gb + ' GB VRAM)'
+                  : profile.has_cuda
+                    ? 'GPU NVIDIA CUDA detectada'
+                    : 'Modo CPU otimizado'
+              }}</span>
             </div>
           </div>
         </div>
@@ -219,7 +238,9 @@ onUnmounted(() => {
         <div class="tiers-selection-section">
           <div class="section-heading">
             <strong>Escolha o modelo de transcrição Whisper:</strong>
-            <span class="hint">O tier recomendado foi pré-selecionado de acordo com seu hardware.</span>
+            <span class="hint"
+              >O tier recomendado foi pré-selecionado de acordo com seu hardware.</span
+            >
           </div>
 
           <div class="tiers-grid">
@@ -231,7 +252,7 @@ onUnmounted(() => {
               :data-tier="item.tier"
               :class="{
                 selected: selectedTier === item.tier,
-                recommended: profile && profile.recommended_tier === item.tier
+                recommended: profile && profile.recommended_tier === item.tier,
               }"
               @click="selectedTier = item.tier"
             >
@@ -251,20 +272,19 @@ onUnmounted(() => {
 
         <div class="ffmpeg-option-card">
           <label class="checkbox-label">
-            <input
-              type="checkbox"
-              v-model="installFfmpeg"
-              data-action="toggle-ffmpeg"
-            />
+            <input type="checkbox" v-model="installFfmpeg" data-action="toggle-ffmpeg" />
             <div class="checkbox-info">
               <strong>Instalar ferramentas multimídia FFmpeg & ffprobe</strong>
-              <span>Baixa automaticamente a distribuição oficial Gyan FFmpeg para processar vídeos e extrair áudio com alta fidelidade.</span>
+              <span
+                >Baixa automaticamente a distribuição oficial Gyan FFmpeg para processar vídeos e
+                extrair áudio com alta fidelidade.</span
+              >
             </div>
           </label>
         </div>
 
         <div v-if="error" class="onboarding-error-banner">
-          <AlertTriangle :size="16"/>
+          <AlertTriangle :size="16" />
           <span>{{ error }}</span>
         </div>
 
@@ -276,7 +296,7 @@ onUnmounted(() => {
             :disabled="busy"
             @click="startProvision"
           >
-            <Download :size="17"/>
+            <Download :size="17" />
             <span>Instalar Dependências Automaticamente</span>
           </button>
         </div>
@@ -287,13 +307,13 @@ onUnmounted(() => {
         <div class="download-progress-card">
           <div class="progress-header">
             <div class="spinner-item">
-              <LoaderCircle class="animate-spin" :size="20"/>
+              <LoaderCircle class="animate-spin" :size="20" />
               <strong>Baixando e configurando dependências...</strong>
             </div>
             <span class="percent-badge">{{ provisionStatus.percent }}%</span>
           </div>
 
-          <div class="progress-bar-wrap" style="margin: 12px 0;">
+          <div class="progress-bar-wrap" style="margin: 12px 0">
             <el-progress
               :percentage="provisionStatus.percent"
               :color="'#D97724'"
@@ -305,14 +325,17 @@ onUnmounted(() => {
           <div class="progress-meta">
             <span class="current-item">{{ provisionStatus.item || 'Iniciando download...' }}</span>
             <span v-if="provisionStatus.total_bytes > 0" class="bytes-info">
-              {{ (provisionStatus.downloaded_bytes / (1024 * 1024)).toFixed(1) }} MB / {{ (provisionStatus.total_bytes / (1024 * 1024)).toFixed(1) }} MB
-              <span v-if="provisionStatus.speed_bps > 0"> ({{ (provisionStatus.speed_bps / (1024 * 1024)).toFixed(1) }} MB/s)</span>
+              {{ (provisionStatus.downloaded_bytes / (1024 * 1024)).toFixed(1) }} MB /
+              {{ (provisionStatus.total_bytes / (1024 * 1024)).toFixed(1) }} MB
+              <span v-if="provisionStatus.speed_bps > 0">
+                ({{ (provisionStatus.speed_bps / (1024 * 1024)).toFixed(1) }} MB/s)</span
+              >
             </span>
           </div>
         </div>
 
         <div v-if="error" class="onboarding-error-banner">
-          <AlertTriangle :size="16"/>
+          <AlertTriangle :size="16" />
           <span>{{ error }}</span>
         </div>
 
@@ -323,7 +346,7 @@ onUnmounted(() => {
             data-action="cancel-provision"
             @click="cancelProvision"
           >
-            <X :size="15"/>
+            <X :size="15" />
             <span>Cancelar</span>
           </button>
         </div>
@@ -332,10 +355,12 @@ onUnmounted(() => {
       <!-- Step 3: Finished & API Key Handoff -->
       <section v-else-if="step === 'apikey'" class="onboarding-step">
         <div class="success-banner">
-          <CheckCircle2 :size="32" class="success-icon"/>
+          <CheckCircle2 :size="32" class="success-icon" />
           <h3>Dependências instaladas com sucesso!</h3>
           <p>
-            Seu computador agora possui o Whisper e o FFmpeg operando 100% offline. Para habilitar a curadoria inteligente e seleção de momentos pelo AI Studio, configure sua chave de API abaixo:
+            Seu computador agora possui o Whisper e o FFmpeg operando 100% offline. Para habilitar a
+            curadoria inteligente e seleção de momentos pelo AI Studio, configure sua chave de API
+            abaixo:
           </p>
         </div>
 
@@ -344,7 +369,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="pill-btn"
-              :class="{active: apiKeyProvider === 'gemini'}"
+              :class="{ active: apiKeyProvider === 'gemini' }"
               @click="apiKeyProvider = 'gemini'"
             >
               Google Gemini
@@ -352,7 +377,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="pill-btn"
-              :class="{active: apiKeyProvider === 'openrouter'}"
+              :class="{ active: apiKeyProvider === 'openrouter' }"
               @click="apiKeyProvider = 'openrouter'"
             >
               OpenRouter
@@ -361,13 +386,22 @@ onUnmounted(() => {
 
           <div class="key-field">
             <label class="diag-label">
-              {{ apiKeyProvider === 'gemini' ? 'Chave de API do Google Gemini (Google AI Studio)' : 'Chave de API do OpenRouter' }}
+              {{
+                apiKeyProvider === 'gemini'
+                  ? 'Chave de API do Google Gemini (Google AI Studio)'
+                  : 'Chave de API do OpenRouter'
+              }}
             </label>
             <div class="input-with-button">
               <input
                 type="password"
                 v-model="apiKeyInput"
                 class="key-text-input"
+                autocomplete="new-password"
+                spellcheck="false"
+                autocapitalize="off"
+                data-1p-ignore
+                aria-label="Chave de API"
                 :placeholder="apiKeyProvider === 'gemini' ? 'AIzaSy...' : 'sk-or-v1-...'"
               />
               <button
@@ -376,14 +410,14 @@ onUnmounted(() => {
                 :disabled="busy || !apiKeyInput.trim()"
                 @click="handleSaveKey"
               >
-                <KeyRound :size="15"/>
+                <KeyRound :size="15" />
                 <span>Salvar Chave</span>
               </button>
             </div>
           </div>
 
           <p v-if="keySaved" class="success-pill-msg">
-            <Check :size="14"/> Chave de API validada e configurada com sucesso!
+            <Check :size="14" /> Chave de API validada e configurada com sucesso!
           </p>
         </div>
 
@@ -394,7 +428,7 @@ onUnmounted(() => {
             data-action="finish-onboarding"
             @click="finish"
           >
-            <Check :size="17"/>
+            <Check :size="17" />
             <span>Abrir AutoClip e Começar</span>
           </button>
         </div>
@@ -619,7 +653,7 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.checkbox-label input[type="checkbox"] {
+.checkbox-label input[type='checkbox'] {
   margin-top: 0.2rem;
   accent-color: #388bfd;
   cursor: pointer;
@@ -825,7 +859,11 @@ onUnmounted(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

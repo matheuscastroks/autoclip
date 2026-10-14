@@ -10,8 +10,10 @@ declare module 'vue' {
   export interface GlobalComponents {
     AnalysisFeedback: typeof import('./src/components/AnalysisFeedback.vue')['default']
     AnalysisPanel: typeof import('./src/components/AnalysisPanel.vue')['default']
+    ApiKeyField: typeof import('./src/components/ApiKeyField.vue')['default']
     AppButton: typeof import('./src/components/AppButton.vue')['default']
     AppSelect: typeof import('./src/components/AppSelect.vue')['default']
+    BaseModal: typeof import('./src/components/BaseModal.vue')['default']
     ElDivider: typeof import('element-plus/es')['ElDivider']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
     ElProgress: typeof import('element-plus/es')['ElProgress']
@@ -23,12 +25,15 @@ declare module 'vue' {
     GenerationQueue: typeof import('./src/components/GenerationQueue.vue')['default']
     GlobalQueueModal: typeof import('./src/components/GlobalQueueModal.vue')['default']
     JobPanel: typeof import('./src/components/JobPanel.vue')['default']
+    JobQueueItem: typeof import('./src/components/JobQueueItem.vue')['default']
     OnboardingModal: typeof import('./src/components/OnboardingModal.vue')['default']
     PipelinePanel: typeof import('./src/components/PipelinePanel.vue')['default']
     ProjectLibrary: typeof import('./src/components/ProjectLibrary.vue')['default']
     ProjectQueue: typeof import('./src/components/ProjectQueue.vue')['default']
     ProjectWorkspace: typeof import('./src/components/ProjectWorkspace.vue')['default']
+    ProviderSelector: typeof import('./src/components/ProviderSelector.vue')['default']
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
+    StatusTag: typeof import('./src/components/StatusTag.vue')['default']
   }
 }

@@ -1,59 +1,107 @@
 <script setup lang="ts">
-import AppButton from './AppButton.vue'
-import AppSelect from './AppSelect.vue'
-import {computed,ref} from 'vue'
-import {ElTag,ElTooltip} from 'element-plus'
-import {Search,Film,Trash2,Plus,FileVideo,ListOrdered,LayoutGrid,List,Clock,Sparkles} from '@lucide/vue'
-import type {Project} from '../types'
-import {time,labels,stages} from '../format'
+import AppButton from './AppButton.vue';
+import AppSelect from './AppSelect.vue';
+import { computed, ref } from 'vue';
+import { ElTag, ElTooltip } from 'element-plus';
+import {
+  Search,
+  Film,
+  Trash2,
+  Plus,
+  FileVideo,
+  ListOrdered,
+  LayoutGrid,
+  List,
+  Clock,
+  Sparkles,
+} from '@lucide/vue';
+import type { Project } from '../types';
+import { time, labels, stages } from '../format';
 
-const props=defineProps<{projects:Project[];busy:boolean;covers?:Record<string,string>;activeProjects?:string[]}>()
-defineEmits<{open:[id:string];create:[];import:[];delete:[id:string];trash:[];queue:[]}>()
+const props = defineProps<{
+  projects: Project[];
+  busy: boolean;
+  covers?: Record<string, string>;
+  activeProjects?: string[];
+}>();
+defineEmits<{
+  open: [id: string];
+  create: [];
+  import: [];
+  delete: [id: string];
+  trash: [];
+  queue: [];
+}>();
 
-const query=ref('')
-const filter=ref('all')
-const sort=ref('updated')
-const viewMode=ref<'grid'|'list'>('grid')
-const brokenCovers=ref<Record<string,string>>({})
+const query = ref('');
+const filter = ref('all');
+const sort = ref('updated');
+const viewMode = ref<'grid' | 'list'>('grid');
+const brokenCovers = ref<Record<string, string>>({});
 
-const stateOptions=computed(()=>[
-  {value:'all',label:'Todos os estados'},
-  ...Array.from(new Set(props.projects.map(p=>p.status))).map(state=>({value:state,label:labels[state]||state}))
-])
+const stateOptions = computed(() => [
+  { value: 'all', label: 'Todos os estados' },
+  ...Array.from(new Set(props.projects.map(p => p.status))).map(state => ({
+    value: state,
+    label: labels[state] || state,
+  })),
+]);
 
-const filtered=computed(()=>props.projects
-  .filter(p=>(p.title+' '+p.name).toLocaleLowerCase('pt-BR').includes(query.value.toLocaleLowerCase('pt-BR'))&&(filter.value==='all'||p.status===filter.value))
-  .sort((a,b)=>sort.value==='name'?(a.title||a.name).localeCompare(b.title||b.name,'pt-BR'):b.updated_at-a.updated_at)
-)
+const filtered = computed(() =>
+  props.projects
+    .filter(
+      p =>
+        (p.title + ' ' + p.name)
+          .toLocaleLowerCase('pt-BR')
+          .includes(query.value.toLocaleLowerCase('pt-BR')) &&
+        (filter.value === 'all' || p.status === filter.value)
+    )
+    .sort((a, b) =>
+      sort.value === 'name'
+        ? (a.title || a.name).localeCompare(b.title || b.name, 'pt-BR')
+        : b.updated_at - a.updated_at
+    )
+);
 
-function updated(value:number){
-  return value?new Date(value*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'
+function updated(value: number) {
+  return value
+    ? new Date(value * 1000).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
 }
 
-function timeAgo(value:number){
-  if(!value)return 'Recente'
-  const diffSec=Math.floor(Date.now()/1000 - value)
-  if(diffSec<60)return 'Agora mesmo'
-  if(diffSec<3600)return `${Math.floor(diffSec/60)} min atrás`
-  if(diffSec<86400)return `${Math.floor(diffSec/3600)} h atrás`
-  return `${Math.floor(diffSec/86400)} d atrás`
+function timeAgo(value: number) {
+  if (!value) return 'Recente';
+  const diffSec = Math.floor(Date.now() / 1000 - value);
+  if (diffSec < 60) return 'Agora mesmo';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min atrás`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h atrás`;
+  return `${Math.floor(diffSec / 86400)} d atrás`;
 }
 </script>
 
 <template>
   <div class="library-container">
-
     <!-- Banner Proeminente da Fila Global de Processamento -->
     <aside v-if="activeProjects?.length" class="global-queue-banner" @click="$emit('queue')">
       <div class="queue-banner-info">
         <span class="pulse-dot"></span>
         <div class="queue-banner-text">
           <strong>Processamento ativo em segundo plano</strong>
-          <span>{{activeProjects.length}} projeto{{activeProjects.length===1?'':'s'}} executando na fila global local</span>
+          <span
+            >{{ activeProjects.length }} projeto{{
+              activeProjects.length === 1 ? '' : 's'
+            }}
+            executando na fila global local</span
+          >
         </div>
       </div>
       <AppButton class="button small secondary queue-view-action" @click.stop="$emit('queue')">
-        <ListOrdered :size="14"/>
+        <ListOrdered :size="14" />
         <span>Ver fila global</span>
       </AppButton>
     </aside>
@@ -61,62 +109,81 @@ function timeAgo(value:number){
     <!-- Barra de Ferramentas: Busca, Filtros, Ordenação e Alternador de Visão -->
     <section class="library-toolbar">
       <div class="search-box">
-        <Search :size="16" class="search-icon"/>
+        <Search :size="16" class="search-icon" />
         <input
           type="search"
           v-model="query"
           placeholder="Buscar projetos por título ou nome do arquivo…"
           aria-label="Buscar projetos"
         />
-        <button v-if="query" type="button" class="clear-search" aria-label="Limpar busca" @click="query=''">✕</button>
+        <button
+          v-if="query"
+          type="button"
+          class="clear-search"
+          aria-label="Limpar busca"
+          @click="query = ''"
+        >
+          ✕
+        </button>
       </div>
 
       <div class="toolbar-controls">
         <label class="control-label">
           <span>Estado:</span>
-          <AppSelect v-model="filter" label="Filtrar por estado" :options="stateOptions"/>
+          <AppSelect v-model="filter" label="Filtrar por estado" :options="stateOptions" />
         </label>
 
         <label class="control-label">
           <span>Ordenar:</span>
-          <AppSelect v-model="sort" label="Ordenar projetos" :options="[{value:'updated',label:'Mais recentes'},{value:'name',label:'Nome do projeto'}]"/>
+          <AppSelect
+            v-model="sort"
+            label="Ordenar projetos"
+            :options="[
+              { value: 'updated', label: 'Mais recentes' },
+              { value: 'name', label: 'Nome do projeto' },
+            ]"
+          />
         </label>
 
         <div class="view-switcher" role="radiogroup" aria-label="Modo de visualização">
           <button
             type="button"
             class="view-btn"
-            :class="{active:viewMode==='grid'}"
+            :class="{ active: viewMode === 'grid' }"
             role="radio"
-            :aria-checked="viewMode==='grid'"
-            :tabindex="viewMode==='grid'?0:-1"
+            :aria-checked="viewMode === 'grid'"
+            :tabindex="viewMode === 'grid' ? 0 : -1"
             title="Visualização em Grade de Mídia"
             aria-label="Grade de Mídia"
-            @click="viewMode='grid'"
-            @keydown.right.prevent="viewMode='list'"
+            @click="viewMode = 'grid'"
+            @keydown.right.prevent="viewMode = 'list'"
           >
-            <LayoutGrid :size="16"/>
+            <LayoutGrid :size="16" />
           </button>
           <button
             type="button"
             class="view-btn"
-            :class="{active:viewMode==='list'}"
+            :class="{ active: viewMode === 'list' }"
             role="radio"
-            :aria-checked="viewMode==='list'"
-            :tabindex="viewMode==='list'?0:-1"
+            :aria-checked="viewMode === 'list'"
+            :tabindex="viewMode === 'list' ? 0 : -1"
             title="Visualização em Tabela Estruturada"
             aria-label="Tabela Estruturada"
-            @click="viewMode='list'"
-            @keydown.left.prevent="viewMode='grid'"
+            @click="viewMode = 'list'"
+            @keydown.left.prevent="viewMode = 'grid'"
           >
-            <List :size="16"/>
+            <List :size="16" />
           </button>
         </div>
       </div>
     </section>
 
     <!-- ESTADO 1: GRADE VISUAL DE MÍDIA (Modo Padrão de Estúdio) -->
-    <section v-if="filtered.length && viewMode==='grid'" class="projects-media-grid" aria-label="Projetos em grade">
+    <section
+      v-if="filtered.length && viewMode === 'grid'"
+      class="projects-media-grid"
+      aria-label="Projetos em grade"
+    >
       <article
         v-for="project in filtered"
         :key="project.id"
@@ -125,70 +192,99 @@ function timeAgo(value:number){
         tabindex="0"
         role="button"
         :aria-label="'Abrir projeto: ' + (project.title || project.name)"
-        @click="$emit('open',project.id)"
-        @keydown.enter.prevent="$emit('open',project.id)"
-        @keydown.space.prevent="$emit('open',project.id)"
+        @click="$emit('open', project.id)"
+        @keydown.enter.prevent="$emit('open', project.id)"
+        @keydown.space.prevent="$emit('open', project.id)"
       >
         <!-- Thumbnail 16:9 com Badges Flutuantes -->
         <div class="card-thumbnail-wrap">
           <img
-            v-if="covers?.[project.id]&&brokenCovers[project.id]!==covers[project.id]"
+            v-if="covers?.[project.id] && brokenCovers[project.id] !== covers[project.id]"
             :src="covers[project.id]"
             alt=""
             loading="lazy"
             class="thumbnail-img"
-            @error="brokenCovers[project.id]=covers?.[project.id]||''"
+            @error="brokenCovers[project.id] = covers?.[project.id] || ''"
           />
           <div v-else class="thumbnail-fallback">
-            <Film :size="32"/>
+            <Film :size="32" />
           </div>
 
           <!-- Duração do vídeo -->
           <span class="video-duration-tag">
-            <Clock :size="11"/>
-            {{project.duration_us?time(project.duration_us):'—'}}
+            <Clock :size="11" />
+            {{ project.duration_us ? time(project.duration_us) : '—' }}
           </span>
 
           <!-- Status do projeto -->
           <el-tag
-            :type="project.status==='ready'||project.status==='completed'?'success':project.status==='processing'||project.status==='running'?'warning':project.status==='failed'?'danger':'info'"
+            :type="
+              project.status === 'ready' || project.status === 'completed'
+                ? 'success'
+                : project.status === 'processing' || project.status === 'running'
+                  ? 'warning'
+                  : project.status === 'failed'
+                    ? 'danger'
+                    : 'info'
+            "
             effect="dark"
             size="small"
             class="status-pill card-status-pill"
             :data-status="project.status"
           >
-            {{project.summary?.stage?stages[project.summary.stage]||project.summary.stage:labels[project.status]||project.status}}
+            {{
+              project.summary?.stage
+                ? stages[project.summary.stage] || project.summary.stage
+                : labels[project.status] || project.status
+            }}
           </el-tag>
         </div>
 
         <!-- Conteúdo do Card -->
         <div class="card-body">
           <div class="card-header-row">
-            <AppButton class="project-title-link" @click.stop="$emit('open',project.id)">
-              <h2 class="project-card-title">{{project.title||project.name}}</h2>
+            <AppButton class="project-title-link" @click.stop="$emit('open', project.id)">
+              <h2 class="project-card-title">{{ project.title || project.name }}</h2>
             </AppButton>
           </div>
 
           <p class="project-source-info">
-            {{project.is_manual?'Teste técnico de renderização':project.has_transcript?`${project.word_count.toLocaleString('pt-BR')} palavras transcritas`:project.name}}
+            {{
+              project.is_manual
+                ? 'Teste técnico de renderização'
+                : project.has_transcript
+                  ? `${project.word_count.toLocaleString('pt-BR')} palavras transcritas`
+                  : project.name
+            }}
           </p>
 
           <!-- Métricas de Cortes e IA -->
           <div class="project-metrics-row">
             <div class="metric-chip">
-              <Sparkles :size="13"/>
-              <span>{{project.summary?.proposed??'—'}} propostas</span>
+              <Sparkles :size="13" />
+              <span>{{ project.summary?.proposed ?? '—' }} propostas</span>
             </div>
-            <div class="metric-chip highlight" v-if="project.summary?.selected || project.summary?.generated">
-              <span>{{project.summary?.selected??0}} selecionados · {{project.summary?.generated??0}} prontos</span>
+            <div
+              class="metric-chip highlight"
+              v-if="project.summary?.selected || project.summary?.generated"
+            >
+              <span
+                >{{ project.summary?.selected ?? 0 }} selecionados ·
+                {{ project.summary?.generated ?? 0 }} prontos</span
+              >
             </div>
           </div>
         </div>
 
         <!-- Rodapé do Card com Ações Rápidas -->
         <div class="card-footer">
-          <span class="updated-time" :title="project.updated_at?new Date(project.updated_at*1000).toLocaleString('pt-BR'):''">
-            {{timeAgo(project.updated_at)}}
+          <span
+            class="updated-time"
+            :title="
+              project.updated_at ? new Date(project.updated_at * 1000).toLocaleString('pt-BR') : ''
+            "
+          >
+            {{ timeAgo(project.updated_at) }}
           </span>
 
           <div class="card-actions-group">
@@ -198,10 +294,10 @@ function timeAgo(value:number){
                 class="icon-button delete-btn"
                 data-action="delete-project"
                 title="Excluir projeto"
-                :disabled="busy||activeProjects?.includes(project.id)"
-                @click.stop="$emit('delete',project.id)"
+                :disabled="busy || activeProjects?.includes(project.id)"
+                @click.stop="$emit('delete', project.id)"
               >
-                <Trash2 :size="15"/>
+                <Trash2 :size="15" />
               </AppButton>
             </el-tooltip>
             <span class="open-card-indicator">Abrir →</span>
@@ -211,7 +307,11 @@ function timeAgo(value:number){
     </section>
 
     <!-- ESTADO 2: TABELA ESTRUTURADA (Modo Denso com todas as classes mantidas) -->
-    <section v-else-if="filtered.length && viewMode==='list'" class="project-table" aria-label="Projetos locais">
+    <section
+      v-else-if="filtered.length && viewMode === 'list'"
+      class="project-table"
+      aria-label="Projetos locais"
+    >
       <div class="table-head">
         <span>Projeto</span>
         <span>Duração</span>
@@ -228,49 +328,74 @@ function timeAgo(value:number){
         tabindex="0"
         role="button"
         :aria-label="'Abrir projeto: ' + (project.title || project.name)"
-        @click="$emit('open',project.id)"
-        @keydown.enter.prevent="$emit('open',project.id)"
-        @keydown.space.prevent="$emit('open',project.id)"
+        @click="$emit('open', project.id)"
+        @keydown.enter.prevent="$emit('open', project.id)"
+        @keydown.space.prevent="$emit('open', project.id)"
       >
         <div class="project-name">
-          <span class="video-thumb" :class="{manual:project.is_manual}">
+          <span class="video-thumb" :class="{ manual: project.is_manual }">
             <img
-              v-if="covers?.[project.id]&&brokenCovers[project.id]!==covers[project.id]"
+              v-if="covers?.[project.id] && brokenCovers[project.id] !== covers[project.id]"
               :src="covers[project.id]"
               alt=""
               loading="lazy"
-              @error="brokenCovers[project.id]=covers?.[project.id]||''"
+              @error="brokenCovers[project.id] = covers?.[project.id] || ''"
             />
-            <Film v-else :size="26"/>
+            <Film v-else :size="26" />
           </span>
           <div>
-            <AppButton class="project-title-link" @click.stop="$emit('open',project.id)">
-              <strong>{{project.title||project.name}}</strong>
+            <AppButton class="project-title-link" @click.stop="$emit('open', project.id)">
+              <strong>{{ project.title || project.name }}</strong>
             </AppButton>
-            <span>{{project.is_manual?'Teste de renderização':project.has_transcript?`${project.word_count.toLocaleString('pt-BR')} palavras transcritas`:project.name}}</span>
+            <span>{{
+              project.is_manual
+                ? 'Teste de renderização'
+                : project.has_transcript
+                  ? `${project.word_count.toLocaleString('pt-BR')} palavras transcritas`
+                  : project.name
+            }}</span>
           </div>
         </div>
 
-        <span class="table-duration">{{project.duration_us?time(project.duration_us):'—'}}</span>
+        <span class="table-duration">{{
+          project.duration_us ? time(project.duration_us) : '—'
+        }}</span>
         <span class="status-pill" :data-status="project.status">
-          <i></i>{{project.summary?.stage?stages[project.summary.stage]||project.summary.stage:labels[project.status]||project.status}}
+          <i></i
+          >{{
+            project.summary?.stage
+              ? stages[project.summary.stage] || project.summary.stage
+              : labels[project.status] || project.status
+          }}
         </span>
         <span class="project-counts">
-          <span>{{project.summary?.proposed==null?'—':project.summary.proposed+' propostas'}}</span>
-          <small>{{project.summary?.selected==null?'—':project.summary.selected+' selecionados'}} · {{project.summary?.generated??'—'}} gerados</small>
+          <span>{{
+            project.summary?.proposed == null ? '—' : project.summary.proposed + ' propostas'
+          }}</span>
+          <small
+            >{{
+              project.summary?.selected == null ? '—' : project.summary.selected + ' selecionados'
+            }}
+            · {{ project.summary?.generated ?? '—' }} gerados</small
+          >
         </span>
-        <time class="project-updated" :title="project.updated_at?new Date(project.updated_at*1000).toLocaleString('pt-BR'):''">
-          {{updated(project.updated_at)}}
+        <time
+          class="project-updated"
+          :title="
+            project.updated_at ? new Date(project.updated_at * 1000).toLocaleString('pt-BR') : ''
+          "
+        >
+          {{ updated(project.updated_at) }}
         </time>
         <AppButton
           type="button"
           class="icon-button"
           data-action="delete-project"
           title="Excluir projeto"
-          :disabled="busy||activeProjects?.includes(project.id)"
-          @click.stop="$emit('delete',project.id)"
+          :disabled="busy || activeProjects?.includes(project.id)"
+          @click.stop="$emit('delete', project.id)"
         >
-          <Trash2 :size="16"/>
+          <Trash2 :size="16" />
         </AppButton>
       </div>
     </section>
@@ -278,11 +403,15 @@ function timeAgo(value:number){
     <!-- ESTADO 3: ESTADO VAZIO / ONBOARDING INTEGRADO -->
     <section v-if="!filtered.length" class="empty-state studio-empty-state">
       <div class="empty-icon-wrap">
-        <FileVideo :size="40"/>
+        <FileVideo :size="40" />
       </div>
-      <h2>{{projects.length?'Nenhum resultado encontrado':'Nenhum projeto ainda'}}</h2>
+      <h2>{{ projects.length ? 'Nenhum resultado encontrado' : 'Nenhum projeto ainda' }}</h2>
       <p>
-        {{projects.length?'Tente outros termos de busca ou selecione outro filtro de estado.':'Comece importando um vídeo longo (entrevista, podcast, palestra) para gerar cortes verticais prontos para redes sociais.'}}
+        {{
+          projects.length
+            ? 'Tente outros termos de busca ou selecione outro filtro de estado.'
+            : 'Comece importando um vídeo longo (entrevista, podcast, palestra) para gerar cortes verticais prontos para redes sociais.'
+        }}
       </p>
 
       <div v-if="!projects.length" class="empty-quick-steps">
@@ -303,8 +432,12 @@ function timeAgo(value:number){
         </div>
       </div>
 
-      <AppButton v-if="!projects.length" class="button primary start-first-btn" @click="$emit('create')">
-        <Plus :size="18"/>
+      <AppButton
+        v-if="!projects.length"
+        class="button primary start-first-btn"
+        @click="$emit('create')"
+      >
+        <Plus :size="18" />
         <span>Criar meu primeiro projeto</span>
       </AppButton>
     </section>
@@ -312,12 +445,15 @@ function timeAgo(value:number){
     <!-- Rodapé da Biblioteca -->
     <footer class="library-footer-bar">
       <AppButton class="button secondary small trash-access-btn" @click="$emit('trash')">
-        <Trash2 :size="14"/>
+        <Trash2 :size="14" />
         <span>Lixeira de projetos</span>
       </AppButton>
 
       <div class="library-privacy-guarantee">
-        <span><span class="local-dot"></span>Privacidade Local-First: Mídia e transcrição ficam no seu computador</span>
+        <span
+          ><span class="local-dot"></span>Privacidade Local-First: Mídia e transcrição ficam no seu
+          computador</span
+        >
         <span>A análise inteligente envia somente o texto transcrito</span>
       </div>
     </footer>
@@ -330,7 +466,6 @@ function timeAgo(value:number){
   flex-direction: column;
   gap: 20px;
 }
-
 
 /* Banner de Fila */
 .global-queue-banner {

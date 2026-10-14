@@ -1,93 +1,169 @@
 <script setup lang="ts">
-import AppButton from './AppButton.vue'
-import {computed,watch,ref} from 'vue'
-import {Check,Square,RotateCcw,LoaderCircle,AlertCircle,Play,Sparkles,Scissors,Download,Film,Clock,ListOrdered,ChevronDown,FolderOpen} from '@lucide/vue'
-import type {Project,Job,Revision,AnalysisView} from '../types'
-import {active,labels,latestJob,time} from '../format'
-import {notifyJob,notify} from '../notifications'
+import AppButton from './AppButton.vue';
+import { computed, watch, ref } from 'vue';
+import {
+  Check,
+  Square,
+  RotateCcw,
+  LoaderCircle,
+  AlertCircle,
+  Play,
+  Sparkles,
+  Scissors,
+  Download,
+  Film,
+  Clock,
+  ListOrdered,
+  ChevronDown,
+  FolderOpen,
+} from '@lucide/vue';
+import type { Project, Job, Revision, AnalysisView } from '../types';
+import { active, labels, latestJob, time } from '../format';
+import { notifyJob, notify } from '../notifications';
 
-const props=defineProps<{project:Project;jobs:Job[];busy:boolean;hasCuts:boolean;revisions?:Revision[];analysis?:AnalysisView|null;sourceUrl?:string;selectedCount?:number}>()
-const emit=defineEmits<{transcribe:[];analyze:[];render:[];analysis:[];review:[];cancel:[id:string];resume:[id:string];replaceSource:[id:string];generate:[];export:[]}>()
+const props = defineProps<{
+  project: Project;
+  jobs: Job[];
+  busy: boolean;
+  hasCuts: boolean;
+  revisions?: Revision[];
+  analysis?: AnalysisView | null;
+  sourceUrl?: string;
+  selectedCount?: number;
+}>();
+const emit = defineEmits<{
+  transcribe: [];
+  analyze: [];
+  render: [];
+  analysis: [];
+  review: [];
+  cancel: [id: string];
+  resume: [id: string];
+  replaceSource: [id: string];
+  generate: [];
+  export: [];
+}>();
 
-const names=[['import','Importar'],['transcribe','Transcrever'],['analyze','Analisar'],['choose','Selecionar'],['render','Gerar'],['export','Exportar']] as const
-const job=computed(()=>latestJob(props.jobs))
-const recovery=computed(()=>job.value&&['failed','cancelled','interrupted'].includes(job.value.status))
-const importRecovery=computed(()=>recovery.value&&!props.project.source&&['prepare','import'].includes(job.value?.operation||''))
-const approved=computed(()=>props.revisions?.some(r=>r.technical_pass))
-const processing=computed(()=>props.jobs.some(j=>active(j.status)))
+const names = [
+  ['import', 'Importar'],
+  ['transcribe', 'Transcrever'],
+  ['analyze', 'Analisar'],
+  ['choose', 'Selecionar'],
+  ['render', 'Gerar'],
+  ['export', 'Exportar'],
+] as const;
+const job = computed(() => latestJob(props.jobs));
+const recovery = computed(
+  () => job.value && ['failed', 'cancelled', 'interrupted'].includes(job.value.status)
+);
+const importRecovery = computed(
+  () =>
+    recovery.value &&
+    !props.project.source &&
+    ['prepare', 'import'].includes(job.value?.operation || '')
+);
+const approved = computed(() => props.revisions?.some(r => r.technical_pass));
+const processing = computed(() => props.jobs.some(j => active(j.status)));
 
-watch(job,value=>{if(value&&['failed','interrupted'].includes(value.status))notifyJob(value)},{immediate:true})
+watch(
+  job,
+  value => {
+    if (value && ['failed', 'interrupted'].includes(value.status)) notifyJob(value);
+  },
+  { immediate: true }
+);
 
-function state(step:string){
-  if(step==='choose')return props.selectedCount?'completed':props.project.has_analysis?'waiting':'pending'
-  if(step==='export'&&props.revisions?.some(r=>r.exported))return 'completed'
-  if(step==='import'&&importRecovery.value)return job.value!.status
-  const progress=job.value?.progress?.steps[step]
-  if(job.value&&['completed','failed','cancelled','interrupted'].includes(job.value.status)&&progress&&['running','cancelling'].includes(progress))return job.value.status
-  if(progress&&progress!=='pending')return progress
-  if(job.value?.operation===step)return job.value.status
-  if(step==='import'&&props.project.source||step==='transcribe'&&props.project.has_transcript||step==='analyze'&&props.project.has_analysis||step==='render'&&props.hasCuts)return 'completed'
-  return 'pending'
+function state(step: string) {
+  if (step === 'choose')
+    return props.selectedCount ? 'completed' : props.project.has_analysis ? 'waiting' : 'pending';
+  if (step === 'export' && props.revisions?.some(r => r.exported)) return 'completed';
+  if (step === 'import' && importRecovery.value) return job.value!.status;
+  const progress = job.value?.progress?.steps[step];
+  if (
+    job.value &&
+    ['completed', 'failed', 'cancelled', 'interrupted'].includes(job.value.status) &&
+    progress &&
+    ['running', 'cancelling'].includes(progress)
+  )
+    return job.value.status;
+  if (progress && progress !== 'pending') return progress;
+  if (job.value?.operation === step) return job.value.status;
+  if (
+    (step === 'import' && props.project.source) ||
+    (step === 'transcribe' && props.project.has_transcript) ||
+    (step === 'analyze' && props.project.has_analysis) ||
+    (step === 'render' && props.hasCuts)
+  )
+    return 'completed';
+  return 'pending';
 }
 
-function handleStepClick(id:string){
-  if(id==='transcribe'&&props.project.has_transcript)emit('review')
-  else if((id==='analyze'||id==='choose')&&props.project.has_analysis)emit('analysis')
-  else if((id==='render'||id==='export')&&props.hasCuts)emit('review')
+function handleStepClick(id: string) {
+  if (id === 'transcribe' && props.project.has_transcript) emit('review');
+  else if ((id === 'analyze' || id === 'choose') && props.project.has_analysis) emit('analysis');
+  else if ((id === 'render' || id === 'export') && props.hasCuts) emit('review');
 }
 
 // Detecção de falhas de renderização nas prévias
-const renderJobs=computed(()=>props.jobs.filter(j=>j.operation==='render'))
-const failedRenderItem=computed(()=>{
-  for(const rj of renderJobs.value){
-    for(const item of rj.progress?.items||[]){
-      if(item.state==='failed'){
-        return {item,job:rj}
+const renderJobs = computed(() => props.jobs.filter(j => j.operation === 'render'));
+const failedRenderItem = computed(() => {
+  for (const rj of renderJobs.value) {
+    for (const item of rj.progress?.items || []) {
+      if (item.state === 'failed') {
+        return { item, job: rj };
       }
     }
   }
-  return null
-})
+  return null;
+});
 
 // Contagem de pendências de renderização
-const pendingQueueCount=computed(()=>{
-  let count=0
-  for(const rj of renderJobs.value){
-    for(const it of rj.progress?.items||[]){
-      if(['waiting','queued','pending'].includes(it.state)) count++
+const pendingQueueCount = computed(() => {
+  let count = 0;
+  for (const rj of renderJobs.value) {
+    for (const it of rj.progress?.items || []) {
+      if (['waiting', 'queued', 'pending'].includes(it.state)) count++;
     }
-    if(rj.status==='pending') count++
+    if (rj.status === 'pending') count++;
   }
-  return count
-})
+  return count;
+});
 
 // Determina se há uma falha relevante que requer atenção
-const hasFailure=computed(()=>{
-  return importRecovery.value || !!failedRenderItem.value || (recovery.value && !['analyze','render'].includes(job.value?.operation||''))
-})
+const hasFailure = computed(() => {
+  return (
+    importRecovery.value ||
+    !!failedRenderItem.value ||
+    (recovery.value && !['analyze', 'render'].includes(job.value?.operation || ''))
+  );
+});
 
-const completedStepsCount=computed(()=>names.filter(([id])=>state(id)==='completed').length)
+const completedStepsCount = computed(
+  () => names.filter(([id]) => state(id) === 'completed').length
+);
 
 // Informações da última falha
-const lastFailureTitle=computed(()=>{
-  if(importRecovery.value) return 'Falha na importação do arquivo original'
-  if(failedRenderItem.value?.item.title) return failedRenderItem.value.item.title
-  if(job.value?.error?.message) return job.value.error.message
-  return 'Por que a lei não explica a verdadeira corrupção'
-})
+const lastFailureTitle = computed(() => {
+  if (importRecovery.value) return 'Falha na importação do arquivo original';
+  if (failedRenderItem.value?.item.title) return failedRenderItem.value.item.title;
+  if (job.value?.error?.message) return job.value.error.message;
+  return 'Falha no processamento';
+});
 
-const lastFailureReason=computed(()=>{
-  if(importRecovery.value) return job.value?.error?.message||'Fonte bloqueada ou inacessível'
-  if(failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message
-  if(failedRenderItem.value?.item.error_code) return `${failedRenderItem.value.item.error_code} · FFmpeg`
-  if(job.value?.error?.code) return `${job.value.error.code} · Motor de processamento`
-  return 'Erro na codificação do vídeo · FFmpeg'
-})
+const lastFailureReason = computed(() => {
+  if (importRecovery.value) return job.value?.error?.message || 'Fonte bloqueada ou inacessível';
+  if (failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message;
+  if (failedRenderItem.value?.item.error_code)
+    return `${failedRenderItem.value.item.error_code} · Renderizador`;
+  if (job.value?.error?.code) return `${job.value.error.code} · Motor de processamento`;
+  if (job.value?.error?.message) return job.value.error.message;
+  return 'Ocorreu um erro durante a execução da etapa.';
+});
 
-function triggerErrorDetails(){
-  if(job.value) notifyJob(job.value, true)
-  else if(props.project.error) notify.error(props.project.error.message)
-  else notify.error(lastFailureReason.value)
+function triggerErrorDetails() {
+  if (job.value) notifyJob(job.value, true);
+  else if (props.project.error) notify.error(props.project.error.message);
+  else notify.error(lastFailureReason.value);
 }
 </script>
 
@@ -96,19 +172,34 @@ function triggerErrorDetails(){
     <!-- 1. CABEÇALHO COMPACTO DO PROJETO -->
     <header class="project-headline-bar">
       <div class="headline-meta">
-        <h2 class="project-main-title">{{project.title||project.name}}</h2>
+        <h2 class="project-main-title">{{ project.title || project.name }}</h2>
         <p class="project-tags-strip">
-          <el-tag v-if="project.source?.channel||project.source?.attribution" size="small" effect="plain" class="source-author">{{project.source.channel||project.source.attribution}}</el-tag>
+          <el-tag
+            v-if="project.source?.channel || project.source?.attribution"
+            size="small"
+            effect="plain"
+            class="source-author"
+            >{{ project.source.channel || project.source.attribution }}</el-tag
+          >
           <span v-if="project.duration_us" class="meta-dot">·</span>
-          <el-tag v-if="project.duration_us" size="small" effect="plain"><Clock :size="11"/> {{time(project.duration_us)}}</el-tag>
+          <el-tag v-if="project.duration_us" size="small" effect="plain"
+            ><Clock :size="11" /> {{ time(project.duration_us) }}</el-tag
+          >
           <span class="meta-dot">·</span>
-          <el-tag size="small" effect="plain">{{project.word_count.toLocaleString('pt-BR')}} palavras</el-tag>
+          <el-tag size="small" effect="plain"
+            >{{ project.word_count.toLocaleString('pt-BR') }} palavras</el-tag
+          >
         </p>
       </div>
 
       <div class="headline-actions">
-        <AppButton v-if="processing&&job" class="button small secondary cancel-job-btn" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)">
-          <Square :size="12"/>Cancelar
+        <AppButton
+          v-if="processing && job"
+          class="button small secondary cancel-job-btn"
+          :disabled="job.status === 'cancelling'"
+          @click="$emit('cancel', job.id)"
+        >
+          <Square :size="12" />Cancelar
         </AppButton>
       </div>
     </header>
@@ -117,29 +208,42 @@ function triggerErrorDetails(){
     <section class="stepper-track-wrap" aria-label="Esteira de progresso das etapas">
       <div class="stepper-track-title">
         <strong>Esteira de Processamento</strong>
-        <span>{{completedStepsCount}} de {{names.length}} etapas concluídas</span>
+        <span>{{ completedStepsCount }} de {{ names.length }} etapas concluídas</span>
       </div>
       <div class="stepper-track">
-        <template v-for="([id,title],idx) in names" :key="id">
+        <template v-for="([id, title], idx) in names" :key="id">
           <div
             class="stepper-node"
             :data-stepper-stage="id"
             :data-state="state(id)"
-            :class="{clickable:state(id)==='completed'}"
+            :class="{ clickable: state(id) === 'completed' }"
             role="button"
-            :tabindex="state(id)==='completed'?0:-1"
+            :tabindex="state(id) === 'completed' ? 0 : -1"
             @click="handleStepClick(id)"
           >
             <div class="node-circle">
-              <Check v-if="state(id)==='completed'" :size="14"/>
-              <LoaderCircle v-else-if="['running','cancelling','processing'].includes(state(id))" class="spin" :size="14"/>
-              <AlertCircle v-else-if="['failed','cancelled','interrupted'].includes(state(id))" :size="14"/>
-              <span v-else>{{idx+1}}</span>
+              <Check v-if="state(id) === 'completed'" :size="14" />
+              <LoaderCircle
+                v-else-if="['running', 'cancelling', 'processing'].includes(state(id))"
+                class="spin"
+                :size="14"
+              />
+              <AlertCircle
+                v-else-if="['failed', 'cancelled', 'interrupted'].includes(state(id))"
+                :size="14"
+              />
+              <span v-else>{{ idx + 1 }}</span>
             </div>
-            <span class="node-label">{{title}}</span>
-            <small class="node-subtext">{{state(id)==='waiting'?'Próxima':labels[state(id)]||state(id)}}</small>
+            <span class="node-label">{{ title }}</span>
+            <small class="node-subtext">{{
+              state(id) === 'waiting' ? 'Próxima' : labels[state(id)] || state(id)
+            }}</small>
           </div>
-          <div v-if="idx<names.length-1" class="stepper-connector" :class="{done:state(id)==='completed'}"></div>
+          <div
+            v-if="idx < names.length - 1"
+            class="stepper-connector"
+            :class="{ done: state(id) === 'completed' }"
+          ></div>
         </template>
       </div>
     </section>
@@ -151,59 +255,90 @@ function triggerErrorDetails(){
         <!-- ESTADO 1: ATENÇÃO / FALHA (Última Falha & Ação Contextual de Retomada) -->
         <article v-if="hasFailure" class="state-hero-card attention-mode" data-state="attention">
           <div class="hero-header-badge attention-badge">
-            <AlertCircle :size="14"/>
+            <AlertCircle :size="14" />
             <span>A geração precisa de atenção</span>
           </div>
 
           <div class="hero-body-text">
-            <h3>{{importRecovery?'Falha na importação do vídeo':'A geração precisa de atenção'}}</h3>
+            <h3>
+              {{ importRecovery ? 'Falha na importação do vídeo' : 'A geração precisa de atenção' }}
+            </h3>
             <p>
-              {{importRecovery
-                ?'O link do YouTube foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
-                :'Uma das prévias apresentou erro durante a renderização. Os resultados preservados continuam disponíveis.'}}
+              {{
+                importRecovery
+                  ? 'O link do YouTube foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
+                  : 'Uma das prévias apresentou erro durante a renderização. Os resultados preservados continuam disponíveis.'
+              }}
             </p>
           </div>
 
           <!-- CARD DEDICADO: ÚLTIMA FALHA -->
           <div class="last-failure-card">
             <span class="failure-eyebrow">ÚLTIMA FALHA</span>
-            <strong class="failure-title">{{lastFailureTitle}}</strong>
-            <p class="failure-reason">{{lastFailureReason}}</p>
-            <AppButton type="button" class="text-button failure-details-link" data-action="error-details" @click="triggerErrorDetails">
+            <strong class="failure-title">{{ lastFailureTitle }}</strong>
+            <p class="failure-reason">{{ lastFailureReason }}</p>
+            <AppButton
+              type="button"
+              class="text-button failure-details-link"
+              data-action="error-details"
+              @click="triggerErrorDetails"
+            >
               Ver detalhes técnicos
             </AppButton>
           </div>
 
           <!-- AÇÕES DO ESTADO DE FALHA -->
           <div class="hero-action-buttons">
-            <template v-if="importRecovery&&job">
-              <AppButton class="button primary hero-primary-btn" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)">
-                <RotateCcw :size="15"/>Tentar novamente
+            <template v-if="importRecovery && job">
+              <AppButton
+                class="button primary hero-primary-btn"
+                data-action="retry-import"
+                :disabled="busy || processing"
+                @click="$emit('resume', job.id)"
+              >
+                <RotateCcw :size="15" />Tentar novamente
               </AppButton>
-              <AppButton class="button secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">
-                <FolderOpen :size="15"/>Usar arquivo local
+              <AppButton
+                class="button secondary"
+                data-action="replace-source"
+                :disabled="busy || processing"
+                @click="$emit('replaceSource', job.id)"
+              >
+                <FolderOpen :size="15" />Usar arquivo local
               </AppButton>
             </template>
             <template v-else-if="failedRenderItem">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('resume',failedRenderItem.job.id)">
-                <RotateCcw :size="15"/>Abrir fila e retomar →
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy || processing"
+                @click="$emit('resume', failedRenderItem.job.id)"
+              >
+                <RotateCcw :size="15" />Abrir fila e retomar →
               </AppButton>
               <AppButton class="button secondary" @click="$emit('analysis')">
                 Ajustar seleção
               </AppButton>
             </template>
             <template v-else-if="job">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('resume',job.id)">
-                <RotateCcw :size="15"/>Retomar processamento
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy || processing"
+                @click="$emit('resume', job.id)"
+              >
+                <RotateCcw :size="15" />Retomar processamento
               </AppButton>
             </template>
           </div>
         </article>
 
         <!-- ESTADO 2: PROCESSAMENTO ATIVO -->
-        <article v-else-if="processing&&job" class="state-hero-card processing-mode" data-state="processing">
+        <article
+          v-else-if="processing && job"
+          class="state-hero-card processing-mode"
+          data-state="processing"
+        >
           <div class="hero-header-badge processing-badge">
-            <LoaderCircle class="spin" :size="14"/>
+            <LoaderCircle class="spin" :size="14" />
             <span>Processando seu projeto</span>
           </div>
 
@@ -223,12 +358,16 @@ function triggerErrorDetails(){
               role="progressbar"
               aria-label="Progresso da tarefa"
             />
-            <small>Status: {{labels[job.status]||job.status}}</small>
+            <small>Status: {{ labels[job.status] || job.status }}</small>
           </div>
 
           <div class="hero-action-buttons">
-            <AppButton class="button secondary" :disabled="job.status==='cancelling'" @click="$emit('cancel',job.id)">
-              <Square :size="14"/>Cancelar processamento
+            <AppButton
+              class="button secondary"
+              :disabled="job.status === 'cancelling'"
+              @click="$emit('cancel', job.id)"
+            >
+              <Square :size="14" />Cancelar processamento
             </AppButton>
           </div>
         </article>
@@ -238,16 +377,23 @@ function triggerErrorDetails(){
           <!-- CASO A: Transcrição Pendente -->
           <template v-if="!project.has_transcript">
             <div class="hero-header-badge ready-badge">
-              <Sparkles :size="14"/>
+              <Sparkles :size="14" />
               <span>Próximo Passo</span>
             </div>
             <div class="hero-body-text">
               <h3>Transcrever áudio original com Whisper local</h3>
-              <p>O vídeo original está pronto. Gere a transcrição completa com marcação temporal precisa usando o modelo local.</p>
+              <p>
+                O vídeo original está pronto. Gere a transcrição completa com marcação temporal
+                precisa usando o modelo local.
+              </p>
             </div>
             <div class="hero-action-buttons">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy||!project.source||processing" @click="$emit('transcribe')">
-                <Play :size="15"/>Transcrever vídeo agora
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy || !project.source || processing"
+                @click="$emit('transcribe')"
+              >
+                <Play :size="15" />Transcrever vídeo agora
               </AppButton>
             </div>
           </template>
@@ -255,50 +401,72 @@ function triggerErrorDetails(){
           <!-- CASO B: Análise Pendente -->
           <template v-else-if="!project.has_analysis">
             <div class="hero-header-badge ready-badge">
-              <Sparkles :size="14"/>
+              <Sparkles :size="14" />
               <span>Próximo Passo</span>
             </div>
             <div class="hero-body-text">
               <h3>Identificar temas e propostas com Inteligência Artificial</h3>
-              <p>A transcrição com {{project.word_count.toLocaleString('pt-BR')}} palavras está pronta. Descubra os momentos com maior potencial de engajamento.</p>
+              <p>
+                A transcrição com {{ project.word_count.toLocaleString('pt-BR') }} palavras está
+                pronta. Descubra os momentos com maior potencial de engajamento.
+              </p>
             </div>
             <div class="hero-action-buttons">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy||processing" @click="$emit('analyze')">
-                <Sparkles :size="15"/>Iniciar análise inteligente
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy || processing"
+                @click="$emit('analyze')"
+              >
+                <Sparkles :size="15" />Iniciar análise inteligente
               </AppButton>
             </div>
           </template>
 
           <!-- CASO C: Seleção Pendente -->
-          <template v-else-if="!hasCuts&&(!selectedCount||selectedCount===0)">
+          <template v-else-if="!hasCuts && (!selectedCount || selectedCount === 0)">
             <div class="hero-header-badge ready-badge">
-              <Scissors :size="14"/>
+              <Scissors :size="14" />
               <span>Curadoria Pronta</span>
             </div>
             <div class="hero-body-text">
               <h3>Curadoria editorial de cortes disponível</h3>
-              <p>A IA encontrou {{analysis?.proposals.length||0}} propostas e {{analysis?.topic_groups.length||0}} temas. Escolha os melhores trechos na tela de curadoria.</p>
+              <p>
+                A IA encontrou {{ analysis?.proposals.length || 0 }} propostas e
+                {{ analysis?.topic_groups.length || 0 }} temas. Escolha os melhores trechos na tela
+                de curadoria.
+              </p>
             </div>
             <div class="hero-action-buttons">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy" @click="$emit('analysis')">
-                <Scissors :size="15"/>Abrir Curadoria e Selecionar Cortes
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy"
+                @click="$emit('analysis')"
+              >
+                <Scissors :size="15" />Abrir Curadoria e Selecionar Cortes
               </AppButton>
             </div>
           </template>
 
           <!-- CASO D: Pronto para Renderizar Cortes -->
-          <template v-else-if="!hasCuts&&selectedCount&&selectedCount>0">
+          <template v-else-if="!hasCuts && selectedCount && selectedCount > 0">
             <div class="hero-header-badge ready-badge">
-              <Film :size="14"/>
+              <Film :size="14" />
               <span>Pronto para Renderização</span>
             </div>
             <div class="hero-body-text">
-              <h3>{{selectedCount}} trecho(s) selecionado(s) para renderização</h3>
-              <p>Seus cortes escolhidos estão prontos para virar vídeos verticais 9:16 com enquadramento dinâmico e legendas automáticas.</p>
+              <h3>{{ selectedCount }} trecho(s) selecionado(s) para renderização</h3>
+              <p>
+                Seus cortes escolhidos estão prontos para virar vídeos verticais 9:16 com
+                enquadramento dinâmico e legendas automáticas.
+              </p>
             </div>
             <div class="hero-action-buttons">
-              <AppButton class="button primary hero-primary-btn" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">
-                <Film :size="15"/>Gerar {{selectedCount}} Prévia(s) Vertical(is)
+              <AppButton
+                class="button primary hero-primary-btn"
+                :disabled="busy || !selectedCount || !project.has_analysis"
+                @click="$emit('generate')"
+              >
+                <Film :size="15" />Gerar {{ selectedCount }} Prévia(s) Vertical(is)
               </AppButton>
               <AppButton class="button secondary" @click="$emit('analysis')">
                 Ajustar seleção
@@ -309,19 +477,27 @@ function triggerErrorDetails(){
           <!-- CASO E: Cortes Prontos para Revisão / Exportação -->
           <template v-else>
             <div class="hero-header-badge ready-badge">
-              <Check :size="14"/>
+              <Check :size="14" />
               <span>Cortes Prontos</span>
             </div>
             <div class="hero-body-text">
-              <h3>{{revisions?.length||0}} corte(s) gerado(s) disponíveis para revisão</h3>
-              <p>Assista aos vídeos verticais 9:16, faça ajustes finos nas legendas e baixe os arquivos finais para publicação.</p>
+              <h3>{{ revisions?.length || 0 }} corte(s) gerado(s) disponíveis para revisão</h3>
+              <p>
+                Assista aos vídeos verticais 9:16, faça ajustes finos nas legendas e baixe os
+                arquivos finais para publicação.
+              </p>
             </div>
             <div class="hero-action-buttons">
               <AppButton class="button primary hero-primary-btn" @click="$emit('review')">
-                <Play :size="15"/>Abrir Estúdio de Revisão 9:16
+                <Play :size="15" />Abrir Estúdio de Revisão 9:16
               </AppButton>
-              <AppButton v-if="approved" class="button secondary" :disabled="busy" @click="$emit('export')">
-                <Download :size="15"/>Exportar prontos
+              <AppButton
+                v-if="approved"
+                class="button secondary"
+                :disabled="busy"
+                @click="$emit('export')"
+              >
+                <Download :size="15" />Exportar prontos
               </AppButton>
             </div>
           </template>
@@ -332,34 +508,62 @@ function triggerErrorDetails(){
       <aside class="dashboard-side-column">
         <!-- PLAYER COMPACTO DO VÍDEO ORIGINAL -->
         <figure class="pipeline-video">
-          <video v-if="sourceUrl" :src="sourceUrl" controls preload="metadata" playsinline aria-label="Vídeo original"></video>
-          <div v-else class="pipeline-video-empty">{{project.source?'Vídeo indisponível':importRecovery?'Importação interrompida':processing&&job?.progress?.steps.import==='running'?'Importando vídeo…':'Vídeo ainda não importado'}}</div>
-          <figcaption>Vídeo original · {{project.source?'Fonte preservada':'Aguardando fonte'}}</figcaption>
+          <video
+            v-if="sourceUrl"
+            :src="sourceUrl"
+            controls
+            preload="metadata"
+            playsinline
+            aria-label="Vídeo original"
+          ></video>
+          <div v-else class="pipeline-video-empty">
+            {{
+              project.source
+                ? 'Vídeo indisponível'
+                : importRecovery
+                  ? 'Importação interrompida'
+                  : processing && job?.progress?.steps.import === 'running'
+                    ? 'Importando vídeo…'
+                    : 'Vídeo ainda não importado'
+            }}
+          </div>
+          <figcaption>
+            Vídeo original · {{ project.source ? 'Fonte preservada' : 'Aguardando fonte' }}
+          </figcaption>
         </figure>
 
         <!-- CARTÃO DE MÉTRICAS COMPACTAS -->
         <div class="dashboard-metrics-card">
           <div class="metric-item">
             <span class="metric-label">Trechos selecionados</span>
-            <strong class="metric-value">{{selectedCount||0}}</strong>
+            <strong class="metric-value">{{ selectedCount || 0 }}</strong>
           </div>
 
-          <div v-if="pendingQueueCount>0" class="metric-item">
+          <div v-if="pendingQueueCount > 0" class="metric-item">
             <span class="metric-label">Pendências na fila</span>
-            <strong class="metric-value warning-value">{{pendingQueueCount}}</strong>
+            <strong class="metric-value warning-value">{{ pendingQueueCount }}</strong>
           </div>
 
           <div class="metric-item">
             <span class="metric-label">Temas identificados</span>
-            <strong class="metric-value">{{analysis?.topic_groups.length||0}}</strong>
+            <strong class="metric-value">{{ analysis?.topic_groups.length || 0 }}</strong>
           </div>
 
           <div class="metric-item analysis-metric-item">
             <span class="metric-label">Análise concluída</span>
-            <span class="metric-sub">{{analysis ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas` : 'Aguardando transcrição'}}</span>
+            <span class="metric-sub">{{
+              analysis
+                ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas`
+                : 'Aguardando transcrição'
+            }}</span>
           </div>
 
-          <AppButton v-if="project.has_analysis" type="button" class="text-button metrics-action-link" @click="$emit('analysis')">
+          <AppButton
+            v-if="project.has_analysis"
+            type="button"
+            class="text-button metrics-action-link"
+            @click="$emit('analysis')"
+          >
             Ver análise →
           </AppButton>
         </div>
@@ -370,53 +574,131 @@ function triggerErrorDetails(){
     <!-- Preserva os seletores [data-stage], .stage-progress e botões de recuperação de forma limpa -->
     <details class="technical-history-disclosure">
       <summary class="technical-history-trigger">
-        <ListOrdered :size="15"/>
+        <ListOrdered :size="15" />
         <span>Histórico técnico detalhado das 6 etapas da esteira</span>
-        <ChevronDown :size="14" class="disclosure-chevron"/>
+        <ChevronDown :size="14" class="disclosure-chevron" />
       </summary>
 
       <div class="technical-history-content">
         <ol class="technical-steps-list">
-          <li v-for="[id,title] in names" :key="id" class="technical-step-row" :data-stage="id" :data-state="state(id)">
-            <span class="step-mark" :class="{done:state(id)==='completed'}">
-              <Check v-if="state(id)==='completed'" :size="14"/>
-              <span v-else>{{names.findIndex(n=>n[0]===id)+1}}</span>
+          <li
+            v-for="[id, title] in names"
+            :key="id"
+            class="technical-step-row"
+            :data-stage="id"
+            :data-state="state(id)"
+          >
+            <span class="step-mark" :class="{ done: state(id) === 'completed' }">
+              <Check v-if="state(id) === 'completed'" :size="14" />
+              <span v-else>{{ names.findIndex(n => n[0] === id) + 1 }}</span>
             </span>
 
             <div class="step-info-col">
               <div class="step-header-line">
-                <strong>{{title}}</strong>
-                <span class="step-state-badge">{{state(id)==='waiting'?'Próxima ação':labels[state(id)]||state(id)}}</span>
+                <strong>{{ title }}</strong>
+                <span class="step-state-badge">{{
+                  state(id) === 'waiting' ? 'Próxima ação' : labels[state(id)] || state(id)
+                }}</span>
               </div>
 
               <div
-                v-if="!['pending','waiting'].includes(state(id))"
+                v-if="!['pending', 'waiting'].includes(state(id))"
                 role="progressbar"
                 :aria-label="title"
-                :aria-valuenow="state(id)==='completed'?100:undefined"
+                :aria-valuenow="state(id) === 'completed' ? 100 : undefined"
                 aria-valuemin="0"
                 aria-valuemax="100"
                 class="stage-progress"
-                :class="{indeterminate:['running','processing','cancelling'].includes(state(id)),complete:state(id)==='completed',failed:['failed','cancelled','interrupted'].includes(state(id))}"
+                :class="{
+                  indeterminate: ['running', 'processing', 'cancelling'].includes(state(id)),
+                  complete: state(id) === 'completed',
+                  failed: ['failed', 'cancelled', 'interrupted'].includes(state(id)),
+                }"
               >
                 <span></span>
               </div>
 
               <!-- Ações técnicas específicas por etapa para compatibilidade com testes -->
-              <div v-if="id==='import'&&importRecovery&&job" class="import-recovery-actions">
-                <AppButton v-if="job.error" type="button" class="text-button" data-action="error-details" @click="notifyJob(job,true)">Ver motivo da falha</AppButton>
+              <div v-if="id === 'import' && importRecovery && job" class="import-recovery-actions">
+                <AppButton
+                  v-if="job.error"
+                  type="button"
+                  class="text-button"
+                  data-action="error-details"
+                  @click="notifyJob(job, true)"
+                  >Ver motivo da falha</AppButton
+                >
                 <div class="recovery-btn-row">
-                  <AppButton class="button small primary" data-action="retry-import" :disabled="busy||processing" @click="$emit('resume',job.id)"><RotateCcw :size="13"/>Tentar novamente</AppButton>
-                  <AppButton class="button small secondary" data-action="replace-source" :disabled="busy||processing" @click="$emit('replaceSource',job.id)">Usar arquivo local</AppButton>
+                  <AppButton
+                    class="button small primary"
+                    data-action="retry-import"
+                    :disabled="busy || processing"
+                    @click="$emit('resume', job.id)"
+                    ><RotateCcw :size="13" />Tentar novamente</AppButton
+                  >
+                  <AppButton
+                    class="button small secondary"
+                    data-action="replace-source"
+                    :disabled="busy || processing"
+                    @click="$emit('replaceSource', job.id)"
+                    >Usar arquivo local</AppButton
+                  >
                 </div>
               </div>
 
               <div class="technical-step-actions">
-                <AppButton v-if="id==='transcribe'&&!project.has_transcript&&!project.is_manual&&!processing" class="button small secondary" :disabled="busy||!project.source" @click="$emit('transcribe')">Transcrever vídeo</AppButton>
-                <AppButton v-if="id==='analyze'&&!project.is_manual&&!processing&&project.has_transcript" class="button small secondary" :disabled="busy" @click="$emit('analyze')">{{project.has_analysis?'Nova análise':recovery?'Continuar análise':'Iniciar análise'}}</AppButton>
-                <AppButton v-if="id==='choose'&&!project.is_manual" class="button small secondary" :disabled="busy||!project.has_analysis" @click="$emit('render')">{{selectedCount?selectedCount+' trechos selecionados · Ajustar':'Escolher trechos'}}</AppButton>
-                <AppButton v-if="id==='render'&&!project.is_manual" class="button small primary" :disabled="busy||!selectedCount||!project.has_analysis" @click="$emit('generate')">Gerar prévias</AppButton>
-                <AppButton v-if="id==='export'&&approved" class="button small primary" :disabled="busy" @click="$emit('export')">Exportar prontos</AppButton>
+                <AppButton
+                  v-if="
+                    id === 'transcribe' &&
+                    !project.has_transcript &&
+                    !project.is_manual &&
+                    !processing
+                  "
+                  class="button small secondary"
+                  :disabled="busy || !project.source"
+                  @click="$emit('transcribe')"
+                  >Transcrever vídeo</AppButton
+                >
+                <AppButton
+                  v-if="
+                    id === 'analyze' && !project.is_manual && !processing && project.has_transcript
+                  "
+                  class="button small secondary"
+                  :disabled="busy"
+                  @click="$emit('analyze')"
+                  >{{
+                    project.has_analysis
+                      ? 'Nova análise'
+                      : recovery
+                        ? 'Continuar análise'
+                        : 'Iniciar análise'
+                  }}</AppButton
+                >
+                <AppButton
+                  v-if="id === 'choose' && !project.is_manual"
+                  class="button small secondary"
+                  :disabled="busy || !project.has_analysis"
+                  @click="$emit('render')"
+                  >{{
+                    selectedCount
+                      ? selectedCount + ' trechos selecionados · Ajustar'
+                      : 'Escolher trechos'
+                  }}</AppButton
+                >
+                <AppButton
+                  v-if="id === 'render' && !project.is_manual"
+                  class="button small primary"
+                  :disabled="busy || !selectedCount || !project.has_analysis"
+                  @click="$emit('generate')"
+                  >Gerar prévias</AppButton
+                >
+                <AppButton
+                  v-if="id === 'export' && approved"
+                  class="button small primary"
+                  :disabled="busy"
+                  @click="$emit('export')"
+                  >Exportar prontos</AppButton
+                >
               </div>
             </div>
           </li>

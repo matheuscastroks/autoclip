@@ -1,6 +1,7 @@
 @import 'element-plus/theme-chalk/dark/css-vars.css';
 
-html.dark, :root {
+html.dark,
+:root {
   /* Marca e Destaque */
   --el-color-primary: var(--color-accent);
   --el-color-primary-light-3: var(--color-accent-hover);
@@ -64,14 +65,16 @@ html.dark, :root {
 }
 
 /* Customização Específica de Diálogos e Drawers */
-.el-dialog, .el-drawer {
+.el-dialog,
+.el-drawer {
   background-color: var(--color-surface) !important;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-floating);
 }
 
-.el-dialog__header, .el-drawer__header {
+.el-dialog__header,
+.el-drawer__header {
   border-bottom: 1px solid var(--color-border-subtle);
   margin-bottom: 0;
   padding: 18px 24px;

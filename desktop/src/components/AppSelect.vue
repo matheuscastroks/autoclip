@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import {ElSelect,ElOption} from 'element-plus'
+import { ElSelect, ElOption } from 'element-plus';
 
-defineOptions({inheritAttrs:false})
-const props=withDefaults(defineProps<{
-  modelValue:string
-  options:{value:string;label:string;disabled?:boolean}[]
-  label:string
-  disabled?:boolean
-  required?:boolean
-}>(),{disabled:false,required:false})
+defineOptions({ inheritAttrs: false });
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    options: { value: string; label: string; disabled?: boolean }[];
+    label: string;
+    disabled?: boolean;
+    required?: boolean;
+  }>(),
+  { disabled: false, required: false }
+);
 
-const emit=defineEmits<{'update:modelValue':[value:string]}>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 </script>
 
 <template>
