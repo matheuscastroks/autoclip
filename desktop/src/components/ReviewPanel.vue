@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, toRef } from 'vue';
 import {
   Scissors,
   Info,
@@ -18,6 +18,7 @@ import {
 import type { Revision, Checks, Decision, Job, GenerationItem } from '../types';
 import { notify } from '../notifications';
 import { time, labels, latestJob, active } from '../format';
+import { useBulkSelection } from '../composables/useBulkSelection';
 
 const props = defineProps<{
   revisions: Revision[];
@@ -116,30 +117,10 @@ const totalCutsCount = computed(() => {
   return visibleRevisions.value.length + visibleGeneration.value.length;
 });
 
-const bulk = ref<string[]>([]);
-const allVisible = computed(
-  () =>
-    visibleRevisions.value.length > 0 &&
-    visibleRevisions.value.every(r => bulk.value.includes(r.revision_id))
+const { bulk, allVisible, exportableBulk, toggleAll } = useBulkSelection(
+  toRef(props, 'revisions'),
+  visibleRevisions
 );
-const exportableBulk = computed(
-  () =>
-    bulk.value.length > 0 &&
-    bulk.value.every(id => props.revisions.some(r => r.revision_id === id && r.technical_pass))
-);
-
-watch(
-  () => props.revisions,
-  rows => {
-    bulk.value = bulk.value.filter(id => rows.some(r => r.revision_id === id));
-  }
-);
-function toggleAll() {
-  const ids = visibleRevisions.value.map(r => r.revision_id);
-  bulk.value = allVisible.value
-    ? bulk.value.filter(id => !ids.includes(id))
-    : [...new Set([...bulk.value, ...ids])];
-}
 
 const selected = ref('');
 watch(
