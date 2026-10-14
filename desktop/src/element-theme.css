@@ -2,14 +2,14 @@
 
 html.dark,
 :root {
-  /* Marca e Destaque */
-  --el-color-primary: var(--color-accent);
-  --el-color-primary-light-3: var(--color-accent-hover);
-  --el-color-primary-light-5: var(--color-accent-light);
-  --el-color-primary-light-7: rgba(217, 119, 36, 0.3);
-  --el-color-primary-light-8: var(--color-accent-subtle);
-  --el-color-primary-light-9: var(--color-accent-soft);
-  --el-color-primary-dark-2: var(--color-border-focus);
+  /* Marca e Destaque Neutro Studio */
+  --el-color-primary: var(--color-action-primary, #e5e7eb);
+  --el-color-primary-light-3: var(--color-action-primary-hover, #f3f4f6);
+  --el-color-primary-light-5: #ffffff;
+  --el-color-primary-light-7: rgba(229, 231, 235, 0.2);
+  --el-color-primary-light-8: var(--color-surface-raised);
+  --el-color-primary-light-9: var(--color-surface-hover);
+  --el-color-primary-dark-2: var(--color-focus-ring, #b8c0ca);
 
   /* Superfícies e Fundos */
   --el-bg-color: var(--color-canvas);
@@ -30,7 +30,7 @@ html.dark,
   --el-border-color: var(--color-border-subtle);
   --el-border-color-light: var(--color-border-subtle);
   --el-border-color-lighter: var(--color-border-subtle);
-  --el-border-color-extra-light: rgba(46, 54, 68, 0.5);
+  --el-border-color-extra-light: rgba(255, 255, 255, 0.04);
   --el-border-color-dark: var(--color-border-strong);
   --el-border-color-darker: var(--color-border-strong);
 
@@ -43,8 +43,8 @@ html.dark,
   --el-color-danger-light-9: var(--color-danger-soft);
 
   /* Raios de Arredondamento */
-  --el-border-radius-base: var(--radius-control); /* 8px */
-  --el-border-radius-small: 6px;
+  --el-border-radius-base: var(--radius-control); /* 6px */
+  --el-border-radius-small: 4px;
   --el-border-radius-round: 999px;
 
   /* Fontes e Tipografia */
@@ -62,6 +62,85 @@ html.dark,
   --el-table-tr-bg-color: var(--color-surface);
   --el-table-row-hover-bg-color: var(--color-surface-hover);
   --el-table-border-color: var(--color-border-subtle);
+}
+
+/* Botões */
+.el-button--primary {
+  background-color: var(--color-action-primary, #e5e7eb) !important;
+  border-color: var(--color-action-primary, #e5e7eb) !important;
+  color: var(--color-action-primary-text, #111317) !important;
+  font-weight: 500;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--color-action-primary-hover, #f3f4f6) !important;
+  border-color: var(--color-action-primary-hover, #f3f4f6) !important;
+  color: var(--color-action-primary-text, #111317) !important;
+}
+
+.el-button--default {
+  background-color: var(--color-surface-raised) !important;
+  border-color: var(--color-border-subtle) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.el-button--default:hover,
+.el-button--default:focus {
+  background-color: var(--color-surface-hover) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Abas */
+.el-tabs__active-bar {
+  background-color: var(--color-text-primary) !important;
+}
+
+.el-tabs__item {
+  color: var(--color-text-muted) !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--color-text-primary) !important;
+  font-weight: 600;
+}
+
+.el-tabs__item:hover {
+  color: var(--color-text-secondary) !important;
+}
+
+.el-tabs__nav-wrap::after {
+  background-color: var(--color-border-subtle) !important;
+}
+
+/* Checkboxes, Radios, Switches */
+.el-checkbox__input.is-checked .el-checkbox__inner,
+.el-radio__input.is-checked .el-radio__inner {
+  background-color: var(--color-action-primary, #e5e7eb) !important;
+  border-color: var(--color-action-primary, #e5e7eb) !important;
+}
+
+.el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: var(--color-action-primary-text, #111317) !important;
+}
+
+.el-radio__input.is-checked .el-radio__inner::after {
+  background-color: var(--color-action-primary-text, #111317) !important;
+}
+
+.el-checkbox__input.is-checked + .el-checkbox__label,
+.el-radio__input.is-checked + .el-radio__label {
+  color: var(--color-text-primary) !important;
+}
+
+.el-switch.is-checked .el-switch__core {
+  background-color: var(--color-action-primary, #e5e7eb) !important;
+  border-color: var(--color-action-primary, #e5e7eb) !important;
+}
+
+.el-switch.is-checked .el-switch__core .el-switch__action {
+  color: var(--color-action-primary-text, #111317) !important;
 }
 
 /* Customização Específica de Diálogos e Drawers */
@@ -89,4 +168,21 @@ html.dark,
 .el-tag {
   border-radius: 6px;
   font-weight: 500;
+}
+
+/* Dropdowns & Menus */
+.el-dropdown-menu {
+  background-color: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-floating) !important;
+}
+
+.el-dropdown-menu__item {
+  color: var(--color-text-primary) !important;
+}
+
+.el-dropdown-menu__item:hover,
+.el-dropdown-menu__item:focus {
+  background-color: var(--color-surface-hover) !important;
+  color: var(--color-text-primary) !important;
 }
