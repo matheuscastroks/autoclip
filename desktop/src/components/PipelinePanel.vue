@@ -119,6 +119,7 @@ function triggerErrorDetails() {
     <!-- 1. CABEÇALHO COMPACTO DO PROJETO -->
     <header class="project-headline-bar">
       <div class="headline-meta">
+        <span class="project-section-eyebrow">Preparação · Fonte e processamento do projeto</span>
         <h2 class="project-main-title">{{ project.title || project.name }}</h2>
         <p class="project-tags-strip">
           <el-tag
@@ -151,53 +152,74 @@ function triggerErrorDetails() {
       </div>
     </header>
 
-    <!-- 2. ESTEIRA HORIZONTAL LINEAR E COMPACTA (6 ETAPAS CONECTADAS) -->
-    <section class="stepper-track-wrap" aria-label="Esteira de progresso das etapas">
-      <div class="stepper-track-title">
-        <strong>Esteira de Processamento</strong>
-        <span>{{ completedStepsCount }} de {{ names.length }} etapas concluídas</span>
-      </div>
-      <div class="stepper-track">
-        <template v-for="([id, title], idx) in names" :key="id">
-          <div
-            class="stepper-node"
-            :data-stepper-stage="id"
-            :data-state="state(id)"
-            :class="{ clickable: state(id) === 'completed' }"
-            role="button"
-            :tabindex="state(id) === 'completed' ? 0 : -1"
-            @click="handleStepClick(id)"
-          >
-            <div class="node-circle">
-              <Check v-if="state(id) === 'completed'" :size="14" />
-              <LoaderCircle
-                v-else-if="['running', 'cancelling', 'processing'].includes(state(id))"
-                class="spin"
-                :size="14"
-              />
-              <AlertCircle
-                v-else-if="['failed', 'cancelled', 'interrupted'].includes(state(id))"
-                :size="14"
-              />
-              <span v-else>{{ idx + 1 }}</span>
-            </div>
-            <span class="node-label">{{ title }}</span>
-            <small class="node-subtext">{{
-              state(id) === 'waiting' ? 'Próxima' : labels[state(id)] || state(id)
-            }}</small>
-          </div>
-          <div
-            v-if="idx < names.length - 1"
-            class="stepper-connector"
-            :class="{ done: state(id) === 'completed' }"
-          ></div>
-        </template>
-      </div>
-    </section>
-
-    <!-- 3. GRADE DO DASHBOARD: PAINEL PRINCIPAL (ESQUERDA) + VÍDEO & MÉTRICAS (DIREITA) -->
+    <!-- 2. GRADE DE PREPARAÇÃO: FONTE DO VÍDEO (ESQUERDA) + ESTADO & AÇÃO (DIREITA) -->
     <div class="dashboard-grid">
-      <!-- COLUNA PRINCIPAL: HERO DINÂMICO ORIENTADO AO ESTADO ATUAL -->
+      <!-- PILAR 1: FONTE E VÍDEO ORIGINAL (COLUNA ESQUERDA) -->
+      <aside class="dashboard-side-column">
+        <!-- PLAYER COMPACTO DO VÍDEO ORIGINAL -->
+        <figure class="pipeline-video">
+          <video
+            v-if="sourceUrl"
+            :src="sourceUrl"
+            controls
+            preload="metadata"
+            playsinline
+            aria-label="Vídeo original"
+          ></video>
+          <div v-else class="pipeline-video-empty">
+            {{
+              project.source
+                ? 'Vídeo indisponível'
+                : importRecovery
+                  ? 'Importação interrompida'
+                  : processing && job?.progress?.steps.import === 'running'
+                    ? 'Importando vídeo…'
+                    : 'Vídeo ainda não importado'
+            }}
+          </div>
+          <figcaption>
+            Vídeo original · {{ project.source ? 'Fonte preservada' : 'Aguardando fonte' }}
+          </figcaption>
+        </figure>
+
+        <!-- CARTÃO DE MÉTRICAS COMPACTAS -->
+        <div class="dashboard-metrics-card">
+          <div class="metric-item">
+            <span class="metric-label">Trechos selecionados</span>
+            <strong class="metric-value">{{ selectedCount || 0 }}</strong>
+          </div>
+
+          <div v-if="pendingQueueCount > 0" class="metric-item">
+            <span class="metric-label">Pendências na fila</span>
+            <strong class="metric-value warning-value">{{ pendingQueueCount }}</strong>
+          </div>
+
+          <div class="metric-item">
+            <span class="metric-label">Temas identificados</span>
+            <strong class="metric-value">{{ analysis?.topic_groups.length || 0 }}</strong>
+          </div>
+
+          <div class="metric-item analysis-metric-item">
+            <span class="metric-label">Análise concluída</span>
+            <span class="metric-sub">{{
+              analysis
+                ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas`
+                : 'Aguardando transcrição'
+            }}</span>
+          </div>
+
+          <AppButton
+            v-if="project.has_analysis"
+            type="button"
+            class="text-button metrics-action-link"
+            @click="$emit('analysis')"
+          >
+            Ver análise →
+          </AppButton>
+        </div>
+      </aside>
+
+      <!-- PILAR 2 & 3: ESTADO REAL & PRÓXIMA AÇÃO (COLUNA DIREITA) -->
       <section class="dashboard-hero-column">
         <!-- ESTADO 1: ATENÇÃO / FALHA (Última Falha & Ação Contextual de Retomada) -->
         <article v-if="hasFailure" class="state-hero-card attention-mode" data-state="attention">
@@ -404,71 +426,6 @@ function triggerErrorDetails() {
           </template>
         </article>
       </section>
-
-      <!-- COLUNA LATERAL: VÍDEO ORIGINAL + MÉTRICAS CONTEXTUAIS -->
-      <aside class="dashboard-side-column">
-        <!-- PLAYER COMPACTO DO VÍDEO ORIGINAL -->
-        <figure class="pipeline-video">
-          <video
-            v-if="sourceUrl"
-            :src="sourceUrl"
-            controls
-            preload="metadata"
-            playsinline
-            aria-label="Vídeo original"
-          ></video>
-          <div v-else class="pipeline-video-empty">
-            {{
-              project.source
-                ? 'Vídeo indisponível'
-                : importRecovery
-                  ? 'Importação interrompida'
-                  : processing && job?.progress?.steps.import === 'running'
-                    ? 'Importando vídeo…'
-                    : 'Vídeo ainda não importado'
-            }}
-          </div>
-          <figcaption>
-            Vídeo original · {{ project.source ? 'Fonte preservada' : 'Aguardando fonte' }}
-          </figcaption>
-        </figure>
-
-        <!-- CARTÃO DE MÉTRICAS COMPACTAS -->
-        <div class="dashboard-metrics-card">
-          <div class="metric-item">
-            <span class="metric-label">Trechos selecionados</span>
-            <strong class="metric-value">{{ selectedCount || 0 }}</strong>
-          </div>
-
-          <div v-if="pendingQueueCount > 0" class="metric-item">
-            <span class="metric-label">Pendências na fila</span>
-            <strong class="metric-value warning-value">{{ pendingQueueCount }}</strong>
-          </div>
-
-          <div class="metric-item">
-            <span class="metric-label">Temas identificados</span>
-            <strong class="metric-value">{{ analysis?.topic_groups.length || 0 }}</strong>
-          </div>
-
-          <div class="metric-item analysis-metric-item">
-            <span class="metric-label">Análise concluída</span>
-            <span class="metric-sub">{{
-              analysis
-                ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas`
-                : 'Aguardando transcrição'
-            }}</span>
-          </div>
-
-          <AppButton
-            v-if="project.has_analysis"
-            type="button"
-            class="text-button metrics-action-link"
-            @click="$emit('analysis')"
-          >
-            Ver análise →
-          </AppButton>
-        </div>
-      </aside>
     </div>
 
     <!-- 4. HISTÓRICO TÉCNICO DAS 6 ETAPAS (GAVETA EXPANSÍVEL DISCRETA NO RODAPÉ) -->
@@ -481,6 +438,50 @@ function triggerErrorDetails() {
       </summary>
 
       <div class="technical-history-content">
+        <!-- ESTEIRA LINEAR DE PROCESSAMENTO -->
+        <section class="stepper-track-wrap" aria-label="Esteira de progresso das etapas">
+          <div class="stepper-track-title">
+            <strong>Esteira de Processamento</strong>
+            <span>{{ completedStepsCount }} de {{ names.length }} etapas concluídas</span>
+          </div>
+          <div class="stepper-track">
+            <template v-for="([id, title], idx) in names" :key="id">
+              <div
+                class="stepper-node"
+                :data-stepper-stage="id"
+                :data-state="state(id)"
+                :class="{ clickable: state(id) === 'completed' }"
+                role="button"
+                :tabindex="state(id) === 'completed' ? 0 : -1"
+                @click="handleStepClick(id)"
+              >
+                <div class="node-circle">
+                  <Check v-if="state(id) === 'completed'" :size="14" />
+                  <LoaderCircle
+                    v-else-if="['running', 'cancelling', 'processing'].includes(state(id))"
+                    class="spin"
+                    :size="14"
+                  />
+                  <AlertCircle
+                    v-else-if="['failed', 'cancelled', 'interrupted'].includes(state(id))"
+                    :size="14"
+                  />
+                  <span v-else>{{ idx + 1 }}</span>
+                </div>
+                <span class="node-label">{{ title }}</span>
+                <small class="node-subtext">{{
+                  state(id) === 'waiting' ? 'Próxima' : labels[state(id)] || state(id)
+                }}</small>
+              </div>
+              <div
+                v-if="idx < names.length - 1"
+                class="stepper-connector"
+                :class="{ done: state(id) === 'completed' }"
+              ></div>
+            </template>
+          </div>
+        </section>
+
         <ol class="technical-steps-list">
           <li
             v-for="[id, title] in names"
@@ -631,6 +632,15 @@ function triggerErrorDetails() {
   gap: 4px;
 }
 
+.project-section-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
 .project-main-title {
   font-size: 1.35rem;
   font-weight: 700;
@@ -659,11 +669,11 @@ function triggerErrorDetails() {
 
 /* 2. Esteira Linear de Processamento */
 .stepper-track-wrap {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--color-border-subtle, #2e3644);
-  border-radius: 0;
-  padding: 8px 0 16px 0;
+  background: var(--color-surface, #16181b);
+  border: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: var(--radius-panel, 8px);
+  padding: 14px 18px;
+  margin-bottom: 16px;
 }
 
 .stepper-track-title {
@@ -774,8 +784,8 @@ function triggerErrorDetails() {
 /* 3. Grade do Dashboard */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
