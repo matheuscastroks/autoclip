@@ -2,6 +2,7 @@
 import AppButton from './AppButton.vue'
 import AppSelect from './AppSelect.vue'
 import {computed,ref} from 'vue'
+import {ElTag,ElTooltip} from 'element-plus'
 import {Search,Film,Trash2,Plus,FileVideo,ListOrdered,LayoutGrid,List,Clock,Sparkles} from '@lucide/vue'
 import type {Project} from '../types'
 import {time,labels,stages} from '../format'
@@ -149,10 +150,15 @@ function timeAgo(value:number){
           </span>
 
           <!-- Status do projeto -->
-          <span class="status-pill card-status-pill" :data-status="project.status">
-            <i></i>
+          <el-tag
+            :type="project.status==='ready'||project.status==='completed'?'success':project.status==='processing'||project.status==='running'?'warning':project.status==='failed'?'danger':'info'"
+            effect="dark"
+            size="small"
+            class="status-pill card-status-pill"
+            :data-status="project.status"
+          >
             {{project.summary?.stage?stages[project.summary.stage]||project.summary.stage:labels[project.status]||project.status}}
-          </span>
+          </el-tag>
         </div>
 
         <!-- Conteúdo do Card -->
@@ -186,16 +192,18 @@ function timeAgo(value:number){
           </span>
 
           <div class="card-actions-group">
-            <AppButton
-              type="button"
-              class="icon-button delete-btn"
-              data-action="delete-project"
-              title="Excluir projeto"
-              :disabled="busy||activeProjects?.includes(project.id)"
-              @click.stop="$emit('delete',project.id)"
-            >
-              <Trash2 :size="15"/>
-            </AppButton>
+            <el-tooltip content="Excluir projeto" placement="top">
+              <AppButton
+                type="button"
+                class="icon-button delete-btn"
+                data-action="delete-project"
+                title="Excluir projeto"
+                :disabled="busy||activeProjects?.includes(project.id)"
+                @click.stop="$emit('delete',project.id)"
+              >
+                <Trash2 :size="15"/>
+              </AppButton>
+            </el-tooltip>
             <span class="open-card-indicator">Abrir →</span>
           </div>
         </div>
