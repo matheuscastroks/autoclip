@@ -37,3 +37,36 @@ def test_provisioner_ffmpeg_extracts_binaries(tmp_path):
     assert (tools_dir / "ffmpeg.exe").read_bytes() == b"dummy_ffmpeg"
     assert (tools_dir / "ffprobe.exe").read_bytes() == b"dummy_ffprobe"
     assert not (tools_dir / "readme.txt").exists()
+
+def test_provisioner_thread_lifecycle_and_cancellation(tmp_path):
+    import time
+    import threading
+    prov = DependencyProvisioner(base_dir=tmp_path)
+    
+    started = threading.Event()
+    unblock = threading.Event()
+
+    def mock_run(model_id, install_ffmpeg):
+        prov._active_tmp_file = tmp_path / "mock.tmp"
+        prov._active_tmp_file.write_text("downloading...")
+        started.set()
+        while not prov._cancel_event.is_set():
+            time.sleep(0.01)
+        # Simulate finally block
+        if prov._active_tmp_file and prov._active_tmp_file.exists():
+            prov._active_tmp_file.unlink()
+        prov._state["status"] = "cancelled"
+
+    prov._run_provision = mock_run
+    prov.start("Systran/faster-whisper-base", install_ffmpeg=False)
+    assert started.wait(timeout=2.0)
+
+    # While thread is running, start() must raise
+    with pytest.raises(RuntimeError, match="Provisioning already in progress"):
+        prov.start("Systran/faster-whisper-base", install_ffmpeg=False)
+
+    prov.cancel()
+    prov._thread.join(timeout=2.0)
+    assert prov.status()["status"] == "cancelled"
+    assert not (tmp_path / "mock.tmp").exists()
+

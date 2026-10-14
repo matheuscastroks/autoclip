@@ -70,3 +70,24 @@ def test_retry_cannot_replace_source_of_existing_project(client,tmp_path):
     old=jobs.start(pid,'prepare',{})
     (jobs.root/old['id']/'result.json').write_text(json.dumps({'status':'failed'}))
     assert client.post('/api/v1/jobs/'+old['id']+'/resume',json={'source_input':'replacement.mp4'}).status_code==400
+
+def test_terminal_job_polling_does_not_trigger_redundant_sqlite_writes(client, monkeypatch):
+    store = client.app.state.store
+    jobs = client.app.state.jobs
+    store.save_job({'id': 'finished-job', 'project_id': 'p1', 'status': 'completed', 'finished_at': '2026-10-14T02:00:00Z', 'events': []})
+    
+    save_calls = []
+    original_save = store.save_job
+    def tracked_save(job):
+        save_calls.append(job['id'])
+        return original_save(job)
+    monkeypatch.setattr(store, 'save_job', tracked_save)
+
+    # Poll multiple times
+    for _ in range(5):
+        res = client.get('/api/v1/jobs').json()
+        assert any(j['id'] == 'finished-job' for j in res)
+
+    # Must be 0 saves because the job is terminal and unchanged!
+    assert 'finished-job' not in save_calls
+

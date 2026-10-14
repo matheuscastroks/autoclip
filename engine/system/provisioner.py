@@ -29,6 +29,7 @@ class DependencyProvisioner:
         self.tools_dir = self.base_dir / "bin"
         self.models_dir = self.base_dir / "models"
         self._lock = threading.Lock()
+        self._cancel_event = threading.Event()
         self._cancelled = False
         self._active_tmp_file: Optional[Path] = None
         self._thread: Optional[threading.Thread] = None
@@ -53,21 +54,27 @@ class DependencyProvisioner:
 
     def cancel(self):
         with self._lock:
+            self._cancel_event.set()
             self._cancelled = True
-            if self._active_tmp_file and self._active_tmp_file.exists():
-                try:
-                    self._active_tmp_file.unlink()
-                except OSError:
-                    pass
-                self._active_tmp_file = None
-            self._state["status"] = "cancelled"
-            self._state["stage"] = "cancelled"
+            if self._thread and self._thread.is_alive():
+                self._state["status"] = "cancelling"
+                self._state["stage"] = "cancelling"
+            else:
+                self._state["status"] = "cancelled"
+                self._state["stage"] = "cancelled"
+                if self._active_tmp_file and self._active_tmp_file.exists():
+                    try:
+                        self._active_tmp_file.unlink()
+                    except OSError:
+                        pass
+                    self._active_tmp_file = None
             self._state["error"] = "Operação cancelada pelo usuário."
 
     def start(self, model_id: str, install_ffmpeg: bool = True):
         with self._lock:
-            if self._state["status"] in ("downloading", "extracting"):
+            if (self._thread and self._thread.is_alive()) or self._state["status"] in ("downloading", "extracting", "cancelling"):
                 raise RuntimeError("Provisioning already in progress")
+            self._cancel_event.clear()
             self._cancelled = False
             self._active_tmp_file = None
             self._state.update({
@@ -131,7 +138,7 @@ class DependencyProvisioner:
             chunk_size = 128 * 1024
 
             while True:
-                if self._cancelled:
+                if self._cancel_event.is_set():
                     raise RuntimeError("Download cancelled")
 
                 chunk = resp.read(chunk_size)
@@ -150,7 +157,7 @@ class DependencyProvisioner:
                     self._state["speed_bps"] = speed
                     self._state["percent"] = pct
 
-        if tmp_path.exists():
+        if not self._cancel_event.is_set() and tmp_path.exists():
             if target_path.exists():
                 target_path.unlink()
             tmp_path.rename(target_path)
@@ -171,6 +178,9 @@ class DependencyProvisioner:
                 zip_path = self.tools_dir / "ffmpeg-download.zip"
                 self._download_file(GYAN_FFMPEG_URL, zip_path, "FFmpeg Essentials")
 
+                if self._cancel_event.is_set():
+                    return
+
                 with self._lock:
                     self._state["stage"] = "extracting_ffmpeg"
                     self._state["item"] = "Extraindo ferramentas de áudio e vídeo..."
@@ -184,12 +194,15 @@ class DependencyProvisioner:
                 self._state["stage"] = "whisper"
 
             for fname in MODEL_FILES:
-                if self._cancelled:
+                if self._cancel_event.is_set():
                     return
                 file_dest = model_target_dir / fname
                 if not file_dest.exists():
                     url = f"https://huggingface.co/{model_id}/resolve/main/{fname}"
                     self._download_file(url, file_dest, f"Whisper {folder_name}: {fname}")
+
+            if self._cancel_event.is_set():
+                return
 
             with self._lock:
                 self._state.update({
@@ -204,12 +217,19 @@ class DependencyProvisioner:
 
         except Exception as exc:
             with self._lock:
-                if not self._cancelled:
+                if not self._cancel_event.is_set():
                     self._state["status"] = "failed"
                     self._state["stage"] = "error"
                     self._state["error"] = str(exc)
-            if self._active_tmp_file and self._active_tmp_file.exists():
-                try:
-                    self._active_tmp_file.unlink()
-                except OSError:
-                    pass
+        finally:
+            with self._lock:
+                if self._cancel_event.is_set():
+                    self._state["status"] = "cancelled"
+                    self._state["stage"] = "cancelled"
+                    self._state["error"] = "Operação cancelada pelo usuário."
+                if self._active_tmp_file and self._active_tmp_file.exists():
+                    try:
+                        self._active_tmp_file.unlink()
+                    except OSError:
+                        pass
+                    self._active_tmp_file = None

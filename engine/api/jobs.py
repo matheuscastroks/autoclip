@@ -44,7 +44,11 @@ class JobManager:
         with self.lock:return self._status(job_id)
 
     def _status(self,job_id):
-        job=self.store.job(job_id);folder=self.root/job_id
+        job=self.store.job(job_id)
+        if job.get('finished_at') or (job.get('status') in ('completed','cancelled','rejected') and 'events' in job and job.get('error') is not None):
+            return job
+        folder=self.root/job_id
+        original_data=dict(job)
         result=read_json(folder/'result.json')
         if result:job.update(result)
         elif job['status'] in ('running','cancelling') and not self.owned_alive(job):
@@ -70,7 +74,9 @@ class JobManager:
         if budget.exists():
             import sqlite3
             with sqlite3.connect(budget) as c:job['requests_used']=c.execute('SELECT count(*) FROM attempts').fetchone()[0]
-        self.store.save_job(job);return job
+        if job!=original_data:
+            self.store.save_job(job)
+        return job
 
     def request_shutdown(self,callback):
         with self.lock:
