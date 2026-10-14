@@ -476,10 +476,11 @@ function triggerErrorDetails(){
 
 /* 2. Esteira Linear de Processamento */
 .stepper-track-wrap {
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-radius: 14px;
-  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 0;
+  padding: 8px 0 16px 0;
 }
 
 .stepper-track-title {
@@ -602,31 +603,35 @@ function triggerErrorDetails(){
 }
 
 .state-hero-card {
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-radius: 14px;
-  padding: 22px 24px;
+  background: transparent;
+  border: none;
+  border-left: 3px solid var(--color-accent, #d97724);
+  border-radius: 0;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .state-hero-card.attention-mode {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(217, 119, 36, 0.05) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  border-left: 5px solid #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+  border: none;
+  border-left: 3px solid #ef4444;
+  border-radius: 0 8px 8px 0;
 }
 
 .state-hero-card.processing-mode {
-  background: linear-gradient(135deg, rgba(217, 119, 36, 0.09) 0%, rgba(224, 138, 60, 0.04) 100%);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-left: 5px solid #d97724;
+  background: rgba(217, 119, 36, 0.04);
+  border: none;
+  border-left: 3px solid #d97724;
+  border-radius: 0 8px 8px 0;
 }
 
 .state-hero-card.ready-mode {
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-left: 5px solid #d97724;
+  background: transparent;
+  border: none;
+  border-left: 3px solid #d97724;
+  border-radius: 0;
 }
 
 .hero-header-badge {
@@ -678,10 +683,11 @@ function triggerErrorDetails(){
 
 /* Card Dedicado: Última Falha */
 .last-failure-card {
-  background: rgba(14, 16, 19, 0.7);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: 10px;
-  padding: 14px 16px;
+  background: rgba(239, 68, 68, 0.06);
+  border: none;
+  border-left: 2px solid rgba(239, 68, 68, 0.6);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -789,10 +795,10 @@ function triggerErrorDetails(){
 }
 
 .dashboard-metrics-card {
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-radius: 12px;
-  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -851,30 +857,31 @@ function triggerErrorDetails(){
 
 /* 4. Gaveta de Histórico Técnico (Discreta e Expansível) */
 .technical-history-disclosure {
-  background: var(--color-canvas, #0e1013);
-  border: 1px solid var(--color-border-subtle, #2e3644);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border-subtle, #2e3644);
+  border-radius: 0;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
 .technical-history-trigger {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 12px 0;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-muted, #a0abba);
   cursor: pointer;
   user-select: none;
-  background: var(--color-surface, #16191f);
+  background: transparent;
   transition: all 0.15s ease;
 }
 
 .technical-history-trigger:hover {
   color: var(--color-text-primary, #f2f4f7);
-  background: var(--color-surface-raised, #1e232b);
+  background: transparent;
 }
 
 .disclosure-chevron {
@@ -887,8 +894,8 @@ function triggerErrorDetails(){
 }
 
 .technical-history-content {
-  padding: 14px 16px;
-  border-top: 1px solid var(--color-border-subtle, #2e3644);
+  padding: 10px 0 0;
+  border-top: none;
 }
 
 .technical-steps-list {
@@ -904,10 +911,11 @@ function triggerErrorDetails(){
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2e3644);
+  padding: 8px 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle, #2e3644);
 }
 
 .step-mark {
