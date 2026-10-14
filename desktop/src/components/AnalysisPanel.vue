@@ -233,55 +233,58 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       As propostas já validadas podem ser consultadas. A geração fica disponível quando a análise completa terminar.
     </div>
 
-    <!-- WORKSPACE DESKTOP EM 3 COLUNAS FUNCIONAIS -->
-    <div class="analysis-layout curation-3col-layout">
+    <!-- WORKSPACE DESKTOP EM 3 COLUNAS REDIMENSIONÁVEIS COM EL-SPLITTER -->
+    <el-splitter class="analysis-layout curation-3col-layout">
 
-      <!-- COLUNA 1: NAVEGAÇÃO POR TEMAS (~340px) -->
-      <aside class="curation-topics-col" role="region" aria-label="Temas identificados">
-        <div class="column-panel-header">
-          <div class="panel-header-title">
-            <span class="selection-step-badge">01</span>
-            <h3>Temas</h3>
-          </div>
-          <span class="panel-counter-badge">{{(analysis?.topic_groups.length||0) + 1}}</span>
-        </div>
-
-        <div class="topic-list custom-scrollbar" role="tablist" aria-label="Temas identificados">
-          <AppButton class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
-            <span class="chip-label">Todos os temas</span>
-            <span class="chip-count">{{activeProposals.length}}</span>
-          </AppButton>
-          <AppButton
-            v-for="group in analysis?.topic_groups"
-            :key="group.id"
-            class="topic-chip-btn"
-            :class="{selected:topic===group.id}"
-            @click="topic=group.id;focused=''"
-          >
-            <span class="chip-label" :title="group.label">{{group.label}}</span>
-            <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
-          </AppButton>
-        </div>
-
-        <div v-if="topic" class="topic-summary-box">
-          <span class="summary-label">Resumo do tema:</span>
-          <p v-for="summary in analysis?.topic_groups.find(g=>g.id===topic)?.summaries" :key="summary">{{summary}}</p>
-        </div>
-
-        <!-- GAVETA COMPACTA DE DIAGNÓSTICO DO MOTOR -->
-        <div class="topics-pipeline-drawer">
-          <details class="analysis-explanation">
-            <summary><Layers :size="13"/> Diagnóstico do motor</summary>
-            <div class="explanation-inner-box">
-              <AnalysisFeedback :jobs="jobs"/>
+      <!-- COLUNA 1: NAVEGAÇÃO POR TEMAS -->
+      <el-splitter-panel :size="250" :min="170" :max="420" class="curation-topics-col" role="region" aria-label="Temas identificados">
+        <div class="panel-inner-container">
+          <div class="column-panel-header">
+            <div class="panel-header-title">
+              <span class="selection-step-badge">01</span>
+              <h3>Temas</h3>
             </div>
-          </details>
-        </div>
-      </aside>
+            <span class="panel-counter-badge">{{(analysis?.topic_groups.length||0) + 1}}</span>
+          </div>
 
-      <!-- COLUNA 2: PROPOSTAS DE CORTES / WORK ITEMS (~380px) -->
-      <section class="curation-proposals-col" aria-label="Lista de propostas de cortes">
-        <div class="column-panel-header">
+          <div class="topic-list custom-scrollbar" role="tablist" aria-label="Temas identificados">
+            <AppButton class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
+              <span class="chip-label">Todos os temas</span>
+              <span class="chip-count">{{activeProposals.length}}</span>
+            </AppButton>
+            <AppButton
+              v-for="group in analysis?.topic_groups"
+              :key="group.id"
+              class="topic-chip-btn"
+              :class="{selected:topic===group.id}"
+              @click="topic=group.id;focused=''"
+            >
+              <span class="chip-label" :title="group.label">{{group.label}}</span>
+              <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
+            </AppButton>
+          </div>
+
+          <div v-if="topic" class="topic-summary-box">
+            <span class="summary-label">Resumo do tema:</span>
+            <p v-for="summary in analysis?.topic_groups.find(g=>g.id===topic)?.summaries" :key="summary">{{summary}}</p>
+          </div>
+
+          <!-- GAVETA COMPACTA DE DIAGNÓSTICO DO MOTOR -->
+          <div class="topics-pipeline-drawer">
+            <details class="analysis-explanation">
+              <summary><Layers :size="13"/> Diagnóstico do motor</summary>
+              <div class="explanation-inner-box">
+                <AnalysisFeedback :jobs="jobs"/>
+              </div>
+            </details>
+          </div>
+        </div>
+      </el-splitter-panel>
+
+      <!-- COLUNA 2: PROPOSTAS DE CORTES / WORK ITEMS -->
+      <el-splitter-panel :size="380" :min="260" :max="650" class="curation-proposals-col" aria-label="Lista de propostas de cortes">
+        <div class="panel-inner-container">
+          <div class="column-panel-header">
           <div class="panel-header-title">
             <span class="selection-step-badge">02</span>
             <h3>Propostas</h3>
@@ -421,10 +424,12 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
             {{proposals.length?'Nenhuma proposta corresponde ao filtro.':'Aguardando propostas validadas.'}}
           </p>
         </div>
-      </section>
+        </div>
+      </el-splitter-panel>
 
       <!-- COLUNA 3: SUÍTE DE INSPEÇÃO EDITORIAL -->
-      <main class="curation-inspection-col">
+      <el-splitter-panel :min="360" class="curation-inspection-col">
+        <div class="panel-inner-container">
         <section v-if="current" class="proposal-detail custom-scrollbar">
           <div class="inspection-head-bar">
             <div class="inspection-step-wrap">
@@ -562,8 +567,9 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
             </template>
           </el-empty>
         </section>
-      </main>
-    </div>
+        </div>
+      </el-splitter-panel>
+    </el-splitter>
 
     <!-- RODAPÉ INTEGRADO DOCK (NUNCA FLUTUA SOBRE CONTEÚDO) -->
     <footer class="curation-dock-bar" v-if="complete&&proposals.length>0">
@@ -645,30 +651,54 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   padding: 8px 16px;
 }
 
-/* 3-COLUMN WORKSPACE GRID (AMPLA VISIBILIDADE PARA TEMAS ~340px) */
-.curation-3col-layout {
-  display: grid !important;
-  grid-template-columns: 340px 380px minmax(360px, 1fr) !important;
-  gap: 14px !important;
-  align-items: stretch;
-  height: 520px !important;
+/* 3-COLUMN WORKSPACE SPLITTER */
+.analysis-layout.curation-3col-layout {
+  height: 560px !important;
   min-height: 520px !important;
-  flex: none !important;
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: var(--radius-panel, 12px);
+  overflow: hidden;
   box-sizing: border-box;
 }
 
-/* COLUMN 1: TOPICS */
-.curation-topics-col {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 12px;
+:deep(.el-splitter) {
+  height: 100%;
+  width: 100%;
+}
+
+:deep(.el-splitter__bar) {
+  background: var(--color-border-subtle, var(--line));
+  width: 1px !important;
+  transition: background 0.15s ease, width 0.15s ease;
+}
+
+:deep(.el-splitter__bar:hover) {
+  background: var(--color-accent, #d97724);
+  width: 3px !important;
+}
+
+.panel-inner-container {
+  height: 100%;
+  width: 100%;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+/* FLAT MINIMALIST COLUMNS INSIDE SPLITTER */
+.curation-topics-col,
+.curation-proposals-col,
+.curation-inspection-col {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .curation-topics-col .topic-list {
@@ -785,10 +815,9 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 
 .topic-summary-box {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: transparent;
+  border-left: 2px solid var(--color-accent, #d97724);
+  padding: 4px 10px;
   font-size: 0.78rem;
   line-height: 1.4;
   color: var(--color-text-secondary, var(--muted));
@@ -841,13 +870,6 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 
 /* COLUMN 2: PROPOSALS */
 .curation-proposals-col {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
@@ -1125,9 +1147,6 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 
 /* COLUMN 3: INSPECTION SUITE */
 .curation-inspection-col {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
   height: 100%;
   overflow: hidden;
   display: flex;
@@ -1193,10 +1212,10 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--color-surface-raised, rgba(0, 0, 0, 0.25));
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
 .mini-video-frame {
@@ -1266,12 +1285,13 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   font-weight: 600;
 }
 
-/* SOCIAL OPENING HOOK */
+/* SOCIAL OPENING HOOK - EDITORIAL PULL-QUOTE */
 .opening-copy-card {
-  background: linear-gradient(135deg, rgba(217, 119, 36, 0.08) 0%, rgba(224, 138, 60, 0.04) 100%);
-  border: 1px solid rgba(217, 119, 36, 0.3);
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: rgba(217, 119, 36, 0.04);
+  border: none;
+  border-left: 3px solid var(--color-accent, #d97724);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
 }
 
 .hook-tag {
@@ -1283,14 +1303,14 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-accent-light, #f9a35c);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .hook-label {
   display: block;
   font-size: 0.72rem;
   color: var(--color-text-muted, var(--muted));
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .hook-text {
@@ -1302,12 +1322,12 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
   font-style: italic;
 }
 
-/* RATIONALE CARD */
+/* RATIONALE SECTION - FLAT EDITORIAL */
 .rationale-card {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
 }
 
 .block-title {
@@ -1329,15 +1349,14 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 .editorial-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .editorial-flag-item {
-  font-size: 0.72rem;
-  background: var(--color-surface-raised, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  padding: 3px 8px;
-  border-radius: 6px;
+  font-size: 0.75rem;
+  background: transparent;
+  border: none;
+  padding: 0;
   color: var(--color-text-muted, var(--muted));
 }
 
@@ -1353,10 +1372,11 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 
 .proposal-transcript {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 0;
+  padding: 10px 0;
 }
 
 .proposal-transcript summary {
