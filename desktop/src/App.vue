@@ -493,6 +493,7 @@ onUnmounted(() => {
           <AppButton
             class="nav-button"
             :class="{ selected: page === 'projects' }"
+            :aria-current="page === 'projects' ? 'page' : undefined"
             @click="navigate('projects')"
           >
             <Layers :size="16" />Projetos<span class="nav-badge">{{ projects.length }}</span>
@@ -500,6 +501,7 @@ onUnmounted(() => {
           <AppButton
             class="nav-button"
             :class="{ selected: page === 'settings' }"
+            :aria-current="page === 'settings' ? 'page' : undefined"
             @click="navigate('settings')"
           >
             <Settings2 :size="16" />Configurações
