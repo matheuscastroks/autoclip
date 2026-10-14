@@ -280,7 +280,9 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                   Pasta do modelo Whisper
                   <span class="input-action">
                     <input v-model="values.asr_model_path" required placeholder="Caminho para o diretório do modelo Whisper..."/>
-                    <AppButton type="button" class="icon-button" title="Escolher pasta do modelo" @click="pick('model','asr_model_path')"><FolderOpen :size="18"/></AppButton>
+                    <el-tooltip content="Escolher pasta do modelo Whisper" placement="top">
+                      <AppButton type="button" class="icon-button" title="Escolher pasta do modelo" @click="pick('model','asr_model_path')"><FolderOpen :size="18"/></AppButton>
+                    </el-tooltip>
                   </span>
                   <small>Modelo multilíngue com suporte ao português (whisper-small).</small>
                 </label>
@@ -289,7 +291,9 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                   Executável FFmpeg
                   <span class="input-action">
                     <input v-model="values.ffmpeg" required placeholder="Caminho para ffmpeg.exe..."/>
-                    <AppButton type="button" class="icon-button" title="Localizar FFmpeg" @click="pick('ffmpeg','ffmpeg')"><FolderOpen :size="17"/></AppButton>
+                    <el-tooltip content="Localizar executável do FFmpeg" placement="top">
+                      <AppButton type="button" class="icon-button" title="Localizar FFmpeg" @click="pick('ffmpeg','ffmpeg')"><FolderOpen :size="17"/></AppButton>
+                    </el-tooltip>
                   </span>
                   <small>Usado para extração de áudio, face-tracking e codificação de vídeo.</small>
                 </label>
@@ -298,7 +302,9 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                   Executável ffprobe
                   <span class="input-action">
                     <input v-model="values.ffprobe" required placeholder="Caminho para ffprobe.exe..."/>
-                    <AppButton type="button" class="icon-button" title="Localizar ffprobe" @click="pick('ffprobe','ffprobe')"><FolderOpen :size="17"/></AppButton>
+                    <el-tooltip content="Localizar executável do ffprobe" placement="top">
+                      <AppButton type="button" class="icon-button" title="Localizar ffprobe" @click="pick('ffprobe','ffprobe')"><FolderOpen :size="17"/></AppButton>
+                    </el-tooltip>
                   </span>
                   <small>Usado para inspeção técnica e validação dos streams de vídeo.</small>
                 </label>
@@ -330,9 +336,9 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                   <div class="provider-card-content">
                     <div class="provider-card-header">
                       <strong>Google Gemini</strong>
-                      <span class="badge" :class="config.gemini_key_configured?'badge-ready':'badge-warn'">
+                      <el-tag :type="config.gemini_key_configured?'success':'warning'" size="small" effect="dark" class="badge" :class="config.gemini_key_configured?'badge-ready':'badge-warn'">
                         {{config.gemini_key_configured?'Chave pronta':'Sem chave'}}
-                      </span>
+                      </el-tag>
                     </div>
                     <small>Gemini 2.5 Flash nativo com catálogo sincronizado e validação direta de modelos da Google.</small>
                   </div>
@@ -349,9 +355,9 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                   <div class="provider-card-content">
                     <div class="provider-card-header">
                       <strong>OpenRouter</strong>
-                      <span class="badge" :class="(values.openrouter_key_configured||config.openrouter_key_configured)?'badge-ready':'badge-warn'">
+                      <el-tag :type="(values.openrouter_key_configured||config.openrouter_key_configured)?'success':'warning'" size="small" effect="dark" class="badge" :class="(values.openrouter_key_configured||config.openrouter_key_configured)?'badge-ready':'badge-warn'">
                         {{(values.openrouter_key_configured||config.openrouter_key_configured)?'Chave pronta':'Sem chave'}}
-                      </span>
+                      </el-tag>
                     </div>
                     <small>Modelos gratuitos (:free) como Llama 3.3 70B, Gemma ou DeepSeek sem custos de geração.</small>
                   </div>
@@ -369,9 +375,15 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     <div class="section-icon"><KeyRound :size="20"/></div>
                     <div class="title-with-pill">
                       <h2>Chave Gemini</h2>
-                      <span class="status-pill" :data-status="validating?'running':connection?.status==='valid'?'completed':'pending'">
-                        <i></i>{{statusLabel}}
-                      </span>
+                      <el-tag
+                        size="small"
+                        :type="validating?'warning':connection?.status==='valid'?'success':'info'"
+                        effect="dark"
+                        class="status-pill"
+                        :data-status="validating?'running':connection?.status==='valid'?'completed':'pending'"
+                      >
+                        {{statusLabel}}
+                      </el-tag>
                     </div>
                   </div>
 
@@ -431,9 +443,15 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     <div class="section-icon"><KeyRound :size="20"/></div>
                     <div class="title-with-pill">
                       <h2>Chave OpenRouter</h2>
-                      <span class="status-pill" :data-status="(values.openrouter_key_configured||config.openrouter_key_configured)?'completed':'pending'">
-                        <i></i>{{openrouterStatusLabel}}
-                      </span>
+                      <el-tag
+                        size="small"
+                        :type="(values.openrouter_key_configured||config.openrouter_key_configured)?'success':'info'"
+                        effect="dark"
+                        class="status-pill"
+                        :data-status="(values.openrouter_key_configured||config.openrouter_key_configured)?'completed':'pending'"
+                      >
+                        {{openrouterStatusLabel}}
+                      </el-tag>
                     </div>
                   </div>
 
@@ -485,7 +503,7 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                       >
                         <div class="chip-title-row">
                           <strong>{{m.name}}</strong>
-                          <span v-if="m.id.endsWith(':free')" class="chip-badge">Grátis</span>
+                          <el-tag v-if="m.id.endsWith(':free')" size="small" type="success" effect="plain" class="chip-badge">Grátis</el-tag>
                         </div>
                         <small>{{m.desc}}</small>
                       </button>
