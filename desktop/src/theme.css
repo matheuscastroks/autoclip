@@ -159,7 +159,7 @@ textarea:focus-visible,
   margin-left: 2px !important;
 }
 .global-navigation .nav-button.selected .nav-badge {
-  background: rgba(217, 119, 36, 0.22) !important;
+  background: var(--color-surface-selected) !important;
   color: var(--accent-light) !important;
 }
 .header-queue-btn {
@@ -211,22 +211,6 @@ textarea:focus-visible,
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 0 rgba(217, 119, 36, 0.7);
-  animation: queue-pulse 1.8s infinite;
-}
-@keyframes queue-pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(217, 119, 36, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(217, 119, 36, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(217, 119, 36, 0);
-  }
 }
 .global-actions {
   margin-left: auto;
@@ -318,7 +302,7 @@ textarea:focus-visible,
 .heading-count {
   background: var(--accent-soft);
   color: var(--accent-light);
-  border: 1px solid rgba(217, 119, 36, 0.3);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 7px;
   font-size: 12px;
   font-weight: 600;
@@ -635,9 +619,9 @@ time {
 }
 .status-pill[data-status='needs_review'],
 .status-pill[data-status='analyzed'] {
-  color: #f9a35c;
-  background: rgba(217, 119, 36, 0.12);
-  border-color: rgba(217, 119, 36, 0.25);
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-subtle);
   font-weight: 600;
 }
 .status-pill[data-status='failed'],
@@ -994,7 +978,7 @@ time {
   background: var(--accent-soft);
   color: var(--accent-light);
   font-weight: 600;
-  border-color: rgba(217, 119, 36, 0.3);
+  border-color: var(--color-border-subtle);
 }
 .topic-summary {
   color: var(--color-text-secondary);
@@ -1018,7 +1002,7 @@ time {
   border-color: var(--line-strong);
 }
 .proposal-card.selected {
-  background: rgba(217, 119, 36, 0.08);
+  background: var(--color-surface-hover);
   border-color: var(--accent);
   padding: 12px;
 }
@@ -1054,8 +1038,8 @@ time {
   font-size: 13px;
 }
 .opening-copy {
-  background: rgba(217, 119, 36, 0.08);
-  border: 1px solid rgba(217, 119, 36, 0.25);
+  background: var(--color-surface-selected);
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
 }
 .opening-copy small {
@@ -1148,7 +1132,7 @@ time {
   font-size: 12px;
 }
 .cuts-table .clip-item.selected {
-  background: rgba(217, 119, 36, 0.12);
+  background: var(--color-surface-selected);
 }
 .cuts-table .clip-item.selected td:first-child {
   box-shadow: inset 3px 0 var(--accent);
