@@ -58,6 +58,7 @@
 
   /* App Shell & Layout Variables */
   --shell-height: 48px;
+  --header-height: 48px;
   --canvas: var(--color-canvas);
   --panel: var(--color-surface);
   --soft: var(--color-surface-raised);

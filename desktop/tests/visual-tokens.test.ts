@@ -49,4 +49,40 @@ describe('visual tokens integrity', () => {
     expect(libraryContent).toContain("viewMode = ref<'grid' | 'list'>('list')");
     expect(libraryContent).not.toContain('global-queue-banner');
   });
+
+  it('enforces 48px header height token in tokens.css', () => {
+    expect(tokensCss).toMatch(/--header-height:\s*48px/);
+  });
+
+  it('does not contain keyframes pulse or pulsing animations anywhere in src/', () => {
+    const srcDir = path.resolve(__dirname, '../src');
+    function scanFiles(dir: string): string[] {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      const files: string[] = [];
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...scanFiles(fullPath));
+        } else if (/\.(vue|css|ts)$/.test(entry.name)) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    }
+
+    const allFiles = scanFiles(srcDir);
+    expect(allFiles.length).toBeGreaterThan(0);
+
+    for (const file of allFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      expect(
+        content.includes('@keyframes pulse'),
+        `File ${path.relative(srcDir, file)} should not define '@keyframes pulse'`
+      ).toBe(false);
+      expect(
+        /animation:\s*pulse\b/.test(content),
+        `File ${path.relative(srcDir, file)} should not use 'animation: pulse'`
+      ).toBe(false);
+    }
+  });
 });
