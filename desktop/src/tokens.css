@@ -57,7 +57,7 @@
   --focus-ring: var(--color-focus-ring);
 
   /* App Shell & Layout Variables */
-  --shell-height: 52px;
+  --shell-height: 48px;
   --canvas: var(--color-canvas);
   --panel: var(--color-surface);
   --soft: var(--color-surface-raised);
