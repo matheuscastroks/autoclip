@@ -35,14 +35,13 @@ describe('editorial controls and Gemini feedback',()=>{
     await w.get('[data-action=toggle-follow]').trigger('click');await flushPromises()
     expect(element.scrollTop).toBe(800);w.unmount()
   })
-  it('saves duration, pause policy and summary visibility from settings',async()=>{
+  it('saves duration and summary visibility from settings',async()=>{
     const save=vi.fn().mockResolvedValue({});const w=mount(SettingsPanel,{props:{config,saveConfig:save,saveKey:vi.fn(),pick:vi.fn()}})
     await w.get('[data-field=clip-preferred]').setValue(90)
     await w.get('[data-field=clip-max]').setValue(180)
-    w.findAllComponents(AppSelect).find(c=>c.props('label')==='Pausas entre falas')!.vm.$emit('update:modelValue','preserve');await flushPromises()
     await w.get('[data-field=thought-summaries]').setValue(true)
     await w.get('.settings-main').trigger('submit');await flushPromises()
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({clip_preferred_seconds:90,clip_max_seconds:180,pause_mode:'preserve',show_thought_summaries:true}));w.unmount()
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({clip_preferred_seconds:90,clip_max_seconds:180,pause_mode:'conservative',show_thought_summaries:true}));w.unmount()
   })
   it('renders actual summary text safely and separates application events',async()=>{
     const job={id:'j',project_id:'p',operation:'analyze',status:'running',created_at:'',request_limit:3,requests_used:1,events:[{id:'1',at:'',kind:'request_started',message:'Solicitação enviada.',attempt:1},{id:'2',at:'',kind:'thought_summary',message:'<img src=x onerror=alert(1)> Conferindo a conclusão.',attempt:1,window_id:'w1'}]}

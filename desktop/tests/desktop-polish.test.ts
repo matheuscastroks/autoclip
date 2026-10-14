@@ -9,8 +9,9 @@ describe('desktop controls',()=>{
     await w.findAll('.settings-tiles button')[2].trigger('click')
     await w.get('.local-resources input').setValue('');await w.get('.local-resources input').trigger('invalid')
     expect(w.get('.local-resources').isVisible()).toBe(true)
-    await w.get('input[max="300000"]').setValue(0);await w.get('input[max="300000"]').trigger('invalid')
-    expect(w.get('.credential-panel').isVisible()).toBe(true);expect(w.get('.analysis-advanced').attributes('open')).toBeDefined();w.unmount()
+    await w.findAll('.settings-tiles button')[0].trigger('click')
+    await w.get('[data-field="clip-preferred"]').setValue(0);await w.get('[data-field="clip-preferred"]').trigger('invalid')
+    expect(w.get('.cuts-duration-section').isVisible()).toBe(true);w.unmount()
   })
   it('segments settings without discarding unsaved fields',async()=>{
     const w=mount(SettingsPanel,{props:{config:{asr_model_path:'m',gemini_model:'g',max_calls:0,window_seconds:600,max_text_chars:60000,ffmpeg:'f',ffprobe:'p',asr_available:true,tools_available:true,gemini_key_configured:false},saveConfig:vi.fn(),saveKey:vi.fn(),pick:vi.fn()}})

@@ -34,9 +34,9 @@ const settingsStep=ref(0)
 const settingsCategories=[
   {num:'01',title:'Recursos locais',sub:'Whisper, FFmpeg e hardware local',icon:Cpu},
   {num:'02',title:'IA e modelos',sub:'Gemini, OpenRouter e chaves de API',icon:Sparkles},
-  {num:'03',title:'Preferências dos cortes',sub:'Duração, pausas e regras editoriais',icon:Scissors}
+  {num:'03',title:'Duração dos cortes',sub:'Tempo alvo e limite máximo',icon:Scissors}
 ]
-const settingsLabels=['Recursos locais','IA e modelos','Preferências dos cortes']
+const settingsLabels=['Recursos locais','IA e modelos','Duração dos cortes']
 
 let invalidHandled=false
 function invalidSetting(event:Event){
@@ -81,7 +81,7 @@ const modelOptions=computed(()=>[
   ...models.value.map(m=>({value:m.id,label:m.display_name+' · '+m.id}))
 ])
 const listed=computed(()=>models.value.some(m=>m.id===values.gemini_model))
-const missingModel=computed(()=>values.ai_provider==='gemini'&&connection.value?.status==='valid'&&!listed.value)
+const missingModel=computed(()=>values.ai_provider==='gemini'&&connection.value?.status==='valid'&&models.value.length>0&&!listed.value)
 
 watch(()=>props.config,(value,old)=>{
   for(const field of Object.keys(value) as (keyof Config)[]){
@@ -155,7 +155,11 @@ async function saveSettings(){
     notify.error('Informe um modelo do OpenRouter.')
     return
   }
-  if(!missingModel.value)await execute(()=>props.saveConfig({...values}),'Configurações salvas.')
+  if(values.ai_provider==='gemini'&&missingModel.value){
+    notify.warning('Selecione um modelo Gemini disponível no catálogo antes de salvar.')
+    return
+  }
+  await execute(()=>props.saveConfig({...values}),'Configurações salvas.')
 }
 
 async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
@@ -203,14 +207,6 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
             ></div>
           </AppButton>
         </nav>
-
-        <div class="settings-sidebar-card">
-          <div class="card-head">
-            <Monitor :size="16"/>
-            <strong>Arquitetura Local-First</strong>
-          </div>
-          <p>Transcrição e renderização de vídeo rodam 100% no seu computador usando CPU. Nenhum trecho de vídeo é transferido para a nuvem.</p>
-        </div>
       </aside>
 
       <!-- Coluna direita: Painel Principal do Formulário -->
@@ -257,11 +253,6 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     <span>{{config.tools_available?'Ferramentas multimídia detectadas e operacionais':'Executáveis não encontrados nos caminhos informados'}}</span>
                   </div>
                 </div>
-              </div>
-
-              <div class="helper-info-card">
-                <strong>Privacidade e velocidade</strong>
-                <p>Seus vídeos brutos permanecem na máquina local. A transcrição opera com modelo multilíngue acelerado por CPU, garantindo rapidez e zero custos de infraestrutura externa.</p>
               </div>
             </section>
 
@@ -427,11 +418,6 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     <small v-if="missingModel" class="warning-text">O modelo salvo não aparece no catálogo. Escolha outro modelo explicitamente.</small>
                     <small v-else>{{models.length?models.length+' modelos disponíveis no catálogo.':'Teste a conexão para carregar os modelos disponíveis.'}}</small>
                   </label>
-
-                  <div class="helper-info-card">
-                    <strong>Chamadas dimensionadas automaticamente</strong>
-                    <p>O motor particiona transcrições longas em janelas com sobreposição para garantir coerência dos argumentos sem estourar limites.</p>
-                  </div>
                 </section>
               </template>
 
@@ -455,7 +441,7 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     </div>
                   </div>
 
-                  <p class="section-desc">Armazenada no Gerenciador de Credenciais do Windows. Obtenha sua chave gratuita em <strong>openrouter.ai/keys</strong>.</p>
+                  <p class="section-desc">Armazenada no Gerenciador de Credenciais do Windows. Obtenha sua chave em <strong>openrouter.ai/keys</strong>.</p>
 
                   <label class="field">
                     {{(values.openrouter_key_configured||config.openrouter_key_configured)?'Substituir chave OpenRouter':'Adicionar chave OpenRouter'}}
@@ -472,11 +458,6 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                     <AppButton type="button" class="button secondary" data-action="save-openrouter-key" :disabled="busy||!openrouterKey.trim()" @click="saveOpenRouterKey">
                       <KeyRound :size="16"/>{{validating?'Salvando…':'Salvar chave OpenRouter'}}
                     </AppButton>
-                  </div>
-
-                  <div class="helper-info-card">
-                    <strong>Zero custos com modelos :free</strong>
-                    <p>Modelos com sufixo <code>:free</code> no OpenRouter têm cotas diárias generosas e não exigem saldo pré-pago ou cartão de crédito cadastrado.</p>
                   </div>
                 </section>
 
@@ -523,36 +504,16 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                 </section>
               </template>
             </div>
-
-            <!-- Full Width: Ajustes Avançados -->
-            <section class="setting-section advanced-section">
-              <details class="analysis-advanced">
-                <summary>Ajustes avançados de análise (Ambos os provedores)</summary>
-                <p>A janela define quanto tempo da transcrição é analisado por vez; o limite de caracteres divide textos muito grandes. Esses valores não definem a duração dos cortes.</p>
-                <div class="field-pair">
-                  <label class="field">
-                    Janela de análise (segundos)
-                    <input type="number" v-model.number="values.window_seconds" min="60" max="1800" required/>
-                  </label>
-                  <label class="field">
-                    Máximo de caracteres por janela
-                    <input type="number" v-model.number="values.max_text_chars" min="1000" max="300000" required/>
-                    <small>Limite aproximado do texto e identificadores por solicitação; não é um limite de tokens do modelo.</small>
-                  </label>
-                </div>
-              </details>
-            </section>
           </div>
 
-          <!-- Etapa 2: Preferências dos Cortes (Grid de 2 Colunas) -->
-          <div v-show="settingsStep===2" data-settings-step="2" class="step-grid-2col">
-            <!-- Coluna 1: Duração dos Cortes -->
-            <section class="setting-section">
+          <!-- Etapa 2: Duração dos Cortes -->
+          <div v-show="settingsStep===2" data-settings-step="2" class="step-cuts-wrap">
+            <section class="setting-section cuts-duration-section">
               <div class="section-title-wrap">
                 <div class="section-icon"><Scissors :size="20"/></div>
                 <div>
-                  <h2>Duração e extensão dos cortes</h2>
-                  <p>Mínimo de 1 minuto e máximo de 5 minutos. Prioriza concluir o argumento.</p>
+                  <h2>Duração dos cortes</h2>
+                  <p>Mínimo de 1 minuto (60s) e máximo de 5 minutos (300s). Prioriza concluir o argumento do orador.</p>
                 </div>
               </div>
 
@@ -560,54 +521,33 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
                 <label class="field">
                   Duração preferida (segundos)
                   <input type="number" data-field="clip-preferred" v-model.number="values.clip_preferred_seconds" min="60" max="300" required/>
-                  <small>Alvo recomendado; não força encerrar o raciocínio bruscamente.</small>
+                  <small>Alvo recomendado (60 a 300 segundos).</small>
                 </label>
                 <label class="field">
                   Duração máxima (segundos)
                   <input type="number" data-field="clip-max" v-model.number="values.clip_max_seconds" min="60" max="300" required/>
-                  <small>De 60 a 300 segundos (1 a 5 minutos). Não recorta palavras para caber.</small>
+                  <small>Limite máximo absoluto (60 a 300 segundos).</small>
                 </label>
               </div>
 
-              <div class="helper-info-card">
-                <strong>Critério editorial</strong>
-                <p>O algoritmo propõe até 10 cortes por vídeo longo, selecionando argumentos completos com início, contexto e clímax identificáveis.</p>
-              </div>
-            </section>
-
-            <!-- Coluna 2: Pausas e Apresentação -->
-            <section class="setting-section">
-              <div class="section-title-wrap">
-                <div class="section-icon"><Sliders :size="20"/></div>
-                <div>
-                  <h2>Pausas e inteligência editorial</h2>
-                  <p>Configure o tratamento de silêncios e a visibilidade dos resumos.</p>
-                </div>
-              </div>
-
-              <div class="fields-stack">
-                <label class="field">
-                  Pausas entre falas
-                  <AppSelect data-field="pause-mode" v-model="values.pause_mode" label="Pausas entre falas" :options="[{value:'preserve',label:'Preservar todas as pausas'},{value:'conservative',label:'Encurtar silêncios longos com verificação no áudio'}]"/>
-                  <small>Detecção de voz e volume, com margens de proteção. Respirações curtas permanecem.</small>
-                </label>
-
+              <div class="editorial-options">
                 <label class="check-row">
                   <input type="checkbox" data-field="thought-summaries" v-model="values.show_thought_summaries"/>
                   <span>Mostrar resumos de análise enviados pela IA</span>
                 </label>
-
-                <details class="thought-help">
-                  <summary>Sobre os resumos de raciocínio</summary>
-                  <p class="subtle">Disponibilidade depende do modelo e da API. Resumos mostram o tema e as evidências identificadas pelo modelo.</p>
-                </details>
               </div>
             </section>
           </div>
 
           <!-- Barra Persistente de Ações -->
           <div class="setting-save">
-            <AppButton class="button primary" data-action="save-config" :disabled="busy||missingModel">
+            <AppButton
+              type="submit"
+              class="button primary"
+              data-action="save-config"
+              :disabled="busy||missingModel"
+              @click="saveSettings"
+            >
               <Save :size="16"/>Salvar configurações
             </AppButton>
             <div class="actions">
@@ -729,39 +669,14 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
   background: #f59e0b;
 }
 
-.settings-sidebar-card {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.settings-sidebar-card .card-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-primary, var(--ink));
-  font-size: 0.82rem;
-}
-
-.settings-sidebar-card p {
-  font-size: 0.77rem;
-  line-height: 1.5;
-  color: var(--color-text-muted, var(--muted));
-  margin: 0;
-}
-
 .settings-content-pane {
   min-width: 0;
   width: 100%;
 }
 
 .settings-main {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: var(--radius-panel, 14px);
   padding: 26px;
   display: flex;
@@ -774,42 +689,58 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
 .step-grid-2col {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  gap: 20px;
   width: 100%;
 }
 
 .step-ia-wrap {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
   width: 100%;
+}
+
+.step-cuts-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.editorial-options {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .provider-details-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  gap: 20px;
   width: 100%;
+  align-items: stretch;
 }
 
 .setting-section {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
+  background: var(--soft);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 20px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .credential-panel {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
+  background: var(--soft);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 20px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .fields-stack {
@@ -944,29 +875,6 @@ async function pick(kind:string,field:'asr_model_path'|'ffmpeg'|'ffprobe'){
   background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-/* Helper Cards */
-.helper-info-card {
-  padding: 13px 15px;
-  border-radius: 10px;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.helper-info-card strong {
-  font-size: 0.82rem;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.helper-info-card p {
-  margin: 0;
-  font-size: 0.77rem;
-  line-height: 1.45;
-  color: var(--color-text-muted, var(--muted));
 }
 
 /* Readiness Cards Verticais no Step 0 */

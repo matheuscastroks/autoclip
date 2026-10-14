@@ -106,11 +106,11 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
         <span>AutoClip</span>
       </a>
       <nav class="global-navigation" aria-label="Navegação principal">
-        <AppButton :class="{selected:page==='projects'}" @click="navigate('projects')">
-          <Layers :size="17"/>Projetos<span>{{projects.length}}</span>
+        <AppButton class="nav-button" :class="{selected:page==='projects'}" @click="navigate('projects')">
+          <Layers :size="16"/>Projetos<span class="nav-badge">{{projects.length}}</span>
         </AppButton>
-        <AppButton :class="{selected:page==='settings'}" @click="navigate('settings')">
-          <Settings2 :size="17"/>Configurações
+        <AppButton class="nav-button" :class="{selected:page==='settings'}" @click="navigate('settings')">
+          <Settings2 :size="16"/>Configurações
         </AppButton>
       </nav>
       <div class="global-actions">
