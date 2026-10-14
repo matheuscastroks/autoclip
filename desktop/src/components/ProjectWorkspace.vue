@@ -38,14 +38,26 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
 
 <template>
   <header class="page-heading project-heading compact-project-heading">
-    <AppButton class="icon-button project-back" aria-label="Todos os projetos" title="Todos os projetos" @click="$emit('back')"><ArrowLeft :size="18"/></AppButton>
+    <el-tooltip content="Voltar para a biblioteca de projetos" placement="bottom">
+      <AppButton class="icon-button project-back" aria-label="Todos os projetos" title="Todos os projetos" @click="$emit('back')"><ArrowLeft :size="18"/></AppButton>
+    </el-tooltip>
     <h1 :title="project.title||project.name">{{project.title||project.name}}</h1>
     <div class="project-meta">
       <span :title="project.source?.channel">{{project.source?.channel||'Vídeo local'}}</span>
       <span>{{project.duration_us?time(project.duration_us):'Duração pendente'}}</span>
-      <span class="status-pill" :data-status="project.status"><i></i>{{labels[project.status]||project.status}}</span>
+      <el-tag
+        size="small"
+        :type="project.status==='completed'?'success':project.status==='failed'?'danger':active(project.status)?'primary':'info'"
+        effect="dark"
+        class="status-pill"
+        :data-status="project.status"
+      >
+        {{labels[project.status]||project.status}}
+      </el-tag>
     </div>
-    <AppButton class="icon-button project-folder" title="Abrir pasta" aria-label="Abrir pasta" @click="$emit('folder')"><FolderOpen :size="18"/></AppButton>
+    <el-tooltip content="Abrir pasta no Windows Explorer" placement="bottom">
+      <AppButton class="icon-button project-folder" title="Abrir pasta" aria-label="Abrir pasta" @click="$emit('folder')"><FolderOpen :size="18"/></AppButton>
+    </el-tooltip>
   </header>
 
   <div class="project-tabs" role="tablist" aria-label="Áreas do projeto" @keydown="tabKey">
@@ -106,7 +118,7 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
               </div>
             </div>
           </div>
-          <div class="transcript-segments" tabindex="0" role="region" aria-label="Segmentos da transcrição">
+          <el-scrollbar max-height="calc(var(--work-area-height, 450px) - 60px)" class="transcript-segments" tabindex="0" role="region" aria-label="Segmentos da transcrição">
             <div
               v-for="segment in filteredSegments"
               :key="segment.id"
@@ -122,12 +134,17 @@ function seek(us:number){if(player.value){player.value.currentTime=us/1e6;player
             <div v-if="filteredSegments.length===0" class="transcript-no-matches">
               Nenhum segmento encontrado para "{{transcriptQuery}}".
             </div>
-          </div>
+          </el-scrollbar>
         </div>
         <div v-else class="empty-state">
-          <FileText :size="32"/>
-          <h2>Ainda sem transcrição</h2>
-          <p>Inicie a etapa de transcrição na visão geral.</p>
+          <el-empty description="Ainda sem transcrição">
+            <template #image>
+              <FileText :size="32"/>
+            </template>
+            <template #default>
+              <p>Inicie a etapa de transcrição na visão geral.</p>
+            </template>
+          </el-empty>
         </div>
       </section>
 
