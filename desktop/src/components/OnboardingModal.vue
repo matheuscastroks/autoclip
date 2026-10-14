@@ -15,6 +15,7 @@ import {
 } from '@lucide/vue';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
+import { usePolling } from '../composables/usePolling';
 
 const props = defineProps<{
   profile: HardwareProfile | null;
@@ -86,7 +87,10 @@ const provisionStatus = ref<ProvisionStatus>({
   error: null,
 });
 
-let pollTimer: ReturnType<typeof setInterval> | null = null;
+const { start: startPolling, stop: stopPolling } = usePolling(pollStatus, {
+  intervalMs: 800,
+  immediate: false,
+});
 
 async function pollStatus() {
   try {
@@ -102,18 +106,6 @@ async function pollStatus() {
     }
   } catch (e) {
     // keep polling
-  }
-}
-
-function startPolling() {
-  stopPolling();
-  pollTimer = setInterval(pollStatus, 800);
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
   }
 }
 
