@@ -99,10 +99,15 @@ function copyDescription(){
   </div>
 
   <div v-if="!manual&&!hasCutsOrGeneration" class="empty-state cuts-empty">
-    <span class="empty-icon"><Scissors :size="32"/></span>
-    <h2>Nenhum corte disponível</h2>
-    <p>A transcrição pode ser consultada. Na aba Análise, escolha propostas e gere prévias. Cada prévia aparece aqui após a verificação técnica.</p>
-    <span class="subtle">Os cortes ficam disponíveis após a validação técnica.</span>
+    <el-empty description="Nenhum corte disponível">
+      <template #image>
+        <span class="empty-icon"><Scissors :size="32"/></span>
+      </template>
+      <template #default>
+        <p>A transcrição pode ser consultada. Na aba Análise, escolha propostas e gere prévias. Cada prévia aparece aqui após a verificação técnica.</p>
+        <span class="subtle">Os cortes ficam disponíveis após a validação técnica.</span>
+      </template>
+    </el-empty>
   </div>
 
   <div v-if="!manual&&hasCutsOrGeneration" class="cuts-review-layout">
@@ -119,9 +124,11 @@ function copyDescription(){
         >
           {{label}}
         </AppButton>
-        <AppButton type="button" class="button secondary cuts-trash" @click="$emit('deleted')">
-          <Trash2 :size="14"/>Lixeira de cortes
-        </AppButton>
+        <el-tooltip content="Ver cortes movidos para a lixeira" placement="top">
+          <AppButton type="button" class="button secondary cuts-trash" @click="$emit('deleted')">
+            <Trash2 :size="14"/>Lixeira de cortes
+          </AppButton>
+        </el-tooltip>
       </div>
 
       <!-- BANNER DE RETOMADA SE O JOB FOI INTERROMPIDO -->
@@ -159,7 +166,7 @@ function copyDescription(){
             <span v-if="!exportableBulk" class="subtle">A exportação exige todos os selecionados tecnicamente válidos.</span>
           </div>
 
-          <div class="cuts-table-scroll">
+          <el-scrollbar max-height="320px" class="cuts-table-scroll">
             <table class="cuts-table" aria-label="Cortes disponíveis">
               <thead>
                 <tr>
@@ -202,9 +209,15 @@ function copyDescription(){
                   <td>{{time(r.duration_us)}}</td>
                   <td>{{time(r.start_us)}} – {{time(r.end_us)}}</td>
                   <td>
-                    <span class="status-pill" :data-status="r.review_status">
-                      <i></i>{{labels[r.review_status]||r.review_status}}
-                    </span>
+                    <el-tag
+                      size="small"
+                      :type="r.review_status==='approved'?'success':r.review_status==='rejected'?'danger':'warning'"
+                      effect="dark"
+                      class="status-pill"
+                      :data-status="r.review_status"
+                    >
+                      {{labels[r.review_status]||r.review_status}}
+                    </el-tag>
                   </td>
                 </tr>
 
@@ -232,21 +245,30 @@ function copyDescription(){
                   </td>
                   <td>
                     <div v-if="['render','reframe'].includes(item.phase)&&item.total_us" class="row-progress-cell">
-                      <div class="row-progress-bar" role="progressbar" :aria-valuenow="Math.min(100,Math.floor(item.processed_us/item.total_us*100))" aria-valuemin="0" aria-valuemax="100">
-                        <span :style="{width:Math.min(100,item.processed_us/item.total_us*100)+'%'}"></span>
-                      </div>
+                      <el-progress
+                        :percentage="Math.min(100,Math.floor(item.processed_us/item.total_us*100))"
+                        :stroke-width="5"
+                        :show-text="false"
+                        color="#d97724"
+                      />
                       <small>{{Math.min(100,Math.floor(item.processed_us/item.total_us*100))}}% {{item.phase==='reframe'?'rosto':'vídeo'}}</small>
                     </div>
                     <span v-else class="subtle-phase">{{phases[item.phase]||item.phase}}</span>
                   </td>
                   <td>
                     <div class="generating-status-action">
-                      <span class="status-pill" :data-status="item.state">
+                      <el-tag
+                        size="small"
+                        :type="item.state==='running'?'primary':item.state==='failed'?'danger':'info'"
+                        effect="dark"
+                        class="status-pill"
+                        :data-status="item.state"
+                      >
                         <LoaderCircle v-if="item.state==='running'" class="spin" :size="12"/>
                         <AlertCircle v-else-if="item.state==='failed'" :size="12"/>
                         <Clock v-else :size="12"/>
                         {{item.state==='running'?'Renderizando':item.state==='failed'?'Falha':'Na fila'}}
-                      </span>
+                      </el-tag>
                       <AppButton
                         v-if="item.state==='failed'"
                         type="button"
@@ -261,7 +283,7 @@ function copyDescription(){
                 </tr>
               </tbody>
             </table>
-          </div>
+          </el-scrollbar>
         </section>
 
         <!-- PAINEL DE INFORMAÇÕES E ENTREGA DO CORTE SELECIONADO -->
@@ -284,11 +306,17 @@ function copyDescription(){
           <h2 class="preview-label">{{current?.title}}</h2>
 
           <div class="clip-meta-strip" v-if="current">
-            <span class="meta-tag"><Clock :size="12"/>{{time(current.duration_us)}}</span>
-            <span class="meta-tag">Trecho: {{time(current.start_us)}} às {{time(current.end_us)}}</span>
-            <span class="status-pill" :data-status="current.review_status">
-              <i></i>{{labels[current.review_status]||current.review_status}}
-            </span>
+            <el-tag size="small" effect="plain" class="meta-tag"><Clock :size="12"/> {{time(current.duration_us)}}</el-tag>
+            <el-tag size="small" effect="plain" class="meta-tag">Trecho: {{time(current.start_us)}} às {{time(current.end_us)}}</el-tag>
+            <el-tag
+              size="small"
+              :type="current.review_status==='approved'?'success':current.review_status==='rejected'?'danger':'warning'"
+              effect="dark"
+              class="status-pill"
+              :data-status="current.review_status"
+            >
+              {{labels[current.review_status]||current.review_status}}
+            </el-tag>
           </div>
 
           <!-- Controle de Decisão Editorial (Aprovar / Descartar) -->
@@ -320,13 +348,17 @@ function copyDescription(){
             </div>
           </div>
 
+          <el-divider border-style="dashed" style="margin: 16px 0;" />
+
           <!-- Cópia Editorial para Redes Sociais -->
           <div class="clip-copy">
             <div class="copy-header-row">
               <h3>Descrição para publicação</h3>
-              <AppButton v-if="current?.description" class="button small secondary copy-btn" title="Copiar descrição" @click="copyDescription">
-                <Copy :size="13"/>Copiar
-              </AppButton>
+              <el-tooltip v-if="current?.description" content="Copiar texto para área de transferência" placement="top">
+                <AppButton class="button small secondary copy-btn" title="Copiar descrição" @click="copyDescription">
+                  <Copy :size="13"/>Copiar
+                </AppButton>
+              </el-tooltip>
             </div>
             <div class="description-box">
               <p style="white-space:pre-line">{{current?.description||'Sem descrição gerada para este corte.'}}</p>
