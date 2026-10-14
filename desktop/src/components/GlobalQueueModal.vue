@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import {computed,ref} from 'vue'
 import AppButton from './AppButton.vue'
+import {
+  ElScrollbar,
+  ElTag,
+  ElProgress,
+  ElEmpty,
+  ElCard,
+} from 'element-plus'
 import {ListOrdered,X,ArrowUpRight,Square,CheckCircle2,AlertCircle,LoaderCircle} from '@lucide/vue'
 import type {Job,Project} from '../types'
 import {active,labels,stages} from '../format'
@@ -30,6 +37,14 @@ function projectName(pid:string):string{
 function handleKey(e:KeyboardEvent){
   if(e.key==='Escape')emit('close')
 }
+
+function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
+  if(status==='completed')return 'success'
+  if(status==='running')return 'warning'
+  if(['failed','interrupted','rejected'].includes(status))return 'danger'
+  if(status==='pending')return 'info'
+  return 'info'
+}
 </script>
 
 <template>
@@ -52,9 +67,9 @@ function handleKey(e:KeyboardEvent){
         </div>
       </header>
 
-      <section class="queue-modal-body hidden-scrollbar">
+      <el-scrollbar class="queue-modal-body" max-height="65vh">
         <div v-if="displayJobs.length" class="queue-jobs-list">
-          <article v-for="job in displayJobs" :key="job.id" class="queue-job-card" :data-status="job.status">
+          <el-card v-for="job in displayJobs" :key="job.id" shadow="never" class="queue-job-card" :data-status="job.status">
             <div class="job-card-top">
               <div class="job-project-tag">
                 <AppButton class="project-jump-btn" title="Abrir este projeto" @click="$emit('open',job.project_id)">
@@ -63,13 +78,15 @@ function handleKey(e:KeyboardEvent){
                 </AppButton>
               </div>
               <div class="job-status-tags">
-                <span class="status-pill" :data-status="job.status">
+                <el-tag :type="tagType(job.status)" effect="dark" size="small" class="status-pill" :data-status="job.status">
                   <LoaderCircle v-if="job.status==='running'" class="spin" :size="12"/>
                   <CheckCircle2 v-else-if="job.status==='completed'" :size="12"/>
                   <AlertCircle v-else-if="['failed','interrupted'].includes(job.status)" :size="12"/>
                   {{labels[job.status]||job.status}}
-                </span>
-                <span v-if="job.status==='pending'" class="queue-position-pill">Posição {{job.queue_position||'—'}}</span>
+                </el-tag>
+                <el-tag v-if="job.status==='pending'" type="info" size="small" class="queue-position-pill">
+                  Posição {{job.queue_position||'—'}}
+                </el-tag>
               </div>
             </div>
 
@@ -84,9 +101,14 @@ function handleKey(e:KeyboardEvent){
               </div>
 
               <div v-else-if="job.status==='running'" class="job-progress-info">
-                <div class="progress-bar-wrap" role="progressbar" aria-label="Progresso da tarefa">
-                  <div class="progress-bar-fill indeterminate"></div>
-                </div>
+                <el-progress
+                  :percentage="job.progress?.total_items ? Math.round(((job.progress.completed_items || 0) / job.progress.total_items) * 100) : 100"
+                  :indeterminate="!job.progress?.total_items"
+                  :color="'#D97724'"
+                  :stroke-width="6"
+                  :show-text="false"
+                  style="margin-bottom: 6px;"
+                />
                 <small v-if="job.progress?.total_items">{{job.progress.completed_items||0}} de {{job.progress.total_items}} itens prontos</small>
                 <small v-else-if="job.requests_used">{{job.requests_used}} chamadas realizadas</small>
               </div>
@@ -101,15 +123,20 @@ function handleKey(e:KeyboardEvent){
                 <Square :size="12"/>{{job.status==='pending'?'Remover da fila':'Cancelar tarefa'}}
               </AppButton>
             </div>
-          </article>
+          </el-card>
         </div>
 
-        <div v-else class="queue-empty-state">
-          <ListOrdered :size="38"/>
-          <h3>{{filter==='active'?'Nenhuma tarefa em execução':'Nenhum histórico disponível'}}</h3>
+        <el-empty
+          v-else
+          :description="filter==='active'?'Nenhuma tarefa em execução':'Nenhum histórico disponível'"
+          class="queue-empty-state"
+        >
+          <template #image>
+            <ListOrdered :size="48" style="color: var(--color-accent-light, #F9A35C);"/>
+          </template>
           <p>{{filter==='active'?'Quando você iniciar importação, transcrição ou geração, as tarefas aparecerão aqui.':'Nenhuma tarefa recente foi registrada na sessão.'}}</p>
-        </div>
-      </section>
+        </el-empty>
+      </el-scrollbar>
 
       <footer class="queue-modal-footer">
         <span class="queue-hint">O motor gerencia até 2 tarefas simultâneas com trava de API Gemini para evitar concorrência.</span>
@@ -158,24 +185,26 @@ function handleKey(e:KeyboardEvent){
   gap: 12px;
 }
 .queue-icon-wrapper {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--color-accent-soft, rgba(217,119,36,0.16));
+  color: var(--color-accent-light, #F9A35C);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--color-accent-soft, var(--accent-soft));
-  color: var(--color-accent, var(--accent));
+  border: 1px solid rgba(217, 119, 36, 0.3);
 }
 .queue-title-area h2 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  font-weight: 600;
   margin: 0;
   color: var(--color-text-primary, var(--ink));
 }
 .queue-title-area p {
   font-size: 0.8rem;
+  color: var(--color-text-secondary, var(--muted));
   margin: 2px 0 0;
-  color: var(--color-text-muted, var(--muted));
 }
 .queue-header-actions {
   display: flex;
@@ -184,32 +213,30 @@ function handleKey(e:KeyboardEvent){
 }
 .queue-tabs {
   display: flex;
-  gap: 4px;
-  background: var(--color-canvas, #0e1013);
+  background: var(--color-canvas, #0E1013);
   padding: 3px;
   border-radius: 8px;
+  border: 1px solid var(--color-border-subtle, var(--line));
 }
 .queue-tab {
-  font-size: 0.78rem;
-  min-height: 30px;
-  padding: 5px 12px;
-  border-radius: 6px;
   background: transparent;
-  border: none;
-  color: var(--color-text-muted, var(--muted));
+  border: 0;
+  color: var(--color-text-secondary, var(--muted));
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
+  transition: all 0.15s ease;
 }
 .queue-tab.selected {
   background: var(--color-surface, var(--panel));
-  color: var(--color-accent, var(--accent));
+  color: var(--color-accent-light, #F9A35C);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 .queue-modal-body {
-  padding: 16px 20px;
-  overflow-y: auto;
+  padding: 18px 20px;
   flex: 1;
 }
 .queue-jobs-list {
@@ -218,123 +245,101 @@ function handleKey(e:KeyboardEvent){
   gap: 12px;
 }
 .queue-job-card {
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: var(--color-surface-raised, var(--soft));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.15s ease;
+  background: var(--color-surface, var(--panel)) !important;
+  border: 1px solid var(--color-border-subtle, var(--line)) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
 }
-.queue-job-card[data-status="running"] {
-  border-left: 4px solid var(--color-accent, var(--accent));
-}
-.queue-job-card[data-status="pending"] {
-  border-left: 4px solid var(--color-warning-border, #8c531b);
+:deep(.el-card__body) {
+  padding: 14px 16px !important;
 }
 .job-card-top {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  margin-bottom: 12px;
 }
 .project-jump-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
   background: transparent;
-  border: none;
-  color: var(--color-accent, var(--accent));
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 6px;
+  border: 0;
+  color: var(--color-text-primary, var(--ink));
   font-size: 0.88rem;
+  cursor: pointer;
+  padding: 0;
 }
 .project-jump-btn:hover {
+  color: var(--color-accent-light, #F9A35C);
   text-decoration: underline;
-  background: var(--color-accent-soft, var(--accent-soft));
 }
 .job-status-tags {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
+  font-weight: 600;
 }
 .queue-position-pill {
-  font-size: 0.75rem;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--color-warning-surface, #2a2012);
-  color: var(--color-warning-text, #fbbf24);
-  border: 1px solid var(--color-warning-border, #8c531b);
+  background: var(--color-canvas, #0E1013) !important;
+  border-color: var(--color-border-subtle, var(--line)) !important;
 }
 .job-card-details {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.85rem;
+  gap: 8px;
+  font-size: 0.82rem;
 }
 .job-op-title {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--color-text-primary, var(--ink));
+  gap: 6px;
 }
 .job-op-title span {
-  color: var(--color-text-muted, var(--muted));
+  color: var(--color-text-secondary, var(--muted));
 }
-.job-pending-note small {
-  color: var(--color-text-muted, var(--muted));
-}
-.job-error-note small {
-  color: var(--color-error, #ef4444);
-}
-.progress-bar-wrap {
-  height: 6px;
-  background: var(--color-canvas, #0e1013);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 4px;
-}
-.progress-bar-fill.indeterminate {
-  height: 100%;
-  width: 50%;
-  background: var(--color-accent, var(--accent));
-  border-radius: 999px;
-  animation: indeterminate-progress 1.5s infinite ease-in-out;
-}
-@keyframes indeterminate-progress {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(250%); }
-}
-.job-card-footer {
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid var(--color-border-subtle, var(--line));
-  padding-top: 8px;
-}
-.queue-empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--color-text-muted, var(--muted));
-}
-.queue-empty-state h3 {
-  margin: 12px 0 6px;
+.job-op-title strong {
   color: var(--color-text-primary, var(--ink));
 }
+.job-pending-note small {
+  color: var(--color-text-secondary, var(--muted));
+}
+.job-error-note small {
+  color: var(--color-danger-text, #F87171);
+}
+.job-card-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle, var(--line));
+  display: flex;
+  justify-content: flex-end;
+}
+.queue-empty-state {
+  padding: 30px 20px;
+  text-align: center;
+}
 .queue-empty-state p {
-  margin: 0;
+  color: var(--color-text-secondary, var(--muted));
   font-size: 0.85rem;
+  max-width: 380px;
+  margin: 8px auto 0;
 }
 .queue-modal-footer {
-  padding: 12px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--color-border-subtle, var(--line));
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   background: var(--color-surface-raised, var(--soft));
+}
+.queue-hint {
   font-size: 0.78rem;
-  color: var(--color-text-muted, var(--muted));
+  color: var(--color-text-secondary, var(--muted));
 }
 </style>
