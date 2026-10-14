@@ -115,7 +115,7 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
       </nav>
       <div class="global-actions">
         <AppButton class="header-queue-btn button secondary small" :class="{active:activeJobsCount>0}" title="Fila global de tarefas" @click="showGlobalQueue=true">
-          <ListOrdered :size="15"/>Fila<span v-if="activeJobsCount" class="header-queue-badge">{{activeJobsCount}}</span>
+          <ListOrdered :size="15"/>Fila<el-tag v-if="activeJobsCount" size="small" type="primary" effect="dark" class="header-queue-badge">{{activeJobsCount}}</el-tag>
         </AppButton>
         <AppButton class="button secondary small header-import-action" @click="importProject" :disabled="busy||initial"><FolderOpen :size="15"/>Importar projeto</AppButton>
         <AppButton class="button primary small new-project-action" @click="showCreate" :disabled="busy||initial"><Plus :size="15"/>Novo projeto</AppButton>
@@ -298,7 +298,7 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
           <div class="file-info-col">
             <strong>{{sourceInput.split(/[\\/]/).pop()}}</strong>
             <small class="file-path-text" :title="sourceInput">{{sourceInput}}</small>
-            <span class="status-pill ready-pill" data-status="ready"><i></i>Vídeo pronto para importação</span>
+            <el-tag size="small" type="success" effect="dark" class="status-pill ready-pill" data-status="ready">Vídeo pronto para importação</el-tag>
           </div>
           <AppButton type="button" class="button small secondary" :disabled="busy" @click="pickVideo">
             <FolderOpen :size="14"/>Trocar vídeo
@@ -379,7 +379,7 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
         <AppButton class="icon-button" title="Fechar lixeira" @click="trashDialog?.close()"><X :size="19"/></AppButton>
       </header>
       <p class="subtle">Arquivos preservados. Restaure para voltar a usar.</p>
-      <p v-if="!trashRows.length">A lixeira está vazia.</p>
+      <el-empty v-if="!trashRows.length" description="A lixeira está vazia." :image-size="60"/>
       <div v-for="row in trashRows" :key="row.id" class="trash-row">
         <strong>{{row.name}}</strong>
         <AppButton class="button small secondary" :disabled="busy||running" @click="restore(row.id)">Restaurar</AppButton>
