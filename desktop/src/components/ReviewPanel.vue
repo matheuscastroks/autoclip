@@ -741,18 +741,37 @@ function copyDescription() {
 }
 
 .cuts-filters {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control, 6px);
+  padding: 2px;
   margin-bottom: 4px;
-  flex-wrap: wrap;
 }
 
 .cuts-filter-chip {
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.78rem;
   font-weight: 500;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted, var(--muted));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cuts-filter-chip:hover {
+  color: var(--color-text-primary, var(--ink));
+}
+
+.cuts-filter-chip.selected {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-subtle);
+  font-weight: 600;
 }
 
 .cuts-trash {
@@ -1029,7 +1048,6 @@ function copyDescription() {
 .item-state-dot[data-state='running'] {
   background: var(--color-action-primary);
   box-shadow: none;
-  animation: pulse 1.6s infinite ease-in-out;
 }
 
 .item-state-dot[data-state='failed'] {
@@ -1135,18 +1153,6 @@ function copyDescription() {
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(0.9);
   }
 }
 </style>
