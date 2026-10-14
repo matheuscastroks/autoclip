@@ -30,5 +30,6 @@ declare module 'vue' {
     ProjectWorkspace: typeof import('./src/components/ProjectWorkspace.vue')['default']
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
+    StatusTag: typeof import('./src/components/StatusTag.vue')['default']
   }
 }

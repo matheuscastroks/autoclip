@@ -25,7 +25,6 @@ const props = defineProps<{
   saveConfig: (value: Config) => Promise<unknown>;
   saveKey: (value: string) => Promise<unknown>;
   saveOpenRouterKey?: (value: string) => Promise<unknown>;
-  saveOpenrouterKey?: (value: string) => Promise<unknown>;
   pick: (kind: string) => Promise<string | null>;
   getConnection?: () => Promise<GeminiConnection>;
   testConnection?: () => Promise<GeminiConnection>;
@@ -198,7 +197,7 @@ async function saveKey() {
 }
 
 async function saveOpenRouterKey() {
-  const saveFn = props.saveOpenRouterKey || props.saveOpenrouterKey;
+  const saveFn = props.saveOpenRouterKey;
   if (!saveFn) {
     notify.error('Função para salvar chave OpenRouter não está disponível.');
     return;
@@ -208,7 +207,6 @@ async function saveOpenRouterKey() {
     await saveFn(openrouterKey.value.trim());
     openrouterKey.value = '';
     values.openrouter_key_configured = true;
-    if (props.config) props.config.openrouter_key_configured = true;
     notify.success('Chave OpenRouter armazenada no Windows com segurança.');
   }, '');
   validating.value = false;

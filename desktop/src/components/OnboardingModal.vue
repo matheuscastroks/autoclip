@@ -397,6 +397,11 @@ onUnmounted(() => {
                 type="password"
                 v-model="apiKeyInput"
                 class="key-text-input"
+                autocomplete="new-password"
+                spellcheck="false"
+                autocapitalize="off"
+                data-1p-ignore
+                aria-label="Chave de API"
                 :placeholder="apiKeyProvider === 'gemini' ? 'AIzaSy...' : 'sk-or-v1-...'"
               />
               <button

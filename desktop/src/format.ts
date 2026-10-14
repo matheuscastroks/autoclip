@@ -12,9 +12,17 @@ export function latestJob(jobs: Job[]) {
 }
 export function time(us = 0) {
   const s = Math.floor(us / 1e6);
-  return `${Math.floor(s / 60)
-    .toString()
-    .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 export const labels: Record<string, string> = {
   ready: 'Pronto',

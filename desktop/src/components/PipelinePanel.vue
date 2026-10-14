@@ -147,16 +147,17 @@ const lastFailureTitle = computed(() => {
   if (importRecovery.value) return 'Falha na importação do arquivo original';
   if (failedRenderItem.value?.item.title) return failedRenderItem.value.item.title;
   if (job.value?.error?.message) return job.value.error.message;
-  return 'Por que a lei não explica a verdadeira corrupção';
+  return 'Falha no processamento';
 });
 
 const lastFailureReason = computed(() => {
   if (importRecovery.value) return job.value?.error?.message || 'Fonte bloqueada ou inacessível';
   if (failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message;
   if (failedRenderItem.value?.item.error_code)
-    return `${failedRenderItem.value.item.error_code} · FFmpeg`;
+    return `${failedRenderItem.value.item.error_code} · Renderizador`;
   if (job.value?.error?.code) return `${job.value.error.code} · Motor de processamento`;
-  return 'Erro na codificação do vídeo · FFmpeg';
+  if (job.value?.error?.message) return job.value.error.message;
+  return 'Ocorreu um erro durante a execução da etapa.';
 });
 
 function triggerErrorDetails() {

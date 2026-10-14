@@ -266,6 +266,7 @@ function copyDescription() {
               v-for="[id, label] in [
                 ['all', 'Todos'],
                 ['generation', 'Em geração'],
+                ['review', 'Para revisar'],
                 ['approved', 'Prontos'],
                 ['exported', 'Exportados'],
               ]"
