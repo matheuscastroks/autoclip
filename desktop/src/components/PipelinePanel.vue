@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
-import { computed, watch, ref } from 'vue';
+import { computed, watch, ref, toRef } from 'vue';
 import {
   Check,
   Square,
@@ -20,6 +20,8 @@ import {
 import type { Project, Job, Revision, AnalysisView } from '../types';
 import { active, labels, latestJob, time } from '../format';
 import { notifyJob, notify } from '../notifications';
+import { usePipelineSteps, type StepId } from '../composables/usePipelineSteps';
+import { useRenderFailures } from '../composables/useRenderFailures';
 
 const props = defineProps<{
   project: Project;
@@ -73,29 +75,17 @@ watch(
   { immediate: true }
 );
 
+const { getStepState } = usePipelineSteps({
+  project: toRef(props, 'project'),
+  job,
+  revisions: toRef(props, 'revisions'),
+  selectedCount: computed(() => props.selectedCount || 0),
+  importRecovery,
+  hasCuts: toRef(props, 'hasCuts'),
+});
+
 function state(step: string) {
-  if (step === 'choose')
-    return props.selectedCount ? 'completed' : props.project.has_analysis ? 'waiting' : 'pending';
-  if (step === 'export' && props.revisions?.some(r => r.exported)) return 'completed';
-  if (step === 'import' && importRecovery.value) return job.value!.status;
-  const progress = job.value?.progress?.steps[step];
-  if (
-    job.value &&
-    ['completed', 'failed', 'cancelled', 'interrupted'].includes(job.value.status) &&
-    progress &&
-    ['running', 'cancelling'].includes(progress)
-  )
-    return job.value.status;
-  if (progress && progress !== 'pending') return progress;
-  if (job.value?.operation === step) return job.value.status;
-  if (
-    (step === 'import' && props.project.source) ||
-    (step === 'transcribe' && props.project.has_transcript) ||
-    (step === 'analyze' && props.project.has_analysis) ||
-    (step === 'render' && props.hasCuts)
-  )
-    return 'completed';
-  return 'pending';
+  return getStepState(step as StepId);
 }
 
 function handleStepClick(id: string) {
@@ -104,61 +94,18 @@ function handleStepClick(id: string) {
   else if ((id === 'render' || id === 'export') && props.hasCuts) emit('review');
 }
 
-// Detecção de falhas de renderização nas prévias
-const renderJobs = computed(() => props.jobs.filter(j => j.operation === 'render'));
-const failedRenderItem = computed(() => {
-  for (const rj of renderJobs.value) {
-    for (const item of rj.progress?.items || []) {
-      if (item.state === 'failed') {
-        return { item, job: rj };
-      }
-    }
-  }
-  return null;
-});
-
-// Contagem de pendências de renderização
-const pendingQueueCount = computed(() => {
-  let count = 0;
-  for (const rj of renderJobs.value) {
-    for (const it of rj.progress?.items || []) {
-      if (['waiting', 'queued', 'pending'].includes(it.state)) count++;
-    }
-    if (rj.status === 'pending') count++;
-  }
-  return count;
-});
-
-// Determina se há uma falha relevante que requer atenção
-const hasFailure = computed(() => {
-  return (
-    importRecovery.value ||
-    !!failedRenderItem.value ||
-    (recovery.value && !['analyze', 'render'].includes(job.value?.operation || ''))
-  );
-});
+const {
+  renderJobs,
+  failedRenderItem,
+  pendingQueueCount,
+  hasFailure,
+  lastFailureTitle,
+  lastFailureReason,
+} = useRenderFailures(toRef(props, 'jobs'), importRecovery, recovery, job);
 
 const completedStepsCount = computed(
   () => names.filter(([id]) => state(id) === 'completed').length
 );
-
-// Informações da última falha
-const lastFailureTitle = computed(() => {
-  if (importRecovery.value) return 'Falha na importação do arquivo original';
-  if (failedRenderItem.value?.item.title) return failedRenderItem.value.item.title;
-  if (job.value?.error?.message) return job.value.error.message;
-  return 'Falha no processamento';
-});
-
-const lastFailureReason = computed(() => {
-  if (importRecovery.value) return job.value?.error?.message || 'Fonte bloqueada ou inacessível';
-  if (failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message;
-  if (failedRenderItem.value?.item.error_code)
-    return `${failedRenderItem.value.item.error_code} · Renderizador`;
-  if (job.value?.error?.code) return `${job.value.error.code} · Motor de processamento`;
-  if (job.value?.error?.message) return job.value.error.message;
-  return 'Ocorreu um erro durante a execução da etapa.';
-});
 
 function triggerErrorDetails() {
   if (job.value) notifyJob(job.value, true);
