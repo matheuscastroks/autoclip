@@ -1,0 +1,89 @@
+@import 'element-plus/theme-chalk/dark/css-vars.css';
+
+html.dark, :root {
+  /* Marca e Destaque */
+  --el-color-primary: var(--color-accent);
+  --el-color-primary-light-3: var(--color-accent-hover);
+  --el-color-primary-light-5: var(--color-accent-light);
+  --el-color-primary-light-7: rgba(217, 119, 36, 0.3);
+  --el-color-primary-light-8: var(--color-accent-subtle);
+  --el-color-primary-light-9: var(--color-accent-soft);
+  --el-color-primary-dark-2: var(--color-border-focus);
+
+  /* Superfícies e Fundos */
+  --el-bg-color: var(--color-canvas);
+  --el-bg-color-page: var(--color-canvas);
+  --el-bg-color-overlay: var(--color-surface);
+  --el-fill-color: var(--color-surface-raised);
+  --el-fill-color-light: var(--color-surface-raised);
+  --el-fill-color-dark: var(--color-surface-hover);
+  --el-fill-color-blank: var(--color-surface);
+
+  /* Texto */
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-secondary);
+  --el-text-color-secondary: var(--color-text-muted);
+  --el-text-color-placeholder: var(--color-text-muted);
+
+  /* Bordas e Divisores */
+  --el-border-color: var(--color-border-subtle);
+  --el-border-color-light: var(--color-border-subtle);
+  --el-border-color-lighter: var(--color-border-subtle);
+  --el-border-color-extra-light: rgba(46, 54, 68, 0.5);
+  --el-border-color-dark: var(--color-border-strong);
+  --el-border-color-darker: var(--color-border-strong);
+
+  /* Feedback Funcional */
+  --el-color-success: var(--color-success);
+  --el-color-success-light-9: var(--color-success-soft);
+  --el-color-warning: var(--color-warning-text);
+  --el-color-warning-light-9: var(--color-warning-surface);
+  --el-color-danger: var(--color-danger);
+  --el-color-danger-light-9: var(--color-danger-soft);
+
+  /* Raios de Arredondamento */
+  --el-border-radius-base: var(--radius-control); /* 8px */
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 999px;
+
+  /* Fontes e Tipografia */
+  --el-font-family: var(--body);
+  --el-font-size-base: 13px;
+
+  /* Sombras */
+  --el-box-shadow: var(--shadow-panel);
+  --el-box-shadow-light: var(--shadow-panel);
+  --el-box-shadow-dark: var(--shadow-floating);
+
+  /* Tabelas */
+  --el-table-header-bg-color: var(--color-surface-raised);
+  --el-table-header-text-color: var(--color-text-secondary);
+  --el-table-tr-bg-color: var(--color-surface);
+  --el-table-row-hover-bg-color: var(--color-surface-hover);
+  --el-table-border-color: var(--color-border-subtle);
+}
+
+/* Customização Específica de Diálogos e Drawers */
+.el-dialog, .el-drawer {
+  background-color: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-floating);
+}
+
+.el-dialog__header, .el-drawer__header {
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: 0;
+  padding: 18px 24px;
+}
+
+.el-dialog__footer {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: 14px 24px;
+}
+
+/* Tags e Badges */
+.el-tag {
+  border-radius: 6px;
+  font-weight: 500;
+}

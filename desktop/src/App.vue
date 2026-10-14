@@ -10,7 +10,8 @@ import ProjectWorkspace from './components/ProjectWorkspace.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import GlobalQueueModal from './components/GlobalQueueModal.vue'
 import OnboardingModal from './components/OnboardingModal.vue'
-import AppToaster from './components/AppToaster.vue'
+import {ElConfigProvider} from 'element-plus'
+import ptBr from 'element-plus/es/locale/lang/pt-br'
 import {notify,createJobNotifier} from './notifications'
 const projects=ref<Project[]>([]),config=ref<Config|null>(null),jobs=ref<Job[]>([]),project=ref<Project|null>(null),transcript=ref<Transcript|null>(null),revisions=ref<Revision[]>([])
 const showGlobalQueue=ref(false),hardwareProfile=ref<HardwareProfile|null>(null),onboardingDismissed=ref(false)
@@ -97,7 +98,8 @@ onMounted(async()=>{try{await Promise.all([refresh(),api.config().then(value=>co
 onUnmounted(()=>{if(timer)clearInterval(timer)})
 </script>
 <template>
-  <div class="app-shell">
+  <el-config-provider :locale="ptBr" size="default" :z-index="2000">
+    <div class="app-shell">
     <header class="global-header">
       <a class="brand" href="#" @click.prevent="navigate('projects')">
         <span class="brand-symbol"><Scissors :size="21"/></span>
@@ -243,7 +245,6 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
     </main>
   </div>
 
-  <AppToaster/>
   <GlobalQueueModal
     v-if="showGlobalQueue"
     :jobs="jobs"
@@ -429,6 +430,7 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
     @save-key="saveKey"
     @save-open-router-key="saveOpenRouterKey"
   />
+  </el-config-provider>
 </template>
 
 <style scoped>

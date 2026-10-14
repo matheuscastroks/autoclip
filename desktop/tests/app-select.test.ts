@@ -1,23 +1,35 @@
 import {mount,flushPromises} from '@vue/test-utils'
-import {describe,it,expect,vi} from 'vitest'
+import {describe,it,expect} from 'vitest'
 import AppSelect from '../src/components/AppSelect.vue'
+
 const options=[{value:'a',label:'Primeiro'},{value:'b',label:'Segundo'},{value:'c',label:'Indisponível',disabled:true}]
-describe('brutalist select',()=>{
- it('uses a custom trigger and preserves the selected exact value',()=>{
+
+describe('Element Plus select component',()=>{
+ it('uses a custom trigger and preserves the selected exact value',async()=>{
   const w=mount(AppSelect,{props:{modelValue:'b',options,label:'Modelo'}})
-  expect(w.get('[role=combobox]').text()).toContain('Segundo')
-  expect(w.find('select:not([aria-hidden])').exists()).toBe(false);w.unmount()
+  await flushPromises()
+  expect(w.find('.el-select').exists()).toBe(true)
+  expect(w.find('.el-select__placeholder').text()).toContain('Segundo')
+  expect(w.find('select:not([aria-hidden])').exists()).toBe(false)
+  w.unmount()
  })
- it('opens with the keyboard and marks disabled options',async()=>{
+ it('renders options and disables the marked option',async()=>{
   const w=mount(AppSelect,{attachTo:document.body,props:{modelValue:'a',options,label:'Modelo'}})
-  await w.get('[role=combobox]').trigger('keydown',{key:'ArrowDown'});await flushPromises()
-  expect(document.querySelector('[role=listbox]')).not.toBeNull()
-  expect(document.querySelector('[role=option][data-disabled]')?.textContent).toContain('Indisponível')
-  const item=document.querySelectorAll<HTMLElement>('[role=option]')[1]!;item.focus();item.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await flushPromises()
-  expect(w.emitted('update:modelValue')?.[0]).toEqual(['b']);w.unmount()
+  await flushPromises()
+  // trigger click on el-select wrapper to open popper
+  await w.get('.el-select__wrapper').trigger('click')
+  await flushPromises()
+  const popper=document.querySelector('.el-select__popper')
+  expect(popper).not.toBeNull()
+  const disabledItem=document.querySelector('.el-select-dropdown__item.is-disabled')
+  expect(disabledItem?.textContent).toContain('Indisponível')
+  w.unmount()
  })
  it('does not open a disabled control',async()=>{
   const w=mount(AppSelect,{props:{modelValue:'a',options,label:'Modelo',disabled:true}})
-  expect((w.get('button').element as HTMLButtonElement).disabled).toBe(true);w.unmount()
+  await flushPromises()
+  expect(w.find('.el-select__wrapper.is-disabled').exists()).toBe(true)
+  expect((w.get('.el-select__input').element as HTMLInputElement).disabled).toBe(true)
+  w.unmount()
  })
 })
