@@ -36,7 +36,7 @@ defineEmits<{
 const query = ref('');
 const filter = ref('all');
 const sort = ref('updated');
-const viewMode = ref<'grid' | 'list'>('grid');
+const viewMode = ref<'grid' | 'list'>('list');
 const brokenCovers = ref<Record<string, string>>({});
 
 const stateOptions = computed(() => [
@@ -86,26 +86,6 @@ function timeAgo(value: number) {
 
 <template>
   <div class="library-container">
-    <!-- Banner Proeminente da Fila Global de Processamento -->
-    <aside v-if="activeProjects?.length" class="global-queue-banner" @click="$emit('queue')">
-      <div class="queue-banner-info">
-        <span class="pulse-dot"></span>
-        <div class="queue-banner-text">
-          <strong>Processamento ativo em segundo plano</strong>
-          <span
-            >{{ activeProjects.length }} projeto{{
-              activeProjects.length === 1 ? '' : 's'
-            }}
-            executando na fila global local</span
-          >
-        </div>
-      </div>
-      <AppButton class="button small secondary queue-view-action" @click.stop="$emit('queue')">
-        <ListOrdered :size="14" />
-        <span>Ver fila global</span>
-      </AppButton>
-    </aside>
-
     <!-- Barra de Ferramentas: Busca, Filtros, Ordenação e Alternador de Visão -->
     <section class="library-toolbar">
       <div class="search-box">
@@ -424,41 +404,6 @@ function timeAgo(value: number) {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-/* Banner de Fila */
-.global-queue-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 12px;
-  padding: 12px 18px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.global-queue-banner:hover {
-  background: var(--color-surface-raised, #1e232b);
-  border-color: var(--color-border-strong);
-}
-.queue-banner-info {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.queue-banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.84rem;
-}
-.queue-banner-text strong {
-  color: var(--color-text-primary, #f2f4f7);
-}
-.queue-banner-text span {
-  color: var(--color-text-muted, #9aa4b2);
 }
 
 /* Barra de Ferramentas */

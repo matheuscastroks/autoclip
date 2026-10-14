@@ -42,4 +42,11 @@ describe('visual tokens integrity', () => {
       }
     }
   });
+
+  it('configures ProjectLibrary with list view as default and removes duplicate queue banner', () => {
+    const libraryPath = path.resolve(__dirname, '../src/components/ProjectLibrary.vue');
+    const libraryContent = fs.readFileSync(libraryPath, 'utf-8');
+    expect(libraryContent).toContain("viewMode = ref<'grid' | 'list'>('list')");
+    expect(libraryContent).not.toContain('global-queue-banner');
+  });
 });
