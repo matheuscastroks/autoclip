@@ -672,9 +672,22 @@ function choose(id: string) {
                   <strong>{{ p.title }}</strong>
                   <div class="proposal-time-subline">
                     <span class="time-range"
-                      ><Clock :size="11" /> {{ time(p.start_us) }} – {{ time(p.end_us) }}</span
+                      ><Clock :size="11" /> {{ time(p.start_us) }} · {{ time(p.duration_us) }}</span
                     >
-                    <span class="duration-pill">{{ time(p.duration_us) }}</span>
+                    <span
+                      v-if="overlapsWithSelected(p)"
+                      class="status-pill conflict-pill"
+                      data-status="warning"
+                      title="Este trecho se sobrepõe a outro corte já selecionado"
+                    >
+                      <AlertTriangle :size="11" /> Sobrepõe seleção
+                    </span>
+                    <span
+                      v-else-if="discarded.includes(p.candidate_id)"
+                      class="status-pill discarded-pill"
+                    >
+                      <Trash2 :size="11" /> Descartada
+                    </span>
                   </div>
                 </div>
                 <button
@@ -697,42 +710,6 @@ function choose(id: string) {
                 >
                   <RotateCcw :size="12" /> Restaurar
                 </button>
-              </div>
-
-              <p class="proposal-summary">{{ p.rationale }}</p>
-
-              <div class="proposal-card-badges">
-                <el-tag
-                  v-if="discarded.includes(p.candidate_id)"
-                  size="small"
-                  type="info"
-                  effect="dark"
-                  class="status-pill discarded-pill"
-                >
-                  <Trash2 :size="11" /> Descartada
-                </el-tag>
-                <el-tag
-                  v-else-if="overlapsWithSelected(p)"
-                  size="small"
-                  type="warning"
-                  effect="dark"
-                  class="status-pill conflict-pill"
-                  data-status="warning"
-                  title="Este trecho se sobrepõe a outro corte já selecionado"
-                >
-                  <AlertTriangle :size="12" /> Sobrepõe seleção
-                </el-tag>
-                <el-tag
-                  v-else
-                  size="small"
-                  :type="p.eligible ? 'success' : 'warning'"
-                  effect="dark"
-                  class="status-pill"
-                  :data-status="p.eligible ? 'analyzed' : 'failed'"
-                >
-                  <Check v-if="p.eligible" :size="12" />
-                  {{ p.eligible ? 'Elegível para prévia' : 'Precisa de atenção' }}
-                </el-tag>
               </div>
             </article>
 
@@ -1451,8 +1428,8 @@ function choose(id: string) {
 .proposal-card {
   background: var(--color-surface-raised, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 9px;
-  padding: 10px 12px;
+  border-radius: var(--radius-control, 6px);
+  padding: 8px 12px;
   transition: all 0.15s ease;
   cursor: pointer;
   outline: none;
@@ -1578,23 +1555,6 @@ function choose(id: string) {
   padding: 1px 5px;
   border-radius: 4px;
   font-weight: 600;
-}
-
-.proposal-summary {
-  margin: 6px 0 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
-  color: var(--color-text-secondary, var(--muted));
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.proposal-card-badges {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
 }
 
 .conflict-pill {
