@@ -712,8 +712,8 @@ function copyDescription() {
 
 <style scoped>
 .cuts-review-layout {
-  height: 600px !important;
-  min-height: 520px !important;
+  height: 600px;
+  min-height: 520px;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
@@ -728,7 +728,7 @@ function copyDescription() {
 
 :deep(.el-splitter__bar) {
   background: var(--color-border-subtle, var(--line));
-  width: 1px !important;
+  width: 1px;
   transition:
     background 0.15s ease,
     width 0.15s ease;
@@ -736,7 +736,7 @@ function copyDescription() {
 
 :deep(.el-splitter__bar:hover) {
   background: var(--color-accent, #d97724);
-  width: 3px !important;
+  width: 3px;
 }
 
 .panel-inner-container {
@@ -757,9 +757,9 @@ function copyDescription() {
 
 .cuts-review-left-panel,
 .cuts-player-rail-panel {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -801,10 +801,10 @@ function copyDescription() {
 }
 
 .cuts-table-section {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .cuts-table-heading {
@@ -833,11 +833,11 @@ function copyDescription() {
 }
 
 .clip-information {
-  background: transparent !important;
-  border: none !important;
-  border-top: 1px solid var(--color-border-subtle, var(--line)) !important;
-  border-radius: 0 !important;
-  padding: 16px 0 0 0 !important;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: 0;
+  padding: 16px 0 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;

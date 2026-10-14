@@ -428,8 +428,8 @@ function seek(us: number) {
 }
 
 .split-transcript-body {
-  height: 520px !important;
-  min-height: 450px !important;
+  height: 520px;
+  min-height: 450px;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
@@ -444,7 +444,7 @@ function seek(us: number) {
 
 :deep(.el-splitter__bar) {
   background: var(--color-border-subtle, var(--line));
-  width: 1px !important;
+  width: 1px;
   transition:
     background 0.15s ease,
     width 0.15s ease;
@@ -452,7 +452,7 @@ function seek(us: number) {
 
 :deep(.el-splitter__bar:hover) {
   background: var(--color-accent, #d97724);
-  width: 3px !important;
+  width: 3px;
 }
 
 .panel-inner-container {
@@ -467,9 +467,9 @@ function seek(us: number) {
 
 .transcript-player-column,
 .transcript-segments-column {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -499,8 +499,8 @@ function seek(us: number) {
 }
 
 .transcript-segment-row.highlighted {
-  background: rgba(217, 119, 36, 0.16) !important;
-  border-color: rgba(217, 119, 36, 0.45) !important;
+  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
+  border-color: rgba(217, 119, 36, 0.45);
 }
 
 .transcript-no-matches {
