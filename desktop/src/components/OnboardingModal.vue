@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import {ref,computed,onMounted,onUnmounted} from 'vue'
+import {
+  ElSteps,
+  ElStep,
+  ElProgress,
+  ElTag,
+  ElAlert,
+} from 'element-plus'
 import {Cpu,HardDrive,Sparkles,Check,CheckCircle2,AlertTriangle,LoaderCircle,Download,X,KeyRound} from '@lucide/vue'
 import type {HardwareProfile,ProvisionStatus} from '../types'
 import {api} from '../api'
@@ -20,6 +27,11 @@ const emit = defineEmits<{
 }>()
 
 const step = ref<'diagnosis' | 'downloading' | 'apikey'>('diagnosis')
+const stepIndex = computed(() => {
+  if (step.value === 'diagnosis') return 0
+  if (step.value === 'downloading') return 1
+  return 2
+})
 const selectedTier = ref<number>(props.profile?.recommended_tier || 2)
 const installFfmpeg = ref<boolean>(props.toolsMissing)
 const busy = ref<boolean>(false)
@@ -173,6 +185,14 @@ onUnmounted(() => {
         </p>
       </header>
 
+      <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px;">
+        <el-steps :active="stepIndex" finish-status="success" align-center>
+          <el-step title="Diagnóstico" description="Hardware e Modelo" />
+          <el-step title="Instalação" description="Download Offline" />
+          <el-step title="Curadoria IA" description="Chave de API" />
+        </el-steps>
+      </div>
+
       <!-- Step 1: Diagnosis & Model Selection -->
       <section v-if="step === 'diagnosis'" class="onboarding-step">
         <div v-if="profile" class="hardware-diagnosis-card">
@@ -273,8 +293,13 @@ onUnmounted(() => {
             <span class="percent-badge">{{ provisionStatus.percent }}%</span>
           </div>
 
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" :style="{ width: provisionStatus.percent + '%' }"></div>
+          <div class="progress-bar-wrap" style="margin: 12px 0;">
+            <el-progress
+              :percentage="provisionStatus.percent"
+              :color="'#D97724'"
+              :stroke-width="10"
+              :show-text="false"
+            />
           </div>
 
           <div class="progress-meta">
