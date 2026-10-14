@@ -190,7 +190,15 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
     <!-- CABEÇALHO DO WORKSPACE DE CURADORIA -->
     <header class="analysis-heading" :class="{'is-complete':complete}">
       <div v-if="!complete" class="analysis-heading-text">
-        <span class="status-pill" :data-status="analysis?.state">{{analysisStateLabel}}</span>
+        <el-tag
+          size="small"
+          :type="analysis?.state==='completed'?'success':analysis?.state==='failed'?'danger':analysis?.state==='partial'?'warning':'info'"
+          effect="dark"
+          class="status-pill"
+          :data-status="analysis?.state"
+        >
+          {{analysisStateLabel}}
+        </el-tag>
         <p v-if="!analysis">A análise organizará os temas e os trechos da transcrição.</p>
       </div>
       <div v-else class="analysis-heading-meta">
@@ -397,15 +405,15 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
             <p class="proposal-summary">{{p.rationale}}</p>
 
             <div class="proposal-card-badges">
-              <span v-if="discarded.includes(p.candidate_id)" class="status-pill discarded-pill">
-                <Trash2 :size="11"/>Descartada
-              </span>
-              <span v-else-if="overlapsWithSelected(p)" class="status-pill conflict-pill" data-status="warning" title="Este trecho se sobrepõe a outro corte já selecionado">
-                <AlertTriangle :size="12"/>Sobrepõe seleção
-              </span>
-              <span v-else class="status-pill" :data-status="p.eligible?'analyzed':'failed'">
-                <Check v-if="p.eligible" :size="12"/>{{p.eligible?'Elegível para prévia':'Precisa de atenção'}}
-              </span>
+              <el-tag v-if="discarded.includes(p.candidate_id)" size="small" type="info" effect="dark" class="status-pill discarded-pill">
+                <Trash2 :size="11"/> Descartada
+              </el-tag>
+              <el-tag v-else-if="overlapsWithSelected(p)" size="small" type="warning" effect="dark" class="status-pill conflict-pill" data-status="warning" title="Este trecho se sobrepõe a outro corte já selecionado">
+                <AlertTriangle :size="12"/> Sobrepõe seleção
+              </el-tag>
+              <el-tag v-else size="small" :type="p.eligible?'success':'warning'" effect="dark" class="status-pill" :data-status="p.eligible?'analyzed':'failed'">
+                <Check v-if="p.eligible" :size="12"/> {{p.eligible?'Elegível para prévia':'Precisa de atenção'}}
+              </el-tag>
             </div>
           </article>
 
@@ -544,9 +552,15 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
         </section>
 
         <section v-else class="proposal-detail proposal-empty" aria-label="Inspeção do trecho">
-          <FileText :size="40"/>
-          <h3>{{proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'}}</h3>
-          <p>{{proposals.length?'Confira o conteúdo original, a justificativa e a integridade antes de selecionar.':'Quando houver propostas validadas, você poderá ouvir o contexto e escolher os cortes nesta área.'}}</p>
+          <el-empty :description="proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'">
+            <template #image>
+              <FileText :size="40"/>
+            </template>
+            <template #default>
+              <h3>{{proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'}}</h3>
+              <p>{{proposals.length?'Confira o conteúdo original, a justificativa e a integridade antes de selecionar.':'Quando houver propostas validadas, você poderá ouvir o contexto e escolher os cortes nesta área.'}}</p>
+            </template>
+          </el-empty>
         </section>
       </main>
     </div>
