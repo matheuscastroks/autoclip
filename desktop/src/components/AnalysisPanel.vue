@@ -1347,13 +1347,17 @@ function choose(id: string) {
 
 .filter-mode-pills {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control, 6px);
+  padding: 2px;
 }
 
 .filter-pill-btn {
   background: transparent;
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   padding: 3px 8px;
   font-size: 0.72rem;
   color: var(--color-text-muted, var(--muted));
@@ -1362,14 +1366,13 @@ function choose(id: string) {
 }
 
 .filter-pill-btn:hover {
-  background: var(--color-surface-hover, var(--soft));
   color: var(--color-text-primary, var(--ink));
 }
 
 .filter-pill-btn.active {
-  background: var(--color-surface-selected);
+  background: var(--color-surface-raised);
   color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
+  border-color: var(--color-border-subtle);
   font-weight: 600;
 }
 
