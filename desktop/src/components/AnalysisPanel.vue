@@ -21,6 +21,7 @@ import type { AnalysisView, AnalysisSelection, Job, Proposal } from '../types';
 import { time } from '../format';
 import { notify } from '../notifications';
 import AnalysisFeedback from './AnalysisFeedback.vue';
+import { useDiscardedProposals } from '../composables/useDiscardedProposals';
 
 const props = defineProps<{
   analysis: AnalysisView | null;
@@ -41,7 +42,15 @@ const topic = ref(''),
   player = ref<HTMLVideoElement>(),
   playEnd = ref(0);
 const locallyEdited = ref(false);
-const discarded = ref<string[]>([]);
+const {
+  discarded,
+  loadDiscarded,
+  saveDiscarded,
+  discardItem,
+  restoreItem,
+  discardMany,
+  restoreMany,
+} = useDiscardedProposals();
 const filterMode = ref<'active' | 'discarded' | 'all'>('active');
 
 const analysisLabels: Record<string, string> = {
@@ -101,36 +110,8 @@ const current = computed(
   () => filtered.value.find(p => p.candidate_id === focused.value) || filtered.value[0]
 );
 
-function loadDiscarded(hash?: string | null) {
-  if (!hash) {
-    discarded.value = [];
-    return;
-  }
-  try {
-    const raw = localStorage.getItem(`autoclip:discarded:${hash}`);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        discarded.value = parsed;
-        return;
-      }
-    }
-  } catch {}
-  discarded.value = [];
-}
-
-function saveDiscarded(hash?: string | null) {
-  if (!hash) return;
-  try {
-    localStorage.setItem(`autoclip:discarded:${hash}`, JSON.stringify(discarded.value));
-  } catch {}
-}
-
 function discard(id: string) {
-  if (!discarded.value.includes(id)) {
-    discarded.value = [...discarded.value, id];
-    saveDiscarded(props.analysis?.analysis_hash);
-  }
+  discardItem(id, props.analysis?.analysis_hash);
   if (selected.value.includes(id)) {
     selected.value = selected.value.filter(s => s !== id);
     locallyEdited.value = true;
@@ -147,29 +128,19 @@ function discard(id: string) {
       focused.value = '';
     }
   }
-  notify.info('Proposta descartada.');
 }
 
 function discardTopic(groupId: string) {
   const groupProps = proposals.value.filter(p => p.group_id === groupId);
   const ids = groupProps.map(p => p.candidate_id);
-  let changed = false;
-  for (const id of ids) {
-    if (!discarded.value.includes(id)) {
-      discarded.value.push(id);
-      changed = true;
-    }
-  }
-  if (changed) {
-    saveDiscarded(props.analysis?.analysis_hash);
-    selected.value = selected.value.filter(s => !ids.includes(s));
-    locallyEdited.value = true;
-    emit('selection', {
-      schema_version: '1.0',
-      analysis_hash: props.analysis!.analysis_hash,
-      candidate_ids: [...validSelection.value],
-    });
-  }
+  discardMany(ids, props.analysis?.analysis_hash);
+  selected.value = selected.value.filter(s => !ids.includes(s));
+  locallyEdited.value = true;
+  emit('selection', {
+    schema_version: '1.0',
+    analysis_hash: props.analysis!.analysis_hash,
+    candidate_ids: [...validSelection.value],
+  });
   if (topic.value === groupId) {
     topic.value = '';
     focused.value = '';
@@ -179,16 +150,13 @@ function discardTopic(groupId: string) {
 
 function restoreTopic(groupId: string) {
   const groupProps = proposals.value.filter(p => p.group_id === groupId);
-  const ids = new Set(groupProps.map(p => p.candidate_id));
-  discarded.value = discarded.value.filter(id => !ids.has(id));
-  saveDiscarded(props.analysis?.analysis_hash);
+  const ids = groupProps.map(p => p.candidate_id);
+  restoreMany(ids, props.analysis?.analysis_hash);
   notify.info('Tema restaurado.');
 }
 
 function restore(id: string) {
-  discarded.value = discarded.value.filter(s => s !== id);
-  saveDiscarded(props.analysis?.analysis_hash);
-  notify.info('Proposta restaurada.');
+  restoreItem(id, props.analysis?.analysis_hash);
 }
 
 function selectAllEligible() {
