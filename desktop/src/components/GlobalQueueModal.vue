@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, toRef } from 'vue';
 import AppButton from './AppButton.vue';
 import { ElScrollbar, ElTag, ElProgress, ElEmpty, ElCard } from 'element-plus';
 import {
@@ -10,12 +10,19 @@ import {
   CheckCircle2,
   AlertCircle,
   LoaderCircle,
+  Trash2,
 } from '@lucide/vue';
 import type { Job, Project } from '../types';
 import { active, labels, stages } from '../format';
+import { useJobQueue } from '../composables/useJobQueue';
 
 const props = defineProps<{ jobs: Job[]; projects: Project[]; busy: boolean }>();
-const emit = defineEmits<{ cancel: [id: string]; open: [projectId: string]; close: [] }>();
+const emit = defineEmits<{
+  cancel: [id: string];
+  open: [projectId: string];
+  close: [];
+  clearHistory: [];
+}>();
 const filter = ref<'active' | 'all'>('active');
 
 const projectMap = computed(() => {
@@ -24,22 +31,15 @@ const projectMap = computed(() => {
   return map;
 });
 
-const activeJobs = computed(() =>
-  props.jobs.filter(j => active(j.status)).sort((a, b) => a.created_at.localeCompare(b.created_at))
-);
-const recentJobs = computed(() =>
-  [...props.jobs].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 20)
-);
+const { activeJobs, recentJobs, runningCount, pendingCount } = useJobQueue(toRef(props, 'jobs'));
+
 const displayJobs = computed(() =>
   filter.value === 'active' ? activeJobs.value : recentJobs.value
 );
 
-const runningCount = computed(() => props.jobs.filter(j => j.status === 'running').length);
-const pendingCount = computed(() => props.jobs.filter(j => j.status === 'pending').length);
-
 function projectName(pid: string): string {
   const p = projectMap.value.get(pid);
-  return p?.title || p?.name || 'Projeto ' + pid.slice(0, 8);
+  return p?.title || p?.name || 'Projeto finalizado';
 }
 
 function handleKey(e: KeyboardEvent) {
@@ -88,6 +88,15 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
               :class="{ selected: filter === 'all' }"
               @click="filter = 'all'"
               >Histórico recente</AppButton
+            >
+            <AppButton
+              v-if="filter === 'all' && recentJobs.length > 0"
+              class="queue-tab"
+              style="margin-left: 8px; color: var(--el-color-danger, #ef4444)"
+              title="Limpar tarefas concluídas ou falhadas"
+              :disabled="busy"
+              @click="$emit('clearHistory')"
+              ><Trash2 :size="14" style="margin-right: 4px" />Limpar histórico</AppButton
             >
           </div>
           <AppButton

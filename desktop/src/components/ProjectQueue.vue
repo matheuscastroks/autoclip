@@ -1,22 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { toRef } from 'vue';
 import AppButton from './AppButton.vue';
 import type { Job } from '../types';
-import { active, labels, stages } from '../format';
+import { labels, stages } from '../format';
+import { useJobQueue } from '../composables/useJobQueue';
+
 const props = defineProps<{ jobs: Job[]; busy: boolean }>();
 defineEmits<{ cancel: [id: string] }>();
-const queue = computed(() =>
-  props.jobs.filter(j => active(j.status)).sort((a, b) => a.created_at.localeCompare(b.created_at))
-);
+
+const { activeJobs: queue, runningCount, pendingCount } = useJobQueue(toRef(props, 'jobs'));
 </script>
 <template>
   <section v-if="queue.length" class="project-queue" aria-label="Fila deste projeto">
     <header>
       <strong>Fila do projeto</strong>
-      <span
-        >{{ queue.filter(j => j.status === 'running').length }} em execução ·
-        {{ queue.filter(j => j.status === 'pending').length }} aguardando</span
-      >
+      <span>{{ runningCount }} em execução · {{ pendingCount }} aguardando</span>
     </header>
     <ol>
       <li v-for="job in queue" :key="job.id">

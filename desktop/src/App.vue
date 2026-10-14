@@ -465,6 +465,13 @@ async function resumeJob(id: string) {
     await refresh();
   });
 }
+async function clearJobHistory() {
+  await action(async () => {
+    const res = await api.clearJobHistory();
+    notify.success(`${res.cleared} tarefa(s) removida(s) do histórico.`);
+    await refresh();
+  });
+}
 onMounted(async () => {
   try {
     await Promise.all([
@@ -713,6 +720,7 @@ onUnmounted(() => {
         action(() => openProject($event));
         showGlobalQueue = false;
       "
+      @clear-history="clearJobHistory"
       @close="showGlobalQueue = false"
     />
 
