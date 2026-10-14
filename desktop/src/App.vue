@@ -10,7 +10,7 @@ import ProjectWorkspace from './components/ProjectWorkspace.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import GlobalQueueModal from './components/GlobalQueueModal.vue'
 import OnboardingModal from './components/OnboardingModal.vue'
-import {ElConfigProvider} from 'element-plus'
+import {ElConfigProvider,ElBacktop} from 'element-plus'
 import ptBr from 'element-plus/es/locale/lang/pt-br'
 import {notify,createJobNotifier} from './notifications'
 const projects=ref<Project[]>([]),config=ref<Config|null>(null),jobs=ref<Job[]>([]),project=ref<Project|null>(null),transcript=ref<Transcript|null>(null),revisions=ref<Revision[]>([])
@@ -430,6 +430,7 @@ onUnmounted(()=>{if(timer)clearInterval(timer)})
     @save-key="saveKey"
     @save-open-router-key="saveOpenRouterKey"
   />
+  <el-backtop :right="30" :bottom="30" />
   </el-config-provider>
 </template>
 
