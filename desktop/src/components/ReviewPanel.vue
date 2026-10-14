@@ -440,7 +440,7 @@ function copyDescription() {
                             "
                             :stroke-width="5"
                             :show-text="false"
-                            color="#d97724"
+                            color="var(--color-text-primary)"
                           />
                           <small
                             >{{
@@ -704,7 +704,7 @@ function copyDescription() {
 }
 
 :deep(.el-splitter__bar:hover) {
-  background: var(--color-accent, #d97724);
+  background: var(--color-action-primary);
   width: 3px;
 }
 
@@ -921,7 +921,7 @@ function copyDescription() {
 .description-box {
   background: rgba(255, 255, 255, 0.02);
   border: none;
-  border-left: 2px solid var(--color-accent, #d97724);
+  border-left: 2px solid var(--color-text-primary);
   border-radius: 0 6px 6px 0;
   padding: 8px 14px;
   font-size: 0.82rem;
@@ -1011,7 +1011,7 @@ function copyDescription() {
 }
 
 .clip-item-generating[data-state='running'] {
-  background: rgba(217, 119, 36, 0.05);
+  background: var(--color-surface-selected);
 }
 
 .clip-item-generating[data-state='failed'] {
@@ -1027,8 +1027,8 @@ function copyDescription() {
 }
 
 .item-state-dot[data-state='running'] {
-  background: var(--color-primary, #d97706);
-  box-shadow: 0 0 6px rgba(217, 119, 36, 0.6);
+  background: var(--color-action-primary);
+  box-shadow: none;
   animation: pulse 1.6s infinite ease-in-out;
 }
 
@@ -1066,7 +1066,7 @@ function copyDescription() {
 .row-progress-bar span {
   display: block;
   height: 100%;
-  background: var(--color-primary, #d97706);
+  background: var(--color-action-primary);
   border-radius: 999px;
   transition: width 0.3s ease;
 }

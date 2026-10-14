@@ -922,9 +922,9 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
 }
 
 .settings-category-btn.selected {
-  background: var(--color-accent-subtle, var(--accent-soft));
-  border-color: var(--color-accent, #d97724);
-  color: var(--color-accent-light, #f9a35c);
+  background: var(--color-surface-selected);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
 }
 
 .cat-num {
@@ -1063,7 +1063,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
   height: 36px;
   border-radius: 9px;
   background: var(--color-surface, var(--panel));
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1120,18 +1120,17 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
 
 .provider-radio-card input[type='radio'] {
   margin-top: 3px;
-  accent-color: var(--color-accent, #d97724);
 }
 
 .provider-radio-card:hover {
-  border-color: var(--color-accent, #d97724);
-  background: rgba(217, 119, 36, 0.04);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .provider-radio-card.selected {
-  border-color: var(--color-accent, #d97724);
-  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.1));
-  box-shadow: 0 0 0 1px var(--color-accent, #d97724);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
+  box-shadow: 0 0 0 1px var(--color-border-strong);
 }
 
 .provider-card-content {
@@ -1262,13 +1261,13 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
 }
 
 .model-chip:hover {
-  border-color: var(--color-accent, #d97724);
-  background: rgba(217, 119, 36, 0.05);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .model-chip.active {
-  border-color: var(--color-accent, #d97724);
-  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.12));
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
 }
 
 .chip-title-row {

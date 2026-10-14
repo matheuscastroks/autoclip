@@ -308,7 +308,7 @@ onUnmounted(() => {
           <div class="progress-bar-wrap" style="margin: 12px 0">
             <el-progress
               :percentage="provisionStatus.percent"
-              :color="'#D97724'"
+              :color="'#ECEEF0'"
               :stroke-width="10"
               :show-text="false"
             />

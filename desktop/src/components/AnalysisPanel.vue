@@ -1090,7 +1090,7 @@ function choose(id: string) {
 }
 
 :deep(.el-splitter__bar:hover) {
-  background: var(--color-accent, #d97724);
+  background: var(--color-action-primary);
   width: 3px !important;
 }
 
@@ -1158,11 +1158,11 @@ function choose(id: string) {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  background: rgba(217, 119, 36, 0.12);
-  color: #f9a35c;
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  border: 1px solid rgba(217, 119, 36, 0.28);
+  border: 1px solid var(--color-border-subtle);
   display: inline-flex;
   align-items: center;
 }
@@ -1258,9 +1258,9 @@ function choose(id: string) {
 }
 
 .topic-chip-btn.selected {
-  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.14));
-  border-color: var(--color-accent, #d97724);
-  color: var(--color-accent-text, #f9a35c);
+  background: var(--color-surface-selected);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
@@ -1287,7 +1287,7 @@ function choose(id: string) {
 
 .topic-summary-box {
   background: transparent;
-  border-left: 2px solid var(--color-accent, #d97724);
+  border-left: 2px solid var(--color-border-strong);
   padding: 4px 10px;
   font-size: 0.78rem;
   line-height: 1.4;
@@ -1390,9 +1390,9 @@ function choose(id: string) {
 }
 
 .filter-pill-btn.active {
-  background: var(--color-accent-subtle, rgba(217, 119, 36, 0.14));
-  color: var(--color-accent-light, #f9a35c);
-  border-color: rgba(217, 119, 36, 0.5);
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
   font-weight: 600;
 }
 
@@ -1463,17 +1463,17 @@ function choose(id: string) {
 }
 
 .proposal-card:focus-visible {
-  border-color: var(--color-accent, #d97724);
-  box-shadow: 0 0 0 2px rgba(217, 119, 36, 0.25);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 0 0 2px var(--color-border-focus);
 }
 
 .proposal-card.selected {
-  border-color: var(--color-accent, #d97724);
-  background: rgba(217, 119, 36, 0.08);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
 }
 
 .proposal-card.checked {
-  border-left: 3px solid var(--color-accent, #d97724);
+  border-left: 2px solid var(--color-text-primary);
 }
 
 .proposal-card.overlapping {
@@ -1503,7 +1503,6 @@ function choose(id: string) {
 .proposal-checkbox-label input {
   width: 16px;
   height: 16px;
-  accent-color: var(--color-accent, #d97724);
   cursor: pointer;
 }
 
@@ -1742,7 +1741,7 @@ function choose(id: string) {
 .media-timecode {
   font-family: var(--font-mono, monospace);
   font-size: 0.76rem;
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
@@ -1796,7 +1795,7 @@ function choose(id: string) {
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   margin-bottom: 6px;
 }
 
@@ -1954,7 +1953,7 @@ function choose(id: string) {
   gap: 16px;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-top: 2px solid var(--color-accent, #d97724);
+  border-top: 2px solid var(--color-border-strong);
   border-radius: 12px;
   padding: 10px 18px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -1971,8 +1970,8 @@ function choose(id: string) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--color-accent, #d97724);
-  color: #fff;
+  background: var(--color-action-primary);
+  color: var(--color-action-primary-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2004,7 +2003,7 @@ function choose(id: string) {
   gap: 16px;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-left: 4px solid var(--color-accent, var(--accent));
+  border-left: 4px solid var(--color-border-strong);
   border-radius: 10px;
   padding: 12px 16px;
 }

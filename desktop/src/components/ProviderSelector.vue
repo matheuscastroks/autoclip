@@ -107,24 +107,24 @@ function select(provider: AiProvider) {
   outline: none;
 }
 .provider-card:hover:not(.disabled) {
-  border-color: var(--accent, #d97724);
-  background: rgba(217, 119, 36, 0.04);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 .provider-card:focus-visible {
-  border-color: var(--accent, #d97724);
-  box-shadow: 0 0 0 2px rgba(217, 119, 36, 0.3);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 0 0 2px var(--color-border-focus);
 }
 .provider-card.selected {
-  border-color: var(--accent, #d97724);
-  background: rgba(217, 119, 36, 0.08);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
 }
 .provider-icon {
-  color: var(--accent, #d97724);
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
-  background: rgba(217, 119, 36, 0.12);
+  background: var(--color-surface-selected);
   border-radius: 8px;
 }
 .provider-details {

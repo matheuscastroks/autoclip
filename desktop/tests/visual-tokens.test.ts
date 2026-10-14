@@ -24,4 +24,22 @@ describe('visual tokens integrity', () => {
       expect(elementThemeCss, `element-theme.css should not contain legacy color '${legacy}'`).not.toContain(legacy);
     }
   });
+
+  it('does not contain legacy orange accent colors in desktop components', () => {
+    const componentsDir = path.resolve(__dirname, '../src/components');
+    const vueFiles = fs.readdirSync(componentsDir).filter((file) => file.endsWith('.vue'));
+    expect(vueFiles.length).toBeGreaterThan(0);
+
+    const legacyPatterns = [/#d97724/i, /#c4671a/i, /217,\s*119,\s*36/];
+
+    for (const file of vueFiles) {
+      const content = fs.readFileSync(path.join(componentsDir, file), 'utf-8');
+      for (const pattern of legacyPatterns) {
+        expect(
+          pattern.test(content),
+          `Component ${file} should not contain legacy orange pattern ${pattern}`
+        ).toBe(false);
+      }
+    }
+  });
 });

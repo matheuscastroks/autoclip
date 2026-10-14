@@ -287,10 +287,10 @@ function triggerErrorDetails() {
           <div class="processing-status-strip">
             <el-progress
               :indeterminate="true"
-              :percentage="75"
+              :percentage="0"
               :stroke-width="4"
               :show-text="false"
-              color="#d97724"
+              color="var(--color-text-primary)"
               class="stage-progress indeterminate"
               role="progressbar"
               aria-label="Progresso da tarefa"
@@ -731,9 +731,9 @@ function triggerErrorDetails() {
 
 .stepper-node[data-state='running'] .node-circle,
 .stepper-node[data-state='processing'] .node-circle {
-  background: rgba(217, 119, 36, 0.16);
-  border-color: #d97724;
-  color: #f9a35c;
+  background: var(--color-surface-selected);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
 }
 
 .stepper-node[data-state='failed'] .node-circle,
@@ -744,8 +744,8 @@ function triggerErrorDetails() {
 }
 
 .stepper-node[data-state='waiting'] .node-circle {
-  border-color: var(--color-accent, #d97724);
-  color: var(--color-accent-light, #f9a35c);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
 }
 
 .node-label {
@@ -788,7 +788,7 @@ function triggerErrorDetails() {
 .state-hero-card {
   background: transparent;
   border: none;
-  border-left: 3px solid var(--color-accent, #d97724);
+  border-left: 3px solid var(--color-border-strong);
   border-radius: 0;
   padding: 12px 20px;
   display: flex;
@@ -804,16 +804,16 @@ function triggerErrorDetails() {
 }
 
 .state-hero-card.processing-mode {
-  background: rgba(217, 119, 36, 0.04);
+  background: var(--color-surface-selected);
   border: none;
-  border-left: 3px solid #d97724;
+  border-left: 3px solid var(--color-border-strong);
   border-radius: 0 8px 8px 0;
 }
 
 .state-hero-card.ready-mode {
   background: transparent;
   border: none;
-  border-left: 3px solid #d97724;
+  border-left: 3px solid var(--color-border-strong);
   border-radius: 0;
 }
 
@@ -837,15 +837,15 @@ function triggerErrorDetails() {
 }
 
 .hero-header-badge.processing-badge {
-  background: rgba(217, 119, 36, 0.16);
-  color: #f9a35c;
-  border: 1px solid rgba(217, 119, 36, 0.4);
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .hero-header-badge.ready-badge {
-  background: rgba(217, 119, 36, 0.14);
-  color: #f9a35c;
-  border: 1px solid rgba(217, 119, 36, 0.35);
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .hero-body-text h3 {
@@ -898,7 +898,7 @@ function triggerErrorDetails() {
 
 .failure-details-link {
   font-size: 0.78rem;
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   margin-top: 4px;
   padding: 0;
   text-decoration: underline;
@@ -1011,8 +1011,8 @@ function triggerErrorDetails() {
 }
 
 .metric-value.warning-value {
-  color: #f9a35c;
-  background: rgba(217, 119, 36, 0.15);
+  color: var(--color-text-primary);
+  background: var(--color-surface-selected);
   padding: 1px 8px;
   border-radius: 6px;
 }
@@ -1031,7 +1031,7 @@ function triggerErrorDetails() {
 
 .metrics-action-link {
   font-size: 0.78rem;
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   padding: 2px 0 0;
   text-align: left;
   font-weight: 600;

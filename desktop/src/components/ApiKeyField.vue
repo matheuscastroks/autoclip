@@ -117,7 +117,7 @@ function handleKeydown(e: KeyboardEvent) {
   transition: border-color 0.2s;
 }
 .key-input:focus {
-  border-color: var(--accent, #d97724);
+  border-color: var(--color-border-strong);
 }
 .toggle-visibility-btn {
   position: absolute;

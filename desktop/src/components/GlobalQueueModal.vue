@@ -178,7 +178,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                       : 100
                   "
                   :indeterminate="!job.progress?.total_items"
-                  :color="'#D97724'"
+                  :color="'#ECEEF0'"
                   :stroke-width="4"
                   :show-text="false"
                   style="margin-bottom: 6px"
@@ -280,12 +280,12 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
-  color: var(--color-accent-light, #f9a35c);
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(217, 119, 36, 0.3);
+  border: 1px solid var(--color-border-subtle);
 }
 .queue-title-area h2 {
   font-size: 1.15rem;
@@ -323,7 +323,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 }
 .queue-tab.selected {
   background: var(--color-surface, var(--panel));
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
@@ -368,7 +368,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
   padding: 0;
 }
 .project-jump-btn:hover {
-  color: var(--color-accent-light, #f9a35c);
+  color: var(--color-text-primary);
   text-decoration: underline;
 }
 .job-status-tags {

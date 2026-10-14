@@ -434,7 +434,6 @@ function timeAgo(value: number) {
   gap: 16px;
   background: var(--color-surface, #16191f);
   border: 1px solid var(--color-border-subtle, #2a303c);
-  border-left: 4px solid var(--color-accent, #d97724);
   border-radius: 12px;
   padding: 12px 18px;
   cursor: pointer;
@@ -442,7 +441,7 @@ function timeAgo(value: number) {
 }
 .global-queue-banner:hover {
   background: var(--color-surface-raised, #1e232b);
-  border-color: var(--color-accent, #d97724);
+  border-color: var(--color-border-strong);
 }
 .queue-banner-info {
   display: flex;
@@ -500,7 +499,7 @@ function timeAgo(value: number) {
 }
 .search-box input:focus {
   outline: none;
-  border-color: var(--color-accent, #d97724);
+  border-color: var(--color-border-strong);
 }
 .clear-search {
   position: absolute;
@@ -544,7 +543,7 @@ function timeAgo(value: number) {
 }
 .view-btn.active {
   background: var(--color-surface-raised, #1e232b);
-  color: var(--color-accent, #d97724);
+  color: var(--color-text-primary);
 }
 
 /* GRADE DE MÍDIA */
@@ -565,7 +564,7 @@ function timeAgo(value: number) {
 }
 .media-project-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-accent, #d97724);
+  border-color: var(--color-border-strong);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
 }
 .card-thumbnail-wrap {
@@ -651,7 +650,7 @@ function timeAgo(value: number) {
   font-variant-numeric: tabular-nums;
 }
 .project-metrics-inline .highlight-count {
-  color: var(--color-accent, #d97724);
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 .card-footer {
@@ -674,7 +673,7 @@ function timeAgo(value: number) {
 .open-card-indicator {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--color-accent, #d97724);
+  color: var(--color-text-primary);
 }
 
 /* Estado Vazio */

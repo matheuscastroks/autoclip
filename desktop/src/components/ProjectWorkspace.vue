@@ -451,7 +451,7 @@ function seek(us: number) {
 }
 
 :deep(.el-splitter__bar:hover) {
-  background: var(--color-accent, #d97724);
+  background: var(--color-action-primary);
   width: 3px;
 }
 
@@ -499,8 +499,8 @@ function seek(us: number) {
 }
 
 .transcript-segment-row.highlighted {
-  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
-  border-color: rgba(217, 119, 36, 0.45);
+  background: var(--color-surface-selected);
+  border-color: var(--color-border-strong);
 }
 
 .transcript-no-matches {
