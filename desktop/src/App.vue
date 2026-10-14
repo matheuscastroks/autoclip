@@ -382,6 +382,12 @@ function showCreate() {
   dialog.value?.showModal();
 }
 function showAnalysis() {
+  if (!keyConfigured.value) {
+    const provider = config.value?.ai_provider === 'openrouter' ? 'OpenRouter' : 'Gemini';
+    notify.error(`Configure sua chave ${provider} nas configurações antes de iniciar a análise.`);
+    navigate('settings');
+    return;
+  }
   windowSeconds.value = config.value?.window_seconds || 600;
   analysisDialog.value?.showModal();
 }
@@ -993,16 +999,25 @@ onUnmounted(() => {
           conforme o conteúdo, com novas tentativas para falhas recuperáveis. Você pode cancelar; a
           API pode gerar custos.
         </p>
-        <div v-if="!keyConfigured" class="subtle">
-          Configure sua chave
-          {{ config?.ai_provider === 'openrouter' ? 'OpenRouter' : 'Gemini' }} nas configurações
-          primeiro.
+        <div v-if="!keyConfigured" class="subtle missing-key-notice">
+          <span>
+            Configure sua chave
+            {{ config?.ai_provider === 'openrouter' ? 'OpenRouter' : 'Gemini' }} nas configurações
+            primeiro.
+          </span>
+          <AppButton
+            type="button"
+            class="button small secondary"
+            @click="analysisDialog?.close(); navigate('settings')"
+          >
+            Configurações
+          </AppButton>
         </div>
         <footer>
           <AppButton type="button" class="button secondary" @click="analysisDialog?.close()"
             >Cancelar</AppButton
           >
-          <AppButton class="button primary" :disabled="busy || !keyConfigured"
+          <AppButton type="submit" class="button primary" :disabled="busy || !keyConfigured"
             >Iniciar análise</AppButton
           >
         </footer>

@@ -340,7 +340,7 @@ function triggerErrorDetails() {
                 :disabled="busy || processing"
                 @click="$emit('analyze')"
               >
-                <Sparkles :size="15" />Analisar transcrição
+                <Sparkles :size="15" />Iniciar análise
               </AppButton>
             </div>
           </template>

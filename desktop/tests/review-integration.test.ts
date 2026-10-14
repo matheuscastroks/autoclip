@@ -136,6 +136,7 @@ describe('review identity across refresh and failures', () => {
     const dialog = w.findAll('dialog').find(d => d.text().includes('Analisar com Gemini'))!;
     expect(dialog.find('input[type=checkbox]').exists()).toBe(false);
     expect(dialog.text()).not.toContain('Limite de tentativas');
+    expect(dialog.find('button[type="submit"]').text()).toContain('Iniciar análise');
     await dialog.get('form').trigger('submit');
     await flushPromises();
     expect(api.start).toHaveBeenCalledWith(
