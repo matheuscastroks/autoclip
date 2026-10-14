@@ -60,3 +60,54 @@ def test_config_and_credential_never_return_secret(client,monkeypatch):
 def test_import_missing_path_returns_readable_failure(client):
     r=client.post('/api/v1/projects/import',json={'path':'missing/not/a/project'})
     assert r.status_code==400 and r.json()['detail']
+
+def test_permanent_delete_removes_managed_folder_and_sqlite_record(client,tmp_path):
+    # Criar projeto gerenciado
+    r=client.post('/api/v1/projects',json={'name':'Test Project','source_input':str(source_folder(tmp_path)),'automatic':False})
+    assert r.status_code==200
+    pid=r.json()['project']['id']
+    job_id=r.json()['job']['id']
+    proj_dir=Path(r.json()['project']['path'])
+    assert proj_dir.is_dir()
+
+    # Tentativa com job ativo deve retornar 409 (Review Focus #1)
+    conflict_res=client.delete(f'/api/v1/projects/{pid}?permanent=true')
+    assert conflict_res.status_code==409
+
+    # Marcar job como concluído
+    job=client.app.state.store.job(job_id)
+    job['status']='completed'
+    job['finished_at']='2026-10-14T00:00:00Z'
+    client.app.state.store.save_job(job)
+
+    # Excluir permanentemente
+    del_res=client.delete(f'/api/v1/projects/{pid}?permanent=true')
+    assert del_res.status_code==200
+    assert del_res.json()=={'deleted':True}
+
+    # Verificar que diretório gerenciado foi removido fisicamente
+    assert not proj_dir.exists()
+    # E que projeto sumiu do banco
+    get_res=client.get(f'/api/v1/projects/{pid}')
+    assert get_res.status_code==404
+
+
+def test_clear_job_history_removes_only_terminal_jobs(client):
+    from engine.api.store import now
+    store=client.app.state.store
+    # Inserir jobs em vários estados
+    store.save_job({'id':'job-comp','project_id':'p1','status':'completed','created_at':now()})
+    store.save_job({'id':'job-fail','project_id':'p1','status':'failed','created_at':now()})
+    store.save_job({'id':'job-run','project_id':'p1','status':'running','created_at':now()})
+
+    res=client.post('/api/v1/jobs/clear-history')
+    assert res.status_code==200
+    assert res.json()['cleared']>=2
+
+    # Job em execução deve permanecer
+    assert client.get('/api/v1/jobs').status_code in (200, 404, 405) # ou verificar via store
+    remaining_ids=[j['id'] for j in store.jobs()]
+    assert 'job-run' in remaining_ids
+    assert 'job-comp' not in remaining_ids
+    assert 'job-fail' not in remaining_ids
+

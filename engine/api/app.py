@@ -214,10 +214,25 @@ def create_app(workspace:Path,token:str)->FastAPI:
         store.get(pid)
         if any(jobs.status(j['id'])['status'] in ('running','pending','cancelling') for j in store.jobs() if j['project_id']==pid and (not cut_delete or j['operation'] not in ('transcribe','analyze'))):raise HTTPException(409,'Aguarde ou cancele a geração, exportação ou importação antes de excluir este corte.' if cut_delete else 'Aguarde ou cancele a tarefa antes de excluir ou restaurar.')
     @app.delete('/api/v1/projects/{pid}')
-    def delete_project(pid:str):
+    def delete_project(pid:str,permanent:bool=True):
+        import shutil
         with jobs.lock:
-            editable(pid);store.set_deleted(pid,True)
+            editable(pid)
+            row=store.get(pid)
+            if permanent:
+                path=Path(row['path'])
+                if path.is_dir() and (workspace/'.autoclip/projects') in path.parents:
+                    shutil.rmtree(path,ignore_errors=True)
+                store.hard_delete(pid)
+            else:
+                store.set_deleted(pid,True)
         return {'deleted':True}
+    @app.post('/api/v1/jobs/clear-history')
+    def clear_job_history():
+        with jobs.lock:
+            count=store.clear_terminal_jobs()
+            return {'cleared':count}
+
     @app.get('/api/v1/trash')
     def trash():return store.trash()
     @app.post('/api/v1/trash/{pid}/restore')

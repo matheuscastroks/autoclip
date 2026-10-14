@@ -48,6 +48,20 @@ class ProjectStore:
             if deleted:c.execute('INSERT OR REPLACE INTO project_trash VALUES(?,?)',(project_id,now()))
             else:c.execute('DELETE FROM project_trash WHERE project_id=?',(project_id,))
 
+    def hard_delete(self,project_id:str)->bool:
+        self.get(project_id)
+        with self.connect() as c:
+            c.execute('DELETE FROM jobs WHERE project_id=?',(project_id,))
+            c.execute('DELETE FROM project_trash WHERE project_id=?',(project_id,))
+            c.execute('DELETE FROM projects WHERE id=?',(project_id,))
+        return True
+
+    def clear_terminal_jobs(self)->int:
+        with self.connect() as c:
+            count=c.execute("SELECT count(*) FROM jobs WHERE status NOT IN ('running','pending','cancelling')").fetchone()[0]
+            c.execute("DELETE FROM jobs WHERE status NOT IN ('running','pending','cancelling')")
+            return count
+
     def get(self,project_id:str)->dict:
         with self.connect() as c:r=c.execute('SELECT * FROM projects WHERE id=?',(project_id,)).fetchone()
         if r is None:raise KeyError(project_id)
