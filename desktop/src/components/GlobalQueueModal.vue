@@ -1,91 +1,148 @@
 <script setup lang="ts">
-import {computed,ref} from 'vue'
-import AppButton from './AppButton.vue'
+import { computed, ref } from 'vue';
+import AppButton from './AppButton.vue';
+import { ElScrollbar, ElTag, ElProgress, ElEmpty, ElCard } from 'element-plus';
 import {
-  ElScrollbar,
-  ElTag,
-  ElProgress,
-  ElEmpty,
-  ElCard,
-} from 'element-plus'
-import {ListOrdered,X,ArrowUpRight,Square,CheckCircle2,AlertCircle,LoaderCircle} from '@lucide/vue'
-import type {Job,Project} from '../types'
-import {active,labels,stages} from '../format'
+  ListOrdered,
+  X,
+  ArrowUpRight,
+  Square,
+  CheckCircle2,
+  AlertCircle,
+  LoaderCircle,
+} from '@lucide/vue';
+import type { Job, Project } from '../types';
+import { active, labels, stages } from '../format';
 
-const props=defineProps<{jobs:Job[];projects:Project[];busy:boolean}>()
-const emit=defineEmits<{cancel:[id:string];open:[projectId:string];close:[]}>()
-const filter=ref<'active'|'all'>('active')
+const props = defineProps<{ jobs: Job[]; projects: Project[]; busy: boolean }>();
+const emit = defineEmits<{ cancel: [id: string]; open: [projectId: string]; close: [] }>();
+const filter = ref<'active' | 'all'>('active');
 
-const projectMap=computed(()=>{
-  const map=new Map<string,Project>()
-  for(const p of props.projects)map.set(p.id,p)
-  return map
-})
+const projectMap = computed(() => {
+  const map = new Map<string, Project>();
+  for (const p of props.projects) map.set(p.id, p);
+  return map;
+});
 
-const activeJobs=computed(()=>props.jobs.filter(j=>active(j.status)).sort((a,b)=>a.created_at.localeCompare(b.created_at)))
-const recentJobs=computed(()=>[...props.jobs].sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,20))
-const displayJobs=computed(()=>filter.value==='active'?activeJobs.value:recentJobs.value)
+const activeJobs = computed(() =>
+  props.jobs.filter(j => active(j.status)).sort((a, b) => a.created_at.localeCompare(b.created_at))
+);
+const recentJobs = computed(() =>
+  [...props.jobs].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 20)
+);
+const displayJobs = computed(() =>
+  filter.value === 'active' ? activeJobs.value : recentJobs.value
+);
 
-const runningCount=computed(()=>props.jobs.filter(j=>j.status==='running').length)
-const pendingCount=computed(()=>props.jobs.filter(j=>j.status==='pending').length)
+const runningCount = computed(() => props.jobs.filter(j => j.status === 'running').length);
+const pendingCount = computed(() => props.jobs.filter(j => j.status === 'pending').length);
 
-function projectName(pid:string):string{
-  const p=projectMap.value.get(pid)
-  return p?.title||p?.name||'Projeto '+pid.slice(0,8)
+function projectName(pid: string): string {
+  const p = projectMap.value.get(pid);
+  return p?.title || p?.name || 'Projeto ' + pid.slice(0, 8);
 }
 
-function handleKey(e:KeyboardEvent){
-  if(e.key==='Escape')emit('close')
+function handleKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') emit('close');
 }
 
-function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
-  if(status==='completed')return 'success'
-  if(status==='running')return 'warning'
-  if(['failed','interrupted','rejected'].includes(status))return 'danger'
-  if(status==='pending')return 'info'
-  return 'info'
+function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' | 'info' {
+  if (status === 'completed') return 'success';
+  if (status === 'running') return 'warning';
+  if (['failed', 'interrupted', 'rejected'].includes(status)) return 'danger';
+  if (status === 'pending') return 'info';
+  return 'info';
 }
 </script>
 
 <template>
-  <div class="global-queue-overlay" role="dialog" aria-modal="true" aria-labelledby="queue-modal-title" @keydown="handleKey" @click.self="$emit('close')">
+  <div
+    class="global-queue-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="queue-modal-title"
+    @keydown="handleKey"
+    @click.self="$emit('close')"
+  >
     <div class="global-queue-container">
       <header class="queue-modal-header">
         <div class="queue-title-area">
-          <span class="queue-icon-wrapper"><ListOrdered :size="20"/></span>
+          <span class="queue-icon-wrapper"><ListOrdered :size="20" /></span>
           <div>
             <h2 id="queue-modal-title">Fila Global de Tarefas</h2>
-            <p>{{runningCount}} em execução · {{pendingCount}} aguardando em todos os projetos</p>
+            <p>
+              {{ runningCount }} em execução · {{ pendingCount }} aguardando em todos os projetos
+            </p>
           </div>
         </div>
         <div class="queue-header-actions">
           <div class="queue-tabs" role="tablist">
-            <AppButton class="queue-tab" :class="{selected:filter==='active'}" @click="filter='active'">Ativas ({{activeJobs.length}})</AppButton>
-            <AppButton class="queue-tab" :class="{selected:filter==='all'}" @click="filter='all'">Histórico recente</AppButton>
+            <AppButton
+              class="queue-tab"
+              :class="{ selected: filter === 'active' }"
+              @click="filter = 'active'"
+              >Ativas ({{ activeJobs.length }})</AppButton
+            >
+            <AppButton
+              class="queue-tab"
+              :class="{ selected: filter === 'all' }"
+              @click="filter = 'all'"
+              >Histórico recente</AppButton
+            >
           </div>
-          <AppButton class="icon-button close-btn" title="Fechar fila global" aria-label="Fechar" @click="$emit('close')"><X :size="18"/></AppButton>
+          <AppButton
+            class="icon-button close-btn"
+            title="Fechar fila global"
+            aria-label="Fechar"
+            @click="$emit('close')"
+            ><X :size="18"
+          /></AppButton>
         </div>
       </header>
 
       <el-scrollbar class="queue-modal-body" max-height="65vh">
         <div v-if="displayJobs.length" class="queue-jobs-list">
-          <el-card v-for="job in displayJobs" :key="job.id" shadow="never" class="queue-job-card" :data-status="job.status">
+          <el-card
+            v-for="job in displayJobs"
+            :key="job.id"
+            shadow="never"
+            class="queue-job-card"
+            :data-status="job.status"
+          >
             <div class="job-card-top">
               <div class="job-project-tag">
-                <AppButton class="project-jump-btn" title="Abrir este projeto" @click="$emit('open',job.project_id)">
-                  <strong>{{projectName(job.project_id)}}</strong>
-                  <ArrowUpRight :size="14"/>
+                <AppButton
+                  class="project-jump-btn"
+                  title="Abrir este projeto"
+                  @click="$emit('open', job.project_id)"
+                >
+                  <strong>{{ projectName(job.project_id) }}</strong>
+                  <ArrowUpRight :size="14" />
                 </AppButton>
               </div>
               <div class="job-status-tags">
-                <el-tag :type="tagType(job.status)" effect="dark" size="small" class="status-pill" :data-status="job.status">
-                  <LoaderCircle v-if="job.status==='running'" class="spin" :size="12"/>
-                  <CheckCircle2 v-else-if="job.status==='completed'" :size="12"/>
-                  <AlertCircle v-else-if="['failed','interrupted'].includes(job.status)" :size="12"/>
-                  {{labels[job.status]||job.status}}
+                <el-tag
+                  :type="tagType(job.status)"
+                  effect="dark"
+                  size="small"
+                  class="status-pill"
+                  :data-status="job.status"
+                >
+                  <LoaderCircle v-if="job.status === 'running'" class="spin" :size="12" />
+                  <CheckCircle2 v-else-if="job.status === 'completed'" :size="12" />
+                  <AlertCircle
+                    v-else-if="['failed', 'interrupted'].includes(job.status)"
+                    :size="12"
+                  />
+                  {{ labels[job.status] || job.status }}
                 </el-tag>
-                <el-tag v-if="job.status==='pending'" type="info" size="small" class="queue-position-pill">
-                  Posição {{job.queue_position||'—'}}
+                <el-tag
+                  v-if="job.status === 'pending'"
+                  type="info"
+                  size="small"
+                  class="queue-position-pill"
+                >
+                  Posição {{ job.queue_position || '—' }}
                 </el-tag>
               </div>
             </div>
@@ -93,34 +150,51 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
             <div class="job-card-details">
               <div class="job-op-title">
                 <span>Operação:</span>
-                <strong>{{stages[job.stage||job.operation]||job.operation}}</strong>
+                <strong>{{ stages[job.stage || job.operation] || job.operation }}</strong>
               </div>
 
-              <div v-if="job.status==='pending'" class="job-pending-note">
-                <small>{{job.queue_reason||'Aguardando liberação de worker…'}}</small>
+              <div v-if="job.status === 'pending'" class="job-pending-note">
+                <small>{{ job.queue_reason || 'Aguardando liberação de worker…' }}</small>
               </div>
 
-              <div v-else-if="job.status==='running'" class="job-progress-info">
+              <div v-else-if="job.status === 'running'" class="job-progress-info">
                 <el-progress
-                  :percentage="job.progress?.total_items ? Math.round(((job.progress.completed_items || 0) / job.progress.total_items) * 100) : 100"
+                  :percentage="
+                    job.progress?.total_items
+                      ? Math.round(
+                          ((job.progress.completed_items || 0) / job.progress.total_items) * 100
+                        )
+                      : 100
+                  "
                   :indeterminate="!job.progress?.total_items"
                   :color="'#D97724'"
                   :stroke-width="6"
                   :show-text="false"
-                  style="margin-bottom: 6px;"
+                  style="margin-bottom: 6px"
                 />
-                <small v-if="job.progress?.total_items">{{job.progress.completed_items||0}} de {{job.progress.total_items}} itens prontos</small>
-                <small v-else-if="job.requests_used">{{job.requests_used}} chamadas realizadas</small>
+                <small v-if="job.progress?.total_items"
+                  >{{ job.progress.completed_items || 0 }} de {{ job.progress.total_items }} itens
+                  prontos</small
+                >
+                <small v-else-if="job.requests_used"
+                  >{{ job.requests_used }} chamadas realizadas</small
+                >
               </div>
 
               <div v-else-if="job.error" class="job-error-note">
-                <small>{{job.error.message}}</small>
+                <small>{{ job.error.message }}</small>
               </div>
             </div>
 
             <div v-if="active(job.status)" class="job-card-footer">
-              <AppButton class="button small secondary cancel-job-btn" :disabled="busy||job.status==='cancelling'" @click="$emit('cancel',job.id)">
-                <Square :size="12"/>{{job.status==='pending'?'Remover da fila':'Cancelar tarefa'}}
+              <AppButton
+                class="button small secondary cancel-job-btn"
+                :disabled="busy || job.status === 'cancelling'"
+                @click="$emit('cancel', job.id)"
+              >
+                <Square :size="12" />{{
+                  job.status === 'pending' ? 'Remover da fila' : 'Cancelar tarefa'
+                }}
               </AppButton>
             </div>
           </el-card>
@@ -128,18 +202,29 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
 
         <el-empty
           v-else
-          :description="filter==='active'?'Nenhuma tarefa em execução':'Nenhum histórico disponível'"
+          :description="
+            filter === 'active' ? 'Nenhuma tarefa em execução' : 'Nenhum histórico disponível'
+          "
           class="queue-empty-state"
         >
           <template #image>
-            <ListOrdered :size="48" style="color: var(--color-accent-light, #F9A35C);"/>
+            <ListOrdered :size="48" style="color: var(--color-accent-light, #f9a35c)" />
           </template>
-          <p>{{filter==='active'?'Quando você iniciar importação, transcrição ou geração, as tarefas aparecerão aqui.':'Nenhuma tarefa recente foi registrada na sessão.'}}</p>
+          <p>
+            {{
+              filter === 'active'
+                ? 'Quando você iniciar importação, transcrição ou geração, as tarefas aparecerão aqui.'
+                : 'Nenhuma tarefa recente foi registrada na sessão.'
+            }}
+          </p>
         </el-empty>
       </el-scrollbar>
 
       <footer class="queue-modal-footer">
-        <span class="queue-hint">O motor gerencia até 2 tarefas simultâneas com trava de API Gemini para evitar concorrência.</span>
+        <span class="queue-hint"
+          >O motor gerencia até 2 tarefas simultâneas com trava de API Gemini para evitar
+          concorrência.</span
+        >
         <AppButton class="button secondary" @click="$emit('close')">Fechar</AppButton>
       </footer>
     </div>
@@ -188,8 +273,8 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: var(--color-accent-soft, rgba(217,119,36,0.16));
-  color: var(--color-accent-light, #F9A35C);
+  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
+  color: var(--color-accent-light, #f9a35c);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -213,7 +298,7 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
 }
 .queue-tabs {
   display: flex;
-  background: var(--color-canvas, #0E1013);
+  background: var(--color-canvas, #0e1013);
   padding: 3px;
   border-radius: 8px;
   border: 1px solid var(--color-border-subtle, var(--line));
@@ -231,7 +316,7 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
 }
 .queue-tab.selected {
   background: var(--color-surface, var(--panel));
-  color: var(--color-accent-light, #F9A35C);
+  color: var(--color-accent-light, #f9a35c);
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
@@ -272,7 +357,7 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
   padding: 0;
 }
 .project-jump-btn:hover {
-  color: var(--color-accent-light, #F9A35C);
+  color: var(--color-accent-light, #f9a35c);
   text-decoration: underline;
 }
 .job-status-tags {
@@ -287,7 +372,7 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
   font-weight: 600;
 }
 .queue-position-pill {
-  background: var(--color-canvas, #0E1013) !important;
+  background: var(--color-canvas, #0e1013) !important;
   border-color: var(--color-border-subtle, var(--line)) !important;
 }
 .job-card-details {
@@ -310,7 +395,7 @@ function tagType(status:string):'primary'|'success'|'warning'|'danger'|'info'{
   color: var(--color-text-secondary, var(--muted));
 }
 .job-error-note small {
-  color: var(--color-danger-text, #F87171);
+  color: var(--color-danger-text, #f87171);
 }
 .job-card-footer {
   margin-top: 12px;

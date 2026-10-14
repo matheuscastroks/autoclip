@@ -1,324 +1,525 @@
 <script setup lang="ts">
-import AppButton from './AppButton.vue'
-import {computed,ref,watch} from 'vue'
-import {Play,Search,Check,Scissors,FileText,RotateCcw,Sparkles,Clock,AlertTriangle,Volume2,Layers,Trash2,CheckCheck,X} from '@lucide/vue'
-import type {AnalysisView,AnalysisSelection,Job,Proposal} from '../types'
-import {time} from '../format'
-import {notify} from '../notifications'
-import AnalysisFeedback from './AnalysisFeedback.vue'
+import AppButton from './AppButton.vue';
+import { computed, ref, watch } from 'vue';
+import {
+  Play,
+  Search,
+  Check,
+  Scissors,
+  FileText,
+  RotateCcw,
+  Sparkles,
+  Clock,
+  AlertTriangle,
+  Volume2,
+  Layers,
+  Trash2,
+  CheckCheck,
+  X,
+} from '@lucide/vue';
+import type { AnalysisView, AnalysisSelection, Job, Proposal } from '../types';
+import { time } from '../format';
+import { notify } from '../notifications';
+import AnalysisFeedback from './AnalysisFeedback.vue';
 
-const props=defineProps<{analysis:AnalysisView|null;selection:AnalysisSelection|null;jobs:Job[];sourceUrl:string;busy:boolean}>()
-const emit=defineEmits<{generate:[value:{analysis_hash:string;candidate_ids:string[]}];selection:[value:AnalysisSelection];resume:[]}>()
-const topic=ref(''),search=ref(''),focused=ref(''),selected=ref<string[]>([]),player=ref<HTMLVideoElement>(),playEnd=ref(0)
-const locallyEdited=ref(false)
-const discarded=ref<string[]>([])
-const filterMode=ref<'active'|'discarded'|'all'>('active')
+const props = defineProps<{
+  analysis: AnalysisView | null;
+  selection: AnalysisSelection | null;
+  jobs: Job[];
+  sourceUrl: string;
+  busy: boolean;
+}>();
+const emit = defineEmits<{
+  generate: [value: { analysis_hash: string; candidate_ids: string[] }];
+  selection: [value: AnalysisSelection];
+  resume: [];
+}>();
+const topic = ref(''),
+  search = ref(''),
+  focused = ref(''),
+  selected = ref<string[]>([]),
+  player = ref<HTMLVideoElement>(),
+  playEnd = ref(0);
+const locallyEdited = ref(false);
+const discarded = ref<string[]>([]);
+const filterMode = ref<'active' | 'discarded' | 'all'>('active');
 
-const analysisLabels:Record<string,string>={not_started:'Análise ainda não iniciada',running:'Analisando a transcrição',partial:'Análise parcial disponível',completed:'Análise concluída',failed:'Análise precisa de atenção',cancelled:'Análise cancelada',interrupted:'Análise interrompida'}
-const analysisStateLabel=computed(()=>analysisLabels[props.analysis?.state||'not_started']||'Estado da análise')
-const complete=computed(()=>props.analysis?.state==='completed'&&!!props.analysis.analysis_hash)
-const proposals=computed(()=>props.analysis?.proposals||[])
-const activeProposals=computed(()=>proposals.value.filter(p=>!discarded.value.includes(p.candidate_id)))
-const discardedProposals=computed(()=>proposals.value.filter(p=>discarded.value.includes(p.candidate_id)))
+const analysisLabels: Record<string, string> = {
+  not_started: 'Análise ainda não iniciada',
+  running: 'Analisando a transcrição',
+  partial: 'Análise parcial disponível',
+  completed: 'Análise concluída',
+  failed: 'Análise precisa de atenção',
+  cancelled: 'Análise cancelada',
+  interrupted: 'Análise interrompida',
+};
+const analysisStateLabel = computed(
+  () => analysisLabels[props.analysis?.state || 'not_started'] || 'Estado da análise'
+);
+const complete = computed(
+  () => props.analysis?.state === 'completed' && !!props.analysis.analysis_hash
+);
+const proposals = computed(() => props.analysis?.proposals || []);
+const activeProposals = computed(() =>
+  proposals.value.filter(p => !discarded.value.includes(p.candidate_id))
+);
+const discardedProposals = computed(() =>
+  proposals.value.filter(p => discarded.value.includes(p.candidate_id))
+);
 
 function isTopicDiscarded(groupId: string): boolean {
-  const groupProps = proposals.value.filter(p => p.group_id === groupId)
-  return groupProps.length > 0 && groupProps.every(p => discarded.value.includes(p.candidate_id))
+  const groupProps = proposals.value.filter(p => p.group_id === groupId);
+  return groupProps.length > 0 && groupProps.every(p => discarded.value.includes(p.candidate_id));
 }
 
 const visibleTopicGroups = computed(() => {
-  const all = props.analysis?.topic_groups || []
+  const all = props.analysis?.topic_groups || [];
   if (filterMode.value === 'discarded') {
-    return all.filter(g => isTopicDiscarded(g.id))
+    return all.filter(g => isTopicDiscarded(g.id));
   }
   if (filterMode.value === 'active') {
-    return all.filter(g => !isTopicDiscarded(g.id))
+    return all.filter(g => !isTopicDiscarded(g.id));
   }
-  return all
-})
+  return all;
+});
 
-const filtered=computed(()=>proposals.value.filter(p=>{
-  if(filterMode.value==='active'&&discarded.value.includes(p.candidate_id))return false
-  if(filterMode.value==='discarded'&&!discarded.value.includes(p.candidate_id))return false
-  if(topic.value&&p.group_id!==topic.value)return false
-  if(search.value){
-    const q=search.value.toLocaleLowerCase('pt-BR')
-    const target=[p.title,p.rationale,p.text].join(' ').toLocaleLowerCase('pt-BR')
-    if(!target.includes(q))return false
-  }
-  return true
-}))
-
-const current=computed(()=>filtered.value.find(p=>p.candidate_id===focused.value)||filtered.value[0])
-
-function loadDiscarded(hash?:string|null){
-  if(!hash){discarded.value=[];return}
-  try{
-    const raw=localStorage.getItem(`autoclip:discarded:${hash}`)
-    if(raw){
-      const parsed=JSON.parse(raw)
-      if(Array.isArray(parsed)){discarded.value=parsed;return}
+const filtered = computed(() =>
+  proposals.value.filter(p => {
+    if (filterMode.value === 'active' && discarded.value.includes(p.candidate_id)) return false;
+    if (filterMode.value === 'discarded' && !discarded.value.includes(p.candidate_id)) return false;
+    if (topic.value && p.group_id !== topic.value) return false;
+    if (search.value) {
+      const q = search.value.toLocaleLowerCase('pt-BR');
+      const target = [p.title, p.rationale, p.text].join(' ').toLocaleLowerCase('pt-BR');
+      if (!target.includes(q)) return false;
     }
-  }catch{}
-  discarded.value=[]
+    return true;
+  })
+);
+
+const current = computed(
+  () => filtered.value.find(p => p.candidate_id === focused.value) || filtered.value[0]
+);
+
+function loadDiscarded(hash?: string | null) {
+  if (!hash) {
+    discarded.value = [];
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(`autoclip:discarded:${hash}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        discarded.value = parsed;
+        return;
+      }
+    }
+  } catch {}
+  discarded.value = [];
 }
 
-function saveDiscarded(hash?:string|null){
-  if(!hash)return
-  try{
-    localStorage.setItem(`autoclip:discarded:${hash}`,JSON.stringify(discarded.value))
-  }catch{}
+function saveDiscarded(hash?: string | null) {
+  if (!hash) return;
+  try {
+    localStorage.setItem(`autoclip:discarded:${hash}`, JSON.stringify(discarded.value));
+  } catch {}
 }
 
-function discard(id:string){
-  if(!discarded.value.includes(id)){
-    discarded.value=[...discarded.value,id]
-    saveDiscarded(props.analysis?.analysis_hash)
+function discard(id: string) {
+  if (!discarded.value.includes(id)) {
+    discarded.value = [...discarded.value, id];
+    saveDiscarded(props.analysis?.analysis_hash);
   }
-  if(selected.value.includes(id)){
-    selected.value=selected.value.filter(s=>s!==id)
-    locallyEdited.value=true
-    emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
+  if (selected.value.includes(id)) {
+    selected.value = selected.value.filter(s => s !== id);
+    locallyEdited.value = true;
+    emit('selection', {
+      schema_version: '1.0',
+      analysis_hash: props.analysis!.analysis_hash,
+      candidate_ids: [...validSelection.value],
+    });
   }
-  const targetProp = proposals.value.find(p => p.candidate_id === id)
+  const targetProp = proposals.value.find(p => p.candidate_id === id);
   if (targetProp?.group_id && topic.value === targetProp.group_id) {
     if (isTopicDiscarded(targetProp.group_id)) {
-      topic.value = ''
-      focused.value = ''
+      topic.value = '';
+      focused.value = '';
     }
   }
-  notify.info('Proposta descartada.')
+  notify.info('Proposta descartada.');
 }
 
 function discardTopic(groupId: string) {
-  const groupProps = proposals.value.filter(p => p.group_id === groupId)
-  const ids = groupProps.map(p => p.candidate_id)
-  let changed = false
+  const groupProps = proposals.value.filter(p => p.group_id === groupId);
+  const ids = groupProps.map(p => p.candidate_id);
+  let changed = false;
   for (const id of ids) {
     if (!discarded.value.includes(id)) {
-      discarded.value.push(id)
-      changed = true
+      discarded.value.push(id);
+      changed = true;
     }
   }
   if (changed) {
-    saveDiscarded(props.analysis?.analysis_hash)
-    selected.value = selected.value.filter(s => !ids.includes(s))
-    locallyEdited.value = true
-    emit('selection', {schema_version:'1.0', analysis_hash:props.analysis!.analysis_hash, candidate_ids:[...validSelection.value]})
+    saveDiscarded(props.analysis?.analysis_hash);
+    selected.value = selected.value.filter(s => !ids.includes(s));
+    locallyEdited.value = true;
+    emit('selection', {
+      schema_version: '1.0',
+      analysis_hash: props.analysis!.analysis_hash,
+      candidate_ids: [...validSelection.value],
+    });
   }
   if (topic.value === groupId) {
-    topic.value = ''
-    focused.value = ''
+    topic.value = '';
+    focused.value = '';
   }
-  notify.info('Tema descartado.')
+  notify.info('Tema descartado.');
 }
 
 function restoreTopic(groupId: string) {
-  const groupProps = proposals.value.filter(p => p.group_id === groupId)
-  const ids = new Set(groupProps.map(p => p.candidate_id))
-  discarded.value = discarded.value.filter(id => !ids.has(id))
-  saveDiscarded(props.analysis?.analysis_hash)
-  notify.info('Tema restaurado.')
+  const groupProps = proposals.value.filter(p => p.group_id === groupId);
+  const ids = new Set(groupProps.map(p => p.candidate_id));
+  discarded.value = discarded.value.filter(id => !ids.has(id));
+  saveDiscarded(props.analysis?.analysis_hash);
+  notify.info('Tema restaurado.');
 }
 
-function restore(id:string){
-  discarded.value=discarded.value.filter(s=>s!==id)
-  saveDiscarded(props.analysis?.analysis_hash)
-  notify.info('Proposta restaurada.')
+function restore(id: string) {
+  discarded.value = discarded.value.filter(s => s !== id);
+  saveDiscarded(props.analysis?.analysis_hash);
+  notify.info('Proposta restaurada.');
 }
 
-function selectAllEligible(){
-  if(!complete.value||props.busy)return
-  const toSelect:string[]=[]
-  const candidates=proposals.value.filter(p=>p.eligible&&!discarded.value.includes(p.candidate_id)&&(!topic.value||p.group_id===topic.value))
-  for(const c of candidates){
-    const hasOverlap=toSelect.some(id=>{
-      const kept=proposals.value.find(p=>p.candidate_id===id)!
-      return Math.min(c.end_us,kept.end_us)>Math.max(c.start_us,kept.start_us)
-    })
-    if(!hasOverlap){
-      toSelect.push(c.candidate_id)
+function selectAllEligible() {
+  if (!complete.value || props.busy) return;
+  const toSelect: string[] = [];
+  const candidates = proposals.value.filter(
+    p =>
+      p.eligible &&
+      !discarded.value.includes(p.candidate_id) &&
+      (!topic.value || p.group_id === topic.value)
+  );
+  for (const c of candidates) {
+    const hasOverlap = toSelect.some(id => {
+      const kept = proposals.value.find(p => p.candidate_id === id)!;
+      return Math.min(c.end_us, kept.end_us) > Math.max(c.start_us, kept.start_us);
+    });
+    if (!hasOverlap) {
+      toSelect.push(c.candidate_id);
     }
   }
-  locallyEdited.value=true
-  selected.value=toSelect
-  emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
-  if(candidates.length>toSelect.length){
-    notify.info(`${toSelect.length} propostas selecionadas. Trechos sobrepostos foram desconsiderados.`)
-  }else{
-    notify.info(`${toSelect.length} propostas selecionadas.`)
+  locallyEdited.value = true;
+  selected.value = toSelect;
+  emit('selection', {
+    schema_version: '1.0',
+    analysis_hash: props.analysis!.analysis_hash,
+    candidate_ids: [...validSelection.value],
+  });
+  if (candidates.length > toSelect.length) {
+    notify.info(
+      `${toSelect.length} propostas selecionadas. Trechos sobrepostos foram desconsiderados.`
+    );
+  } else {
+    notify.info(`${toSelect.length} propostas selecionadas.`);
   }
 }
 
-function clearSelection(){
-  if(props.busy)return
-  locallyEdited.value=true
-  selected.value=[]
-  emit('selection',{schema_version:'1.0',analysis_hash:props.analysis?.analysis_hash||'',candidate_ids:[]})
-  notify.info('Seleção limpa.')
+function clearSelection() {
+  if (props.busy) return;
+  locallyEdited.value = true;
+  selected.value = [];
+  emit('selection', {
+    schema_version: '1.0',
+    analysis_hash: props.analysis?.analysis_hash || '',
+    candidate_ids: [],
+  });
+  notify.info('Seleção limpa.');
 }
 
-function overlapsWithSelected(p:Proposal):boolean{
-  if(selected.value.includes(p.candidate_id))return false
-  return validSelection.value.some(id=>{
-    const other=proposals.value.find(cand=>cand.candidate_id===id)
-    if(!other)return false
-    return Math.min(p.end_us,other.end_us)>Math.max(p.start_us,other.start_us)
-  })
+function overlapsWithSelected(p: Proposal): boolean {
+  if (selected.value.includes(p.candidate_id)) return false;
+  return validSelection.value.some(id => {
+    const other = proposals.value.find(cand => cand.candidate_id === id);
+    if (!other) return false;
+    return Math.min(p.end_us, other.end_us) > Math.max(p.start_us, other.start_us);
+  });
 }
 
-const validSelection=computed(()=>{
-  const result:string[]=[]
-  for(const id of selected.value){
-    if(discarded.value.includes(id))continue
-    const cand=proposals.value.find(p=>p.candidate_id===id&&p.eligible)
-    if(!cand)continue
-    const hasOverlap=result.some(keptId=>{
-      const kept=proposals.value.find(p=>p.candidate_id===keptId)!
-      return Math.min(cand.end_us,kept.end_us)>Math.max(cand.start_us,kept.start_us)
-    })
-    if(!hasOverlap)result.push(id)
+const validSelection = computed(() => {
+  const result: string[] = [];
+  for (const id of selected.value) {
+    if (discarded.value.includes(id)) continue;
+    const cand = proposals.value.find(p => p.candidate_id === id && p.eligible);
+    if (!cand) continue;
+    const hasOverlap = result.some(keptId => {
+      const kept = proposals.value.find(p => p.candidate_id === keptId)!;
+      return Math.min(cand.end_us, kept.end_us) > Math.max(cand.start_us, kept.start_us);
+    });
+    if (!hasOverlap) result.push(id);
   }
-  return result
-})
+  return result;
+});
 
-const totalSelectedDurationUs=computed(()=>{
-  return validSelection.value.reduce((total,id)=>{
-    const cand=proposals.value.find(p=>p.candidate_id===id)
-    return total+(cand?.duration_us||0)
-  },0)
-})
+const totalSelectedDurationUs = computed(() => {
+  return validSelection.value.reduce((total, id) => {
+    const cand = proposals.value.find(p => p.candidate_id === id);
+    return total + (cand?.duration_us || 0);
+  }, 0);
+});
 
-const overlap=computed(()=>selected.value.length!==validSelection.value.length||validSelection.value.some((id,i)=>validSelection.value.slice(i+1).some(other=>{
-  const a=proposals.value.find(p=>p.candidate_id===id)
-  const b=proposals.value.find(p=>p.candidate_id===other)
-  return !!(a&&b&&Math.min(a.end_us,b.end_us)>Math.max(a.start_us,b.start_us))
-})))
+const overlap = computed(
+  () =>
+    selected.value.length !== validSelection.value.length ||
+    validSelection.value.some((id, i) =>
+      validSelection.value.slice(i + 1).some(other => {
+        const a = proposals.value.find(p => p.candidate_id === id);
+        const b = proposals.value.find(p => p.candidate_id === other);
+        return !!(a && b && Math.min(a.end_us, b.end_us) > Math.max(a.start_us, b.start_us));
+      })
+    )
+);
 
-const isPartial=computed(()=>{
-  if(!props.analysis)return false
-  return props.analysis.state!=='completed'&&props.analysis.state!=='running'&&props.analysis.completed_windows>0&&props.analysis.completed_windows<props.analysis.total_windows
-})
-const remainingWindows=computed(()=>Math.max(0,(props.analysis?.total_windows||0)-(props.analysis?.completed_windows||0)))
+const isPartial = computed(() => {
+  if (!props.analysis) return false;
+  return (
+    props.analysis.state !== 'completed' &&
+    props.analysis.state !== 'running' &&
+    props.analysis.completed_windows > 0 &&
+    props.analysis.completed_windows < props.analysis.total_windows
+  );
+});
+const remainingWindows = computed(() =>
+  Math.max(0, (props.analysis?.total_windows || 0) - (props.analysis?.completed_windows || 0))
+);
 
-watch(()=>props.analysis?.analysis_hash,(hash,old)=>{
-  if(hash!==old){
-    locallyEdited.value=false
-    loadDiscarded(hash)
-    selected.value=hash&&props.selection?.analysis_hash===hash?[...props.selection.candidate_ids]:[]
-    if(!proposals.value.some(p=>p.candidate_id===focused.value))focused.value=''
-    if(!props.analysis?.topic_groups.some(g=>g.id===topic.value))topic.value=''
+watch(
+  () => props.analysis?.analysis_hash,
+  (hash, old) => {
+    if (hash !== old) {
+      locallyEdited.value = false;
+      loadDiscarded(hash);
+      selected.value =
+        hash && props.selection?.analysis_hash === hash ? [...props.selection.candidate_ids] : [];
+      if (!proposals.value.some(p => p.candidate_id === focused.value)) focused.value = '';
+      if (!props.analysis?.topic_groups.some(g => g.id === topic.value)) topic.value = '';
+    }
+  },
+  { immediate: true }
+);
+watch(
+  () => props.analysis?.job_id,
+  (job, old) => {
+    if (old && job !== old) {
+      focused.value = '';
+      topic.value = '';
+      selected.value = [];
+      discarded.value = [];
+      locallyEdited.value = false;
+    }
   }
-},{immediate:true})
-watch(()=>props.analysis?.job_id,(job,old)=>{
-  if(old&&job!==old){
-    focused.value=''
-    topic.value=''
-    selected.value=[]
-    discarded.value=[]
-    locallyEdited.value=false
-  }
-})
-watch(()=>props.selection,value=>{if(!locallyEdited.value&&value?.analysis_hash===props.analysis?.analysis_hash&&value?.analysis_hash)selected.value=[...value.candidate_ids]},{immediate:true})
-watch(overlap,value=>{if(value)notify.warning('Seleção com trechos sobrepostos detectada. Os cortes não podem se sobrepor no vídeo original.')})
-watch(current,value=>{if(value&&!value.eligible)notify.warning(value.reasons.join(' ')+' A geração permanece bloqueada.',{key:'proposal:'+value.candidate_id+':'+(props.analysis?.analysis_hash||props.analysis?.job_id)})})
+);
+watch(
+  () => props.selection,
+  value => {
+    if (
+      !locallyEdited.value &&
+      value?.analysis_hash === props.analysis?.analysis_hash &&
+      value?.analysis_hash
+    )
+      selected.value = [...value.candidate_ids];
+  },
+  { immediate: true }
+);
+watch(overlap, value => {
+  if (value)
+    notify.warning(
+      'Seleção com trechos sobrepostos detectada. Os cortes não podem se sobrepor no vídeo original.'
+    );
+});
+watch(current, value => {
+  if (value && !value.eligible)
+    notify.warning(value.reasons.join(' ') + ' A geração permanece bloqueada.', {
+      key:
+        'proposal:' +
+        value.candidate_id +
+        ':' +
+        (props.analysis?.analysis_hash || props.analysis?.job_id),
+    });
+});
 
-function toggle(p:Proposal){
-  if(!complete.value||!p.eligible||props.busy||discarded.value.includes(p.candidate_id))return
-  if(!selected.value.includes(p.candidate_id)&&overlapsWithSelected(p)){
-    notify.warning('Este trecho se sobrepõe a outro corte já selecionado. Desmarque o corte concorrente primeiro.')
-    return
+function toggle(p: Proposal) {
+  if (!complete.value || !p.eligible || props.busy || discarded.value.includes(p.candidate_id))
+    return;
+  if (!selected.value.includes(p.candidate_id) && overlapsWithSelected(p)) {
+    notify.warning(
+      'Este trecho se sobrepõe a outro corte já selecionado. Desmarque o corte concorrente primeiro.'
+    );
+    return;
   }
-  locallyEdited.value=true
-  selected.value=selected.value.includes(p.candidate_id)?selected.value.filter(id=>id!==p.candidate_id):[...selected.value,p.candidate_id]
-  emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
+  locallyEdited.value = true;
+  selected.value = selected.value.includes(p.candidate_id)
+    ? selected.value.filter(id => id !== p.candidate_id)
+    : [...selected.value, p.candidate_id];
+  emit('selection', {
+    schema_version: '1.0',
+    analysis_hash: props.analysis!.analysis_hash,
+    candidate_ids: [...validSelection.value],
+  });
 }
 
-function play(context=false){if(!player.value||!current.value)return;player.value.currentTime=Math.max(0,current.value.start_us/1e6-(context?15:0));playEnd.value=(current.value.end_us/1e6)+(context?15:0);player.value.play().catch(()=>{})}
-function stopAtEnd(){if(player.value&&playEnd.value&&player.value.currentTime>=playEnd.value){player.value.pause();playEnd.value=0}}
-function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=0}
+function play(context = false) {
+  if (!player.value || !current.value) return;
+  player.value.currentTime = Math.max(0, current.value.start_us / 1e6 - (context ? 15 : 0));
+  playEnd.value = current.value.end_us / 1e6 + (context ? 15 : 0);
+  player.value.play().catch(() => {});
+}
+function stopAtEnd() {
+  if (player.value && playEnd.value && player.value.currentTime >= playEnd.value) {
+    player.value.pause();
+    playEnd.value = 0;
+  }
+}
+function choose(id: string) {
+  focused.value = id;
+  player.value?.pause();
+  playEnd.value = 0;
+}
 </script>
 
 <template>
   <section class="analysis-workspace">
     <!-- CABEÇALHO DO WORKSPACE DE CURADORIA -->
-    <header class="analysis-heading" :class="{'is-complete':complete}">
+    <header class="analysis-heading" :class="{ 'is-complete': complete }">
       <div v-if="!complete" class="analysis-heading-text">
         <el-tag
           size="small"
-          :type="analysis?.state==='completed'?'success':analysis?.state==='failed'?'danger':analysis?.state==='partial'?'warning':'info'"
+          :type="
+            analysis?.state === 'completed'
+              ? 'success'
+              : analysis?.state === 'failed'
+                ? 'danger'
+                : analysis?.state === 'partial'
+                  ? 'warning'
+                  : 'info'
+          "
           effect="dark"
           class="status-pill"
           :data-status="analysis?.state"
         >
-          {{analysisStateLabel}}
+          {{ analysisStateLabel }}
         </el-tag>
         <p v-if="!analysis">A análise organizará os temas e os trechos da transcrição.</p>
       </div>
       <div v-else class="analysis-heading-meta">
         <span class="heading-stat-pill">
-          <strong>{{validSelection.length}}</strong> de <strong>{{activeProposals.length}}</strong> propostas selecionadas
+          <strong>{{ validSelection.length }}</strong> de
+          <strong>{{ activeProposals.length }}</strong> propostas selecionadas
         </span>
       </div>
 
       <AppButton
         class="button primary generate-cta-btn"
         data-action="generate-selected"
-        :disabled="!complete||!validSelection.length||busy||overlap"
-        @click="emit('generate',{analysis_hash:analysis!.analysis_hash!,candidate_ids:[...validSelection]})"
+        :disabled="!complete || !validSelection.length || busy || overlap"
+        @click="
+          emit('generate', {
+            analysis_hash: analysis!.analysis_hash!,
+            candidate_ids: [...validSelection],
+          })
+        "
       >
-        <Scissors :size="16"/>Gerar {{validSelection.length}} prévia{{validSelection.length===1?'':'s'}}
+        <Scissors :size="16" />Gerar {{ validSelection.length }} prévia{{
+          validSelection.length === 1 ? '' : 's'
+        }}
       </AppButton>
     </header>
 
     <!-- BANNER DE RETOMADA COM 1 CLIQUE SE ANÁLISE FOR PARCIAL -->
     <div v-if="isPartial" class="analysis-resume-card" role="status">
       <div class="resume-info">
-        <strong>Análise parcial · {{analysis?.completed_windows}} de {{analysis?.total_windows}} janelas validadas</strong>
-        <p>Faltam {{remainingWindows}} janela{{remainingWindows===1?'':'s'}} para concluir a análise completa. Você já pode consultar as propostas validadas ou continuar o processamento agora.</p>
-        <small v-if="analysis?.state==='failed'||analysis?.state==='interrupted'">Se a análise foi interrompida por limite de cota da IA (erro 429), aguarde alguns segundos antes de continuar.</small>
+        <strong
+          >Análise parcial · {{ analysis?.completed_windows }} de
+          {{ analysis?.total_windows }} janelas validadas</strong
+        >
+        <p>
+          Faltam {{ remainingWindows }} janela{{ remainingWindows === 1 ? '' : 's' }} para concluir
+          a análise completa. Você já pode consultar as propostas validadas ou continuar o
+          processamento agora.
+        </p>
+        <small v-if="analysis?.state === 'failed' || analysis?.state === 'interrupted'"
+          >Se a análise foi interrompida por limite de cota da IA (erro 429), aguarde alguns
+          segundos antes de continuar.</small
+        >
       </div>
-      <AppButton class="button primary resume-analysis-btn" data-action="resume-analysis" :disabled="busy" @click="emit('resume')">
-        <RotateCcw :size="16"/>Continuar análise das {{remainingWindows}} janelas restantes
+      <AppButton
+        class="button primary resume-analysis-btn"
+        data-action="resume-analysis"
+        :disabled="busy"
+        @click="emit('resume')"
+      >
+        <RotateCcw :size="16" />Continuar análise das {{ remainingWindows }} janelas restantes
       </AppButton>
     </div>
 
     <div v-else-if="!complete" class="subtle partial-notice-bar" role="status">
-      As propostas já validadas podem ser consultadas. A geração fica disponível quando a análise completa terminar.
+      As propostas já validadas podem ser consultadas. A geração fica disponível quando a análise
+      completa terminar.
     </div>
 
     <!-- WORKSPACE DESKTOP EM 3 COLUNAS REDIMENSIONÁVEIS COM EL-SPLITTER -->
     <el-splitter class="analysis-layout curation-3col-layout">
-
       <!-- COLUNA 1: NAVEGAÇÃO POR TEMAS -->
-      <el-splitter-panel :size="250" :min="170" :max="420" class="curation-topics-col" role="region" aria-label="Temas identificados">
+      <el-splitter-panel
+        :size="250"
+        :min="170"
+        :max="420"
+        class="curation-topics-col"
+        role="region"
+        aria-label="Temas identificados"
+      >
         <div class="panel-inner-container">
           <div class="column-panel-header">
             <div class="panel-header-title">
               <span class="selection-step-badge">01</span>
               <h3>Temas</h3>
             </div>
-            <span class="panel-counter-badge">{{visibleTopicGroups.length + (filterMode !== 'discarded' ? 1 : 0)}}</span>
+            <span class="panel-counter-badge">{{
+              visibleTopicGroups.length + (filterMode !== 'discarded' ? 1 : 0)
+            }}</span>
           </div>
 
           <div class="topic-list custom-scrollbar" role="tablist" aria-label="Temas identificados">
-            <AppButton v-if="filterMode !== 'discarded'" class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
+            <AppButton
+              v-if="filterMode !== 'discarded'"
+              class="topic-chip-btn"
+              :class="{ selected: !topic }"
+              @click="
+                topic = '';
+                focused = '';
+              "
+            >
               <span class="chip-label">Todos os temas</span>
-              <span class="chip-count">{{activeProposals.length}}</span>
+              <span class="chip-count">{{ activeProposals.length }}</span>
             </AppButton>
             <div
               v-for="group in visibleTopicGroups"
               :key="group.id"
               class="topic-chip-container"
-              :class="{selected:topic===group.id, discarded:isTopicDiscarded(group.id)}"
+              :class="{ selected: topic === group.id, discarded: isTopicDiscarded(group.id) }"
             >
               <AppButton
                 class="topic-chip-btn"
-                :class="{selected:topic===group.id, discarded:isTopicDiscarded(group.id)}"
-                @click="topic=group.id;focused=''"
+                :class="{ selected: topic === group.id, discarded: isTopicDiscarded(group.id) }"
+                @click="
+                  topic = group.id;
+                  focused = '';
+                "
               >
-                <span class="chip-label" :title="group.label">{{group.label}}</span>
-                <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
+                <span class="chip-label" :title="group.label">{{ group.label }}</span>
+                <span class="chip-count">{{
+                  activeProposals.filter(p => p.group_id === group.id).length
+                }}</span>
               </AppButton>
               <button
                 v-if="!isTopicDiscarded(group.id)"
@@ -328,7 +529,7 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
                 data-action="discard-topic"
                 @click.stop="discardTopic(group.id)"
               >
-                <Trash2 :size="12"/>
+                <Trash2 :size="12" />
               </button>
               <button
                 v-else
@@ -338,22 +539,27 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
                 data-action="restore-topic"
                 @click.stop="restoreTopic(group.id)"
               >
-                <RotateCcw :size="12"/>
+                <RotateCcw :size="12" />
               </button>
             </div>
           </div>
 
           <div v-if="topic" class="topic-summary-box">
             <span class="summary-label">Resumo do tema:</span>
-            <p v-for="summary in analysis?.topic_groups.find(g=>g.id===topic)?.summaries" :key="summary">{{summary}}</p>
+            <p
+              v-for="summary in analysis?.topic_groups.find(g => g.id === topic)?.summaries"
+              :key="summary"
+            >
+              {{ summary }}
+            </p>
           </div>
 
           <!-- GAVETA COMPACTA DE DIAGNÓSTICO DO MOTOR -->
           <div class="topics-pipeline-drawer">
             <details class="analysis-explanation">
-              <summary><Layers :size="13"/> Diagnóstico do motor</summary>
+              <summary><Layers :size="13" /> Diagnóstico do motor</summary>
               <div class="explanation-inner-box">
-                <AnalysisFeedback :jobs="jobs"/>
+                <AnalysisFeedback :jobs="jobs" />
               </div>
             </details>
           </div>
@@ -361,302 +567,468 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       </el-splitter-panel>
 
       <!-- COLUNA 2: PROPOSTAS DE CORTES / WORK ITEMS -->
-      <el-splitter-panel :size="380" :min="260" :max="650" class="curation-proposals-col" aria-label="Lista de propostas de cortes">
+      <el-splitter-panel
+        :size="380"
+        :min="260"
+        :max="650"
+        class="curation-proposals-col"
+        aria-label="Lista de propostas de cortes"
+      >
         <div class="panel-inner-container">
           <div class="column-panel-header">
-          <div class="panel-header-title">
-            <span class="selection-step-badge">02</span>
-            <h3>Propostas</h3>
-          </div>
-          <span class="panel-counter-badge">{{filtered.length}} de {{proposals.length}}</span>
-        </div>
-
-        <!-- BARRA DE CONTROLE DE SELEÇÃO E FILTROS -->
-        <div class="proposals-control-bar">
-          <div class="filter-mode-pills" role="tablist" aria-label="Filtro de status de propostas">
-            <button
-              type="button"
-              class="filter-pill-btn"
-              :class="{active:filterMode==='active'}"
-              @click="filterMode='active'"
-            >
-              Ativas ({{activeProposals.length}})
-            </button>
-            <button
-              v-if="discardedProposals.length>0||filterMode==='discarded'"
-              type="button"
-              class="filter-pill-btn"
-              :class="{active:filterMode==='discarded'}"
-              @click="filterMode='discarded'"
-            >
-              Descartadas ({{discardedProposals.length}})
-            </button>
-            <button
-              type="button"
-              class="filter-pill-btn"
-              :class="{active:filterMode==='all'}"
-              @click="filterMode='all'"
-            >
-              Todas ({{proposals.length}})
-            </button>
+            <div class="panel-header-title">
+              <span class="selection-step-badge">02</span>
+              <h3>Propostas</h3>
+            </div>
+            <span class="panel-counter-badge">{{ filtered.length }} de {{ proposals.length }}</span>
           </div>
 
-          <div class="bulk-selection-actions" v-if="complete">
-            <button
-              type="button"
-              class="bulk-action-btn"
-              data-action="select-all-proposals"
-              title="Selecionar todas as propostas elegíveis não descartadas"
-              :disabled="busy||!activeProposals.length"
-              @click="selectAllEligible"
+          <!-- BARRA DE CONTROLE DE SELEÇÃO E FILTROS -->
+          <div class="proposals-control-bar">
+            <div
+              class="filter-mode-pills"
+              role="tablist"
+              aria-label="Filtro de status de propostas"
             >
-              <CheckCheck :size="12"/> Todas
-            </button>
-            <button
-              v-if="selected.length>0"
-              type="button"
-              class="bulk-action-btn"
-              data-action="clear-selection"
-              title="Limpar seleção atual"
-              :disabled="busy"
-              @click="clearSelection"
-            >
-              <X :size="12"/> Limpar
-            </button>
+              <button
+                type="button"
+                class="filter-pill-btn"
+                :class="{ active: filterMode === 'active' }"
+                @click="filterMode = 'active'"
+              >
+                Ativas ({{ activeProposals.length }})
+              </button>
+              <button
+                v-if="discardedProposals.length > 0 || filterMode === 'discarded'"
+                type="button"
+                class="filter-pill-btn"
+                :class="{ active: filterMode === 'discarded' }"
+                @click="filterMode = 'discarded'"
+              >
+                Descartadas ({{ discardedProposals.length }})
+              </button>
+              <button
+                type="button"
+                class="filter-pill-btn"
+                :class="{ active: filterMode === 'all' }"
+                @click="filterMode = 'all'"
+              >
+                Todas ({{ proposals.length }})
+              </button>
+            </div>
+
+            <div class="bulk-selection-actions" v-if="complete">
+              <button
+                type="button"
+                class="bulk-action-btn"
+                data-action="select-all-proposals"
+                title="Selecionar todas as propostas elegíveis não descartadas"
+                :disabled="busy || !activeProposals.length"
+                @click="selectAllEligible"
+              >
+                <CheckCheck :size="12" /> Todas
+              </button>
+              <button
+                v-if="selected.length > 0"
+                type="button"
+                class="bulk-action-btn"
+                data-action="clear-selection"
+                title="Limpar seleção atual"
+                :disabled="busy"
+                @click="clearSelection"
+              >
+                <X :size="12" /> Limpar
+              </button>
+            </div>
           </div>
-        </div>
 
-        <label class="search-proposals-wrap">
-          <Search :size="15"/>
-          <input v-model="search" type="search" placeholder="Filtrar por palavra..." aria-label="Buscar nas propostas"/>
-        </label>
+          <label class="search-proposals-wrap">
+            <Search :size="15" />
+            <input
+              v-model="search"
+              type="search"
+              placeholder="Filtrar por palavra..."
+              aria-label="Buscar nas propostas"
+            />
+          </label>
 
-        <div class="proposal-list custom-scrollbar" tabindex="0" role="region" aria-label="Propostas de cortes">
-          <article
-            v-for="p in filtered"
-            :key="p.candidate_id"
-            class="proposal-card"
-            :class="{selected:current?.candidate_id===p.candidate_id,overlapping:overlapsWithSelected(p),checked:selected.includes(p.candidate_id),discarded:discarded.includes(p.candidate_id)}"
+          <div
+            class="proposal-list custom-scrollbar"
             tabindex="0"
-            role="button"
-            :aria-pressed="selected.includes(p.candidate_id)"
-            :aria-label="'Proposta: ' + p.title + ' (' + time(p.duration_us) + ')'"
-            @click="choose(p.candidate_id)"
-            @keydown.enter.prevent="choose(p.candidate_id)"
-            @keydown.space.prevent="choose(p.candidate_id)"
+            role="region"
+            aria-label="Propostas de cortes"
           >
-            <div class="proposal-top-row">
-              <label class="proposal-checkbox-label" :title="discarded.includes(p.candidate_id)?'Restaure a proposta para selecioná-la':overlapsWithSelected(p)?'Sobrepõe um corte já selecionado':undefined" @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selected.includes(p.candidate_id)"
-                  :disabled="!complete||!p.eligible||busy||discarded.includes(p.candidate_id)||overlapsWithSelected(p)"
-                  :aria-label="'Selecionar '+p.title"
-                  @change="toggle(p)"
-                />
-              </label>
-              <div class="proposal-open" @click="choose(p.candidate_id)">
-                <strong>{{p.title}}</strong>
-                <div class="proposal-time-subline">
-                  <span class="time-range"><Clock :size="11"/> {{time(p.start_us)}} – {{time(p.end_us)}}</span>
-                  <span class="duration-pill">{{time(p.duration_us)}}</span>
+            <article
+              v-for="p in filtered"
+              :key="p.candidate_id"
+              class="proposal-card"
+              :class="{
+                selected: current?.candidate_id === p.candidate_id,
+                overlapping: overlapsWithSelected(p),
+                checked: selected.includes(p.candidate_id),
+                discarded: discarded.includes(p.candidate_id),
+              }"
+              tabindex="0"
+              role="button"
+              :aria-pressed="selected.includes(p.candidate_id)"
+              :aria-label="'Proposta: ' + p.title + ' (' + time(p.duration_us) + ')'"
+              @click="choose(p.candidate_id)"
+              @keydown.enter.prevent="choose(p.candidate_id)"
+              @keydown.space.prevent="choose(p.candidate_id)"
+            >
+              <div class="proposal-top-row">
+                <label
+                  class="proposal-checkbox-label"
+                  :title="
+                    discarded.includes(p.candidate_id)
+                      ? 'Restaure a proposta para selecioná-la'
+                      : overlapsWithSelected(p)
+                        ? 'Sobrepõe um corte já selecionado'
+                        : undefined
+                  "
+                  @click.stop
+                >
+                  <input
+                    type="checkbox"
+                    :checked="selected.includes(p.candidate_id)"
+                    :disabled="
+                      !complete ||
+                      !p.eligible ||
+                      busy ||
+                      discarded.includes(p.candidate_id) ||
+                      overlapsWithSelected(p)
+                    "
+                    :aria-label="'Selecionar ' + p.title"
+                    @change="toggle(p)"
+                  />
+                </label>
+                <div class="proposal-open" @click="choose(p.candidate_id)">
+                  <strong>{{ p.title }}</strong>
+                  <div class="proposal-time-subline">
+                    <span class="time-range"
+                      ><Clock :size="11" /> {{ time(p.start_us) }} – {{ time(p.end_us) }}</span
+                    >
+                    <span class="duration-pill">{{ time(p.duration_us) }}</span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  v-if="!discarded.includes(p.candidate_id)"
+                  class="proposal-discard-icon-btn"
+                  title="Descartar esta proposta"
+                  data-action="discard-proposal"
+                  @click.stop="discard(p.candidate_id)"
+                >
+                  <Trash2 :size="13" />
+                </button>
+                <button
+                  type="button"
+                  v-else
+                  class="proposal-restore-icon-btn"
+                  title="Restaurar esta proposta"
+                  data-action="restore-proposal"
+                  @click.stop="restore(p.candidate_id)"
+                >
+                  <RotateCcw :size="12" /> Restaurar
+                </button>
               </div>
-              <button
-                type="button"
-                v-if="!discarded.includes(p.candidate_id)"
-                class="proposal-discard-icon-btn"
-                title="Descartar esta proposta"
-                data-action="discard-proposal"
-                @click.stop="discard(p.candidate_id)"
-              >
-                <Trash2 :size="13"/>
-              </button>
-              <button
-                type="button"
-                v-else
-                class="proposal-restore-icon-btn"
-                title="Restaurar esta proposta"
-                data-action="restore-proposal"
-                @click.stop="restore(p.candidate_id)"
-              >
-                <RotateCcw :size="12"/> Restaurar
-              </button>
-            </div>
 
-            <p class="proposal-summary">{{p.rationale}}</p>
+              <p class="proposal-summary">{{ p.rationale }}</p>
 
-            <div class="proposal-card-badges">
-              <el-tag v-if="discarded.includes(p.candidate_id)" size="small" type="info" effect="dark" class="status-pill discarded-pill">
-                <Trash2 :size="11"/> Descartada
-              </el-tag>
-              <el-tag v-else-if="overlapsWithSelected(p)" size="small" type="warning" effect="dark" class="status-pill conflict-pill" data-status="warning" title="Este trecho se sobrepõe a outro corte já selecionado">
-                <AlertTriangle :size="12"/> Sobrepõe seleção
-              </el-tag>
-              <el-tag v-else size="small" :type="p.eligible?'success':'warning'" effect="dark" class="status-pill" :data-status="p.eligible?'analyzed':'failed'">
-                <Check v-if="p.eligible" :size="12"/> {{p.eligible?'Elegível para prévia':'Precisa de atenção'}}
-              </el-tag>
-            </div>
-          </article>
+              <div class="proposal-card-badges">
+                <el-tag
+                  v-if="discarded.includes(p.candidate_id)"
+                  size="small"
+                  type="info"
+                  effect="dark"
+                  class="status-pill discarded-pill"
+                >
+                  <Trash2 :size="11" /> Descartada
+                </el-tag>
+                <el-tag
+                  v-else-if="overlapsWithSelected(p)"
+                  size="small"
+                  type="warning"
+                  effect="dark"
+                  class="status-pill conflict-pill"
+                  data-status="warning"
+                  title="Este trecho se sobrepõe a outro corte já selecionado"
+                >
+                  <AlertTriangle :size="12" /> Sobrepõe seleção
+                </el-tag>
+                <el-tag
+                  v-else
+                  size="small"
+                  :type="p.eligible ? 'success' : 'warning'"
+                  effect="dark"
+                  class="status-pill"
+                  :data-status="p.eligible ? 'analyzed' : 'failed'"
+                >
+                  <Check v-if="p.eligible" :size="12" />
+                  {{ p.eligible ? 'Elegível para prévia' : 'Precisa de atenção' }}
+                </el-tag>
+              </div>
+            </article>
 
-          <p v-if="!filtered.length" class="subtle empty-proposals">
-            {{proposals.length?'Nenhuma proposta corresponde ao filtro.':'Aguardando propostas validadas.'}}
-          </p>
-        </div>
+            <p v-if="!filtered.length" class="subtle empty-proposals">
+              {{
+                proposals.length
+                  ? 'Nenhuma proposta corresponde ao filtro.'
+                  : 'Aguardando propostas validadas.'
+              }}
+            </p>
+          </div>
         </div>
       </el-splitter-panel>
 
       <!-- COLUNA 3: SUÍTE DE INSPEÇÃO EDITORIAL -->
       <el-splitter-panel :min="360" class="curation-inspection-col">
         <div class="panel-inner-container">
-        <section v-if="current" class="proposal-detail custom-scrollbar">
-          <div class="inspection-head-bar">
-            <div class="inspection-step-wrap">
-              <span class="selection-step-badge">03</span>
-              <span class="inspection-title-step">Inspeção Editorial</span>
-            </div>
-            <div class="inspection-time-badge">
-              <Clock :size="13"/>
-              <span>{{time(current.start_us)}} – {{time(current.end_us)}} ({{time(current.duration_us)}})</span>
-            </div>
-          </div>
-
-          <h3 class="inspection-current-title">{{current.title}}</h3>
-
-          <!-- MINI PLAYER COMPACTO DE APOIO (ÁUDIO/VÍDEO) -->
-          <div class="compact-media-bar">
-            <div class="mini-video-frame">
-              <video v-if="sourceUrl" ref="player" :src="sourceUrl" preload="metadata" playsinline @timeupdate="stopAtEnd"></video>
-              <div v-else class="media-placeholder">
-                <Volume2 :size="24"/>
+          <section v-if="current" class="proposal-detail custom-scrollbar">
+            <div class="inspection-head-bar">
+              <div class="inspection-step-wrap">
+                <span class="selection-step-badge">03</span>
+                <span class="inspection-title-step">Inspeção Editorial</span>
+              </div>
+              <div class="inspection-time-badge">
+                <Clock :size="13" />
+                <span
+                  >{{ time(current.start_us) }} – {{ time(current.end_us) }} ({{
+                    time(current.duration_us)
+                  }})</span
+                >
               </div>
             </div>
-            <div class="media-controls-wrap">
-              <div class="media-status-row">
-                <span class="media-type-badge"><Volume2 :size="13"/> Trecho original</span>
-                <span class="media-timecode">{{time(current.start_us)}} → {{time(current.end_us)}}</span>
+
+            <h3 class="inspection-current-title">{{ current.title }}</h3>
+
+            <!-- MINI PLAYER COMPACTO DE APOIO (ÁUDIO/VÍDEO) -->
+            <div class="compact-media-bar">
+              <div class="mini-video-frame">
+                <video
+                  v-if="sourceUrl"
+                  ref="player"
+                  :src="sourceUrl"
+                  preload="metadata"
+                  playsinline
+                  @timeupdate="stopAtEnd"
+                ></video>
+                <div v-else class="media-placeholder">
+                  <Volume2 :size="24" />
+                </div>
               </div>
-              <div class="proposal-play">
-                <AppButton class="button small primary play-btn" :disabled="!sourceUrl" @click="play()">
-                  <Play :size="13"/> Ouvir trecho
+              <div class="media-controls-wrap">
+                <div class="media-status-row">
+                  <span class="media-type-badge"><Volume2 :size="13" /> Trecho original</span>
+                  <span class="media-timecode"
+                    >{{ time(current.start_us) }} → {{ time(current.end_us) }}</span
+                  >
+                </div>
+                <div class="proposal-play">
+                  <AppButton
+                    class="button small primary play-btn"
+                    :disabled="!sourceUrl"
+                    @click="play()"
+                  >
+                    <Play :size="13" /> Ouvir trecho
+                  </AppButton>
+                  <AppButton
+                    class="button small secondary context-btn"
+                    :disabled="!sourceUrl"
+                    @click="play(true)"
+                  >
+                    Contexto (+15s)
+                  </AppButton>
+                </div>
+              </div>
+            </div>
+
+            <!-- GANCHO SOCIAL (PRIMEIROS 7 SEGUNDOS) -->
+            <div class="opening-copy-card">
+              <div class="hook-header">
+                <span class="hook-tag"
+                  ><Sparkles :size="13" /> Gancho Social · Primeiros 7 segundos</span
+                >
+              </div>
+              <div class="opening-copy">
+                <small class="hook-label">Frase de abertura · primeiros 7 segundos</small>
+                <p class="hook-text">
+                  "{{
+                    current.opening_text ||
+                    'A próxima análise poderá sugerir uma frase curta para este trecho.'
+                  }}"
+                </p>
+              </div>
+            </div>
+
+            <!-- RACIOCÍNIO EDITORIAL E POR QUE FUNCIONA -->
+            <div class="inspection-block rationale-card">
+              <div class="block-title">
+                <Sparkles :size="15" />
+                <strong>Por que este corte funciona</strong>
+              </div>
+              <p class="proposal-rationale">{{ current.rationale }}</p>
+              <div class="editorial-flags">
+                <span
+                  v-for="(label, key) in {
+                    completeness: 'Raciocínio completo',
+                    standalone_context: 'Contexto suficiente',
+                    qualification_preserved: 'Ressalvas preservadas',
+                  }"
+                  :key="key"
+                  class="editorial-flag-item"
+                >
+                  {{ label }}:
+                  <b>{{
+                    current.editorial[key] === 'yes'
+                      ? 'Sim'
+                      : current.editorial[key] === 'no'
+                        ? 'Não'
+                        : 'Incerto'
+                  }}</b>
+                </span>
+              </div>
+            </div>
+
+            <div v-if="!current.eligible" class="restriction-box">
+              <AppButton
+                class="text-button"
+                @click="
+                  notify.warning(current.reasons.join(' ') + ' A geração permanece bloqueada.')
+                "
+              >
+                <AlertTriangle :size="14" /> Ver motivo da restrição
+              </AppButton>
+              <p v-for="warning in current.warnings" :key="warning" class="subtle">{{ warning }}</p>
+            </div>
+
+            <!-- TRANSCRIÇÃO COMPLETA E CONTEXTO -->
+            <details class="proposal-transcript" open>
+              <summary><FileText :size="14" /> Fala e contexto original</summary>
+              <div class="transcript-preview-body">
+                <p v-if="current.context_before" class="context-text before">
+                  {{ current.context_before }}
+                </p>
+                <p class="core-text">{{ current.text }}</p>
+                <p v-if="current.context_after" class="context-text after">
+                  {{ current.context_after }}
+                </p>
+              </div>
+            </details>
+            <small class="evidence-subtext"
+              >{{ current.evidence_word_ids.length }} referência(s) à transcrição original ·
+              Timestamps estimados pelo ASR</small
+            >
+
+            <!-- AÇÃO PRINCIPAL DE SELEÇÃO E DESCARTE PARA O CORTE FOCADO -->
+            <div class="inspection-footer-actions">
+              <div class="inspection-actions-row">
+                <AppButton
+                  class="button primary select-focused-btn"
+                  data-action="select-focused"
+                  :disabled="
+                    !complete ||
+                    !current.eligible ||
+                    busy ||
+                    discarded.includes(current.candidate_id) ||
+                    (!selected.includes(current.candidate_id) && overlapsWithSelected(current))
+                  "
+                  :title="
+                    discarded.includes(current.candidate_id)
+                      ? 'Restaure a proposta para selecioná-la'
+                      : !selected.includes(current.candidate_id) && overlapsWithSelected(current)
+                        ? 'Sobrepõe um corte já selecionado'
+                        : undefined
+                  "
+                  @click="toggle(current)"
+                >
+                  <Check v-if="selected.includes(current.candidate_id)" :size="16" />
+                  {{
+                    selected.includes(current.candidate_id)
+                      ? 'Remover da seleção'
+                      : 'Selecionar este trecho'
+                  }}
                 </AppButton>
-                <AppButton class="button small secondary context-btn" :disabled="!sourceUrl" @click="play(true)">
-                  Contexto (+15s)
+
+                <AppButton
+                  v-if="!discarded.includes(current.candidate_id)"
+                  class="button secondary discard-focused-btn"
+                  data-action="discard-focused"
+                  :disabled="busy"
+                  title="Descartar esta proposta"
+                  @click="discard(current.candidate_id)"
+                >
+                  <Trash2 :size="14" /> Descartar proposta
+                </AppButton>
+                <AppButton
+                  v-else
+                  class="button secondary restore-focused-btn"
+                  data-action="restore-focused"
+                  :disabled="busy"
+                  title="Restaurar esta proposta"
+                  @click="restore(current.candidate_id)"
+                >
+                  <RotateCcw :size="14" /> Restaurar proposta
                 </AppButton>
               </div>
-            </div>
-          </div>
 
-          <!-- GANCHO SOCIAL (PRIMEIROS 7 SEGUNDOS) -->
-          <div class="opening-copy-card">
-            <div class="hook-header">
-              <span class="hook-tag"><Sparkles :size="13"/> Gancho Social · Primeiros 7 segundos</span>
-            </div>
-            <div class="opening-copy">
-              <small class="hook-label">Frase de abertura · primeiros 7 segundos</small>
-              <p class="hook-text">"{{current.opening_text||'A próxima análise poderá sugerir uma frase curta para este trecho.'}}"</p>
-            </div>
-          </div>
-
-          <!-- RACIOCÍNIO EDITORIAL E POR QUE FUNCIONA -->
-          <div class="inspection-block rationale-card">
-            <div class="block-title">
-              <Sparkles :size="15"/>
-              <strong>Por que este corte funciona</strong>
-            </div>
-            <p class="proposal-rationale">{{current.rationale}}</p>
-            <div class="editorial-flags">
-              <span v-for="(label,key) in {completeness:'Raciocínio completo',standalone_context:'Contexto suficiente',qualification_preserved:'Ressalvas preservadas'}" :key="key" class="editorial-flag-item">
-                {{label}}: <b>{{current.editorial[key]==='yes'?'Sim':current.editorial[key]==='no'?'Não':'Incerto'}}</b>
-              </span>
-            </div>
-          </div>
-
-          <div v-if="!current.eligible" class="restriction-box">
-            <AppButton class="text-button" @click="notify.warning(current.reasons.join(' ')+' A geração permanece bloqueada.')">
-              <AlertTriangle :size="14"/> Ver motivo da restrição
-            </AppButton>
-            <p v-for="warning in current.warnings" :key="warning" class="subtle">{{warning}}</p>
-          </div>
-
-          <!-- TRANSCRIÇÃO COMPLETA E CONTEXTO -->
-          <details class="proposal-transcript" open>
-            <summary><FileText :size="14"/> Fala e contexto original</summary>
-            <div class="transcript-preview-body">
-              <p v-if="current.context_before" class="context-text before">{{current.context_before}}</p>
-              <p class="core-text">{{current.text}}</p>
-              <p v-if="current.context_after" class="context-text after">{{current.context_after}}</p>
-            </div>
-          </details>
-          <small class="evidence-subtext">{{current.evidence_word_ids.length}} referência(s) à transcrição original · Timestamps estimados pelo ASR</small>
-
-          <!-- AÇÃO PRINCIPAL DE SELEÇÃO E DESCARTE PARA O CORTE FOCADO -->
-          <div class="inspection-footer-actions">
-            <div class="inspection-actions-row">
-              <AppButton
-                class="button primary select-focused-btn"
-                data-action="select-focused"
-                :disabled="!complete||!current.eligible||busy||discarded.includes(current.candidate_id)||(!selected.includes(current.candidate_id)&&overlapsWithSelected(current))"
-                :title="discarded.includes(current.candidate_id)?'Restaure a proposta para selecioná-la':!selected.includes(current.candidate_id)&&overlapsWithSelected(current)?'Sobrepõe um corte já selecionado':undefined"
-                @click="toggle(current)"
+              <p v-if="discarded.includes(current.candidate_id)" class="subtle discard-notice">
+                Esta proposta está marcada como descartada. Você pode restaurá-la para voltar a
+                selecioná-la.
+              </p>
+              <p
+                v-else-if="
+                  !selected.includes(current.candidate_id) && overlapsWithSelected(current)
+                "
+                class="subtle overlap-notice"
               >
-                <Check v-if="selected.includes(current.candidate_id)" :size="16"/>
-                {{selected.includes(current.candidate_id)?'Remover da seleção':'Selecionar este trecho'}}
-              </AppButton>
-
-              <AppButton
-                v-if="!discarded.includes(current.candidate_id)"
-                class="button secondary discard-focused-btn"
-                data-action="discard-focused"
-                :disabled="busy"
-                title="Descartar esta proposta"
-                @click="discard(current.candidate_id)"
-              >
-                <Trash2 :size="14"/> Descartar proposta
-              </AppButton>
-              <AppButton
-                v-else
-                class="button secondary restore-focused-btn"
-                data-action="restore-focused"
-                :disabled="busy"
-                title="Restaurar esta proposta"
-                @click="restore(current.candidate_id)"
-              >
-                <RotateCcw :size="14"/> Restaurar proposta
-              </AppButton>
+                Este trecho se sobrepõe a um corte já selecionado. Desmarque o corte concorrente
+                para poder selecioná-lo.
+              </p>
             </div>
-            
-            <p v-if="discarded.includes(current.candidate_id)" class="subtle discard-notice">
-              Esta proposta está marcada como descartada. Você pode restaurá-la para voltar a selecioná-la.
-            </p>
-            <p v-else-if="!selected.includes(current.candidate_id)&&overlapsWithSelected(current)" class="subtle overlap-notice">
-              Este trecho se sobrepõe a um corte já selecionado. Desmarque o corte concorrente para poder selecioná-lo.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        <section v-else class="proposal-detail proposal-empty" aria-label="Inspeção do trecho">
-          <el-empty :description="proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'">
-            <template #image>
-              <FileText :size="40"/>
-            </template>
-            <template #default>
-              <h3>{{proposals.length?'Escolha uma proposta':'Os trechos aparecerão aqui'}}</h3>
-              <p>{{proposals.length?'Confira o conteúdo original, a justificativa e a integridade antes de selecionar.':'Quando houver propostas validadas, você poderá ouvir o contexto e escolher os cortes nesta área.'}}</p>
-            </template>
-          </el-empty>
-        </section>
+          <section v-else class="proposal-detail proposal-empty" aria-label="Inspeção do trecho">
+            <el-empty
+              :description="
+                proposals.length ? 'Escolha uma proposta' : 'Os trechos aparecerão aqui'
+              "
+            >
+              <template #image>
+                <FileText :size="40" />
+              </template>
+              <template #default>
+                <h3>
+                  {{ proposals.length ? 'Escolha uma proposta' : 'Os trechos aparecerão aqui' }}
+                </h3>
+                <p>
+                  {{
+                    proposals.length
+                      ? 'Confira o conteúdo original, a justificativa e a integridade antes de selecionar.'
+                      : 'Quando houver propostas validadas, você poderá ouvir o contexto e escolher os cortes nesta área.'
+                  }}
+                </p>
+              </template>
+            </el-empty>
+          </section>
         </div>
       </el-splitter-panel>
     </el-splitter>
 
     <!-- RODAPÉ INTEGRADO DOCK (NUNCA FLUTUA SOBRE CONTEÚDO) -->
-    <footer class="curation-dock-bar" v-if="complete&&proposals.length>0">
+    <footer class="curation-dock-bar" v-if="complete && proposals.length > 0">
       <div class="dock-selection-info">
-        <span class="dock-count-pill">{{validSelection.length}}</span>
+        <span class="dock-count-pill">{{ validSelection.length }}</span>
         <div class="dock-text">
-          <strong>{{validSelection.length}} corte{{validSelection.length===1?'':'s'}} selecionado{{validSelection.length===1?'':'s'}}</strong>
-          <small v-if="validSelection.length">Duração total estimada: ~{{time(totalSelectedDurationUs)}}</small>
+          <strong
+            >{{ validSelection.length }} corte{{
+              validSelection.length === 1 ? '' : 's'
+            }}
+            selecionado{{ validSelection.length === 1 ? '' : 's' }}</strong
+          >
+          <small v-if="validSelection.length"
+            >Duração total estimada: ~{{ time(totalSelectedDurationUs) }}</small
+          >
           <small v-else>Selecione os melhores trechos para gerar vídeos 9:16 verticais</small>
         </div>
       </div>
@@ -664,10 +1036,18 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
       <AppButton
         class="button primary generate-dock-btn"
         data-action="generate-selected-dock"
-        :disabled="!complete||!validSelection.length||busy||overlap"
-        @click="emit('generate',{analysis_hash:analysis!.analysis_hash!,candidate_ids:[...validSelection]})"
+        :disabled="!complete || !validSelection.length || busy || overlap"
+        @click="
+          emit('generate', {
+            analysis_hash: analysis!.analysis_hash!,
+            candidate_ids: [...validSelection],
+          })
+        "
       >
-        <Scissors :size="16"/>Gerar {{validSelection.length}} prévia{{validSelection.length===1?'':'s'}} {{validSelection.length===1?'vertical':'verticais'}}
+        <Scissors :size="16" />Gerar {{ validSelection.length }} prévia{{
+          validSelection.length === 1 ? '' : 's'
+        }}
+        {{ validSelection.length === 1 ? 'vertical' : 'verticais' }}
       </AppButton>
     </footer>
   </section>
@@ -749,7 +1129,9 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 :deep(.el-splitter__bar) {
   background: var(--color-border-subtle, var(--line));
   width: 1px !important;
-  transition: background 0.15s ease, width 0.15s ease;
+  transition:
+    background 0.15s ease,
+    width 0.15s ease;
 }
 
 :deep(.el-splitter__bar:hover) {
