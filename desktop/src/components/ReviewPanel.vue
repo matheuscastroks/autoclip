@@ -110,10 +110,12 @@ function copyDescription(){
     </el-empty>
   </div>
 
-  <div v-if="!manual&&hasCutsOrGeneration" class="cuts-review-layout">
-    <div class="cuts-review-left">
-      <!-- BARRA DE FILTROS DOS CORTES -->
-      <div class="cuts-filters" aria-label="Filtrar cortes">
+  <el-splitter v-if="!manual&&hasCutsOrGeneration" class="cuts-review-layout">
+    <el-splitter-panel :min="380" class="cuts-review-left-panel">
+      <div class="panel-inner-container custom-scrollbar">
+        <div class="cuts-review-left">
+          <!-- BARRA DE FILTROS DOS CORTES -->
+          <div class="cuts-filters" aria-label="Filtrar cortes">
         <AppButton
           v-for="([id,label]) in [['all','Todos'],['generation','Em geração'],['approved','Prontos'],['exported','Exportados']]"
           :key="id"
@@ -380,45 +382,102 @@ function copyDescription(){
         </section>
       </div>
     </div>
+  </div>
+</el-splitter-panel>
 
     <!-- PLAYER VERTICAL 9:16 CALIBRADO (COLUNA DA DIREITA) -->
-    <aside v-if="visibleRevisions.length&&filter!=='generation'" class="cuts-player-rail" aria-label="Prévia do corte selecionado">
-      <div class="clip-preview">
-        <video v-if="mediaUrl" :src="mediaUrl" controls preload="metadata" playsinline></video>
-        <div v-else class="video-unavailable">Prévia indisponível</div>
-      </div>
-      <div class="player-subcaption" v-if="current">
-        <span>Formato vertical 9:16 com enquadramento inteligente e legendas ativas</span>
-      </div>
-    </aside>
+    <el-splitter-panel :size="320" :min="260" :max="480" class="cuts-player-rail-panel">
+      <div class="panel-inner-container custom-scrollbar player-rail-container">
+        <aside v-if="visibleRevisions.length&&filter!=='generation'" class="cuts-player-rail" aria-label="Prévia do corte selecionado">
+          <div class="clip-preview">
+            <video v-if="mediaUrl" :src="mediaUrl" controls preload="metadata" playsinline></video>
+            <div v-else class="video-unavailable">Prévia indisponível</div>
+          </div>
+          <div class="player-subcaption" v-if="current">
+            <span>Formato vertical 9:16 com enquadramento inteligente e legendas ativas</span>
+          </div>
+        </aside>
 
-    <!-- CARD INDICATIVO SE APENAS HOUVER PRÉVIAS EM GERAÇÃO (AINDA SEM PRÉVIAS PRONTAS) -->
-    <aside v-else-if="visibleGeneration.length" class="cuts-player-rail" aria-label="Aguardando renderização">
-      <div class="clip-preview clip-preview-generating">
-        <div class="generating-rail-card">
-          <LoaderCircle class="spin" :size="32"/>
-          <h4>Renderizando cortes</h4>
-          <p>Seus vídeos com enquadramento vertical 9:16 e legendas dinâmicas estão em produção.</p>
-          <span class="subtle">Assim que a primeira prévia estiver pronta, ela aparecerá aqui para você assistir e aprovar.</span>
-        </div>
+        <!-- CARD INDICATIVO SE APENAS HOUVER PRÉVIAS EM GERAÇÃO (AINDA SEM PRÉVIAS PRONTAS) -->
+        <aside v-else-if="visibleGeneration.length" class="cuts-player-rail" aria-label="Aguardando renderização">
+          <div class="clip-preview clip-preview-generating">
+            <div class="generating-rail-card">
+              <LoaderCircle class="spin" :size="32"/>
+              <h4>Renderizando cortes</h4>
+              <p>Seus vídeos com enquadramento vertical 9:16 e legendas dinâmicas estão em produção.</p>
+              <span class="subtle">Assim que a primeira prévia estiver pronta, ela aparecerá aqui para você assistir e aprovar.</span>
+            </div>
+          </div>
+        </aside>
       </div>
-    </aside>
-  </div>
+    </el-splitter-panel>
+  </el-splitter>
 </template>
 
 <style scoped>
 .cuts-review-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 24px;
-  align-items: start;
+  height: 600px !important;
+  min-height: 520px !important;
+  background: var(--color-surface, var(--panel));
+  border: 1px solid var(--color-border-subtle, var(--line));
+  border-radius: var(--radius-panel, 12px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+:deep(.el-splitter) {
+  height: 100%;
+  width: 100%;
+}
+
+:deep(.el-splitter__bar) {
+  background: var(--color-border-subtle, var(--line));
+  width: 1px !important;
+  transition: background 0.15s ease, width 0.15s ease;
+}
+
+:deep(.el-splitter__bar:hover) {
+  background: var(--color-accent, #d97724);
+  width: 3px !important;
+}
+
+.panel-inner-container {
+  height: 100%;
+  width: 100%;
+  padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.player-rail-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.cuts-review-left-panel,
+.cuts-player-rail-panel {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cuts-review-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .cuts-filters {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
@@ -440,21 +499,21 @@ function copyDescription(){
 .review-grid {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .cuts-table-section {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 16px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
 }
 
 .cuts-table-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .table-heading-title {
@@ -476,13 +535,14 @@ function copyDescription(){
 }
 
 .clip-information {
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 20px;
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--color-border-subtle, var(--line)) !important;
+  border-radius: 0 !important;
+  padding: 16px 0 0 0 !important;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .clip-info-topbar {
@@ -529,11 +589,10 @@ function copyDescription(){
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 10px;
-  margin-top: 4px;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  margin-top: 2px;
 }
 
 .decision-heading {
@@ -576,7 +635,7 @@ function copyDescription(){
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .copy-header-row {
@@ -593,10 +652,11 @@ function copyDescription(){
 }
 
 .description-box {
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 8px;
-  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  border-left: 2px solid var(--color-accent, #d97724);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 14px;
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--color-text-secondary, var(--muted));
