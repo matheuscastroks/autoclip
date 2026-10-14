@@ -39,6 +39,7 @@ import OnboardingModal from './components/OnboardingModal.vue';
 import { ElConfigProvider, ElBacktop } from 'element-plus';
 import ptBr from 'element-plus/es/locale/lang/pt-br';
 import { notify, createJobNotifier } from './notifications';
+import { usePolling } from './composables/usePolling';
 const projects = ref<Project[]>([]),
   config = ref<Config | null>(null),
   jobs = ref<Job[]>([]),
@@ -131,7 +132,7 @@ async function deleteProject(id: string) {
   )
     return;
   await action(async () => {
-    await api.deleteProject(id);
+    await api.deletePermanent(id);
     if (project.value?.id === id) {
       project.value = null;
       ++generation;
@@ -206,7 +207,11 @@ const isYouTubeUrl = computed(() => {
 const reportJobs = createJobNotifier();
 let connectionFailed = false,
   connectionEpoch = 0;
-let timer: ReturnType<typeof setInterval> | undefined;
+const { start: startPolling, stop: stopPolling } = usePolling(refresh, {
+  intervalMs: 3000,
+  immediate: false,
+  pauseWhenHidden: true,
+});
 let refreshing = false;
 let generation = 0;
 const projectJobs = computed(() => jobs.value.filter(j => j.project_id === project.value?.id)),
@@ -422,7 +427,7 @@ async function saveOpenRouterKey(key: string) {
 async function closeService() {
   await action(async () => {
     await api.shutdown();
-    if (timer) clearInterval(timer);
+    stopPolling();
     offline.value = true;
     notify.info('Serviço encerrado. Abra novamente pelo atalho para continuar.');
   });
@@ -475,10 +480,10 @@ onMounted(async () => {
   } finally {
     initial.value = false;
   }
-  timer = setInterval(refresh, 3000);
+  startPolling();
 });
 onUnmounted(() => {
-  if (timer) clearInterval(timer);
+  stopPolling();
 });
 </script>
 <template>
