@@ -21,6 +21,22 @@ const proposals=computed(()=>props.analysis?.proposals||[])
 const activeProposals=computed(()=>proposals.value.filter(p=>!discarded.value.includes(p.candidate_id)))
 const discardedProposals=computed(()=>proposals.value.filter(p=>discarded.value.includes(p.candidate_id)))
 
+function isTopicDiscarded(groupId: string): boolean {
+  const groupProps = proposals.value.filter(p => p.group_id === groupId)
+  return groupProps.length > 0 && groupProps.every(p => discarded.value.includes(p.candidate_id))
+}
+
+const visibleTopicGroups = computed(() => {
+  const all = props.analysis?.topic_groups || []
+  if (filterMode.value === 'discarded') {
+    return all.filter(g => isTopicDiscarded(g.id))
+  }
+  if (filterMode.value === 'active') {
+    return all.filter(g => !isTopicDiscarded(g.id))
+  }
+  return all
+})
+
 const filtered=computed(()=>proposals.value.filter(p=>{
   if(filterMode.value==='active'&&discarded.value.includes(p.candidate_id))return false
   if(filterMode.value==='discarded'&&!discarded.value.includes(p.candidate_id))return false
@@ -64,7 +80,45 @@ function discard(id:string){
     locallyEdited.value=true
     emit('selection',{schema_version:'1.0',analysis_hash:props.analysis!.analysis_hash,candidate_ids:[...validSelection.value]})
   }
+  const targetProp = proposals.value.find(p => p.candidate_id === id)
+  if (targetProp?.group_id && topic.value === targetProp.group_id) {
+    if (isTopicDiscarded(targetProp.group_id)) {
+      topic.value = ''
+      focused.value = ''
+    }
+  }
   notify.info('Proposta descartada.')
+}
+
+function discardTopic(groupId: string) {
+  const groupProps = proposals.value.filter(p => p.group_id === groupId)
+  const ids = groupProps.map(p => p.candidate_id)
+  let changed = false
+  for (const id of ids) {
+    if (!discarded.value.includes(id)) {
+      discarded.value.push(id)
+      changed = true
+    }
+  }
+  if (changed) {
+    saveDiscarded(props.analysis?.analysis_hash)
+    selected.value = selected.value.filter(s => !ids.includes(s))
+    locallyEdited.value = true
+    emit('selection', {schema_version:'1.0', analysis_hash:props.analysis!.analysis_hash, candidate_ids:[...validSelection.value]})
+  }
+  if (topic.value === groupId) {
+    topic.value = ''
+    focused.value = ''
+  }
+  notify.info('Tema descartado.')
+}
+
+function restoreTopic(groupId: string) {
+  const groupProps = proposals.value.filter(p => p.group_id === groupId)
+  const ids = new Set(groupProps.map(p => p.candidate_id))
+  discarded.value = discarded.value.filter(id => !ids.has(id))
+  saveDiscarded(props.analysis?.analysis_hash)
+  notify.info('Tema restaurado.')
 }
 
 function restore(id:string){
@@ -244,24 +298,49 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
               <span class="selection-step-badge">01</span>
               <h3>Temas</h3>
             </div>
-            <span class="panel-counter-badge">{{(analysis?.topic_groups.length||0) + 1}}</span>
+            <span class="panel-counter-badge">{{visibleTopicGroups.length + (filterMode !== 'discarded' ? 1 : 0)}}</span>
           </div>
 
           <div class="topic-list custom-scrollbar" role="tablist" aria-label="Temas identificados">
-            <AppButton class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
+            <AppButton v-if="filterMode !== 'discarded'" class="topic-chip-btn" :class="{selected:!topic}" @click="topic='';focused=''">
               <span class="chip-label">Todos os temas</span>
               <span class="chip-count">{{activeProposals.length}}</span>
             </AppButton>
-            <AppButton
-              v-for="group in analysis?.topic_groups"
+            <div
+              v-for="group in visibleTopicGroups"
               :key="group.id"
-              class="topic-chip-btn"
-              :class="{selected:topic===group.id}"
-              @click="topic=group.id;focused=''"
+              class="topic-chip-container"
+              :class="{selected:topic===group.id, discarded:isTopicDiscarded(group.id)}"
             >
-              <span class="chip-label" :title="group.label">{{group.label}}</span>
-              <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
-            </AppButton>
+              <AppButton
+                class="topic-chip-btn"
+                :class="{selected:topic===group.id, discarded:isTopicDiscarded(group.id)}"
+                @click="topic=group.id;focused=''"
+              >
+                <span class="chip-label" :title="group.label">{{group.label}}</span>
+                <span class="chip-count">{{activeProposals.filter(p=>p.group_id===group.id).length}}</span>
+              </AppButton>
+              <button
+                v-if="!isTopicDiscarded(group.id)"
+                type="button"
+                class="topic-action-icon-btn"
+                title="Descartar tema e propostas"
+                data-action="discard-topic"
+                @click.stop="discardTopic(group.id)"
+              >
+                <Trash2 :size="12"/>
+              </button>
+              <button
+                v-else
+                type="button"
+                class="topic-action-icon-btn restore"
+                title="Restaurar tema e propostas"
+                data-action="restore-topic"
+                @click.stop="restoreTopic(group.id)"
+              >
+                <RotateCcw :size="12"/>
+              </button>
+            </div>
           </div>
 
           <div v-if="topic" class="topic-summary-box">
@@ -738,22 +817,77 @@ function choose(id:string){focused.value=id;player.value?.pause();playEnd.value=
 }
 
 .selection-step-badge {
-  font-size: 0.68rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
   font-weight: 700;
-  background: var(--color-accent-soft, rgba(217, 119, 36, 0.16));
-  color: var(--color-accent-light, #f9a35c);
+  letter-spacing: 0.05em;
+  background: rgba(217, 119, 36, 0.12);
+  color: #f9a35c;
   padding: 1px 6px;
   border-radius: 4px;
-  border: 1px solid rgba(217, 119, 36, 0.4);
+  border: 1px solid rgba(217, 119, 36, 0.28);
+  display: inline-flex;
+  align-items: center;
 }
 
 .panel-counter-badge {
+  font-family: var(--font-mono, monospace);
   font-size: 0.72rem;
   font-weight: 600;
-  background: var(--color-surface-hover, var(--soft));
-  color: var(--color-text-muted, var(--muted));
-  padding: 2px 7px;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted, #a0abba);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+}
+
+.topic-chip-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.topic-chip-container:hover .topic-action-icon-btn {
+  opacity: 1;
+}
+
+.topic-chip-container.discarded {
+  opacity: 0.55;
+}
+
+.topic-action-icon-btn {
+  position: absolute;
+  right: 28px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #a0abba);
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.topic-action-icon-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.topic-action-icon-btn.restore {
+  opacity: 1;
+}
+
+.topic-action-icon-btn.restore:hover {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
 }
 
 .topic-list {
