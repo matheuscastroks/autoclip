@@ -57,6 +57,8 @@ Result: `ada761a`; focused render/crop tests: 15 passed; synthetic profile parit
 
 Result: preview/final persistence and cache integration: 4 passed; review/export and precomputed-analysis regressions: 8 passed. Encoder quality is excluded from presentation revision identity; old revisions remain indexed and untouched.
 
+Compatibility ruling: legacy `render` retains separate output revisions when custom encoder settings change, preserving previously approved bytes. Its underlying editorial EDL cache is still quality-independent; new `preview` → `render_final` uses exactly one shared prepared revision.
+
 **Files:** `engine/pipeline/runner.py`, new `engine/pipeline/outputs.py`, contracts and cache/integration tests.
 
 **Interfaces:** `run_project(..., stop_after='preview')`; `render_final(project_root, revision_ids, ..., cancelled, progress)` consumes validated prepared revisions, not ASR/AI. A `preview.json` manifest stores its own render, profile, minimal validation and shared fingerprint. `prepared.json` binds source, analysis, candidate, EDL, captions and crop.

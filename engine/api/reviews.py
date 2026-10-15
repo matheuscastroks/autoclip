@@ -15,7 +15,23 @@ def revision_folder(root,revision):
     if not path.is_relative_to(Path(root).resolve()) or not path.is_dir():raise HTTPException(404,'Corte não encontrado.')
     return path
 
+def preview_version(root,folder,rid):
+    from engine.pipeline.outputs import load_preparation
+    path=folder/'preview.json'
+    if not path.exists():return {'state':'not_generated'}
+    try:
+        value=PreviewArtifact.model_validate_json(path.read_bytes())
+        _,prepared,*_=load_preparation(root,rid)
+        from .media import asset_path
+        asset_path(root,'preview-'+rid)
+        if value.prepared_hash!=prepared.fingerprint:raise ValueError('Stale preparation')
+        return {'state':'available','asset':'preview-'+rid,'profile':value.profile,'sha256':value.render.sha256,'duration_us':value.duration_us}
+    except (OSError,ValueError,PipelineError,HTTPException):
+        return {'state':'invalid','message':'Prévia rápida inválida ou indisponível. Gere novamente.'}
+
+
 def list_revisions(root:Path):
+    root=Path(root).resolve()
     state=read_json(root/'project.json',{}) or {};result=[]
     if (root/'manual-check.json').exists():return []
     for row in state.get('revisions',[]):
@@ -24,26 +40,40 @@ def list_revisions(root:Path):
             folder=revision_folder(root,rid)
             if (folder/'deleted.json').is_file():continue
             edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
-            qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
             candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
             caps=CaptionArtifact.model_validate_json((folder/'captions.json').read_bytes())
-            rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
             for path in (caps.ass_path,caps.srt_path):
-                if not path.resolve().is_relative_to(root.resolve()):raise ValueError('Caption outside project')
-            fingerprint=review_fingerprint(root,edl.revision_id)
-            status,decision=current_review(folder,edl.revision_id,fingerprint,qa.technical_pass)
-            package_hash=object_hash({'review':decision,'edl':edl,'caption':caps,'render':rendered}) if status=='approved' else None
-            manifest=read_json(root/'exports'/rid/package_hash[:16]/'manifest.json') if package_hash else None
-            exported=bool(manifest and manifest.get('package_hash')==package_hash)
+                if not path.resolve().is_relative_to(root):raise ValueError('Caption outside project')
+            preview=preview_version(root,folder,rid)
+            prepared=read_json(folder/'prepared.json',{}) or {}
+            final_state='not_generated';technical=False;status='needs_review';decision=None;fingerprint=None;exported=False;warnings=list(edl.warnings)
+            if (folder/'render.json').exists() or (folder/'qa.json').exists():
+                final_state='invalid';status='invalid'
+                try:
+                    qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
+                    rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
+                    from engine.pipeline.artifacts import file_hash
+                    if not rendered.path.resolve().is_relative_to(root) or rendered.revision_id!=edl.revision_id or file_hash(rendered.path)!=rendered.sha256:raise ValueError('Invalid final bytes')
+                    technical=qa.technical_pass and qa.revision_id==edl.revision_id
+                    final_state='available' if technical else 'invalid'
+                    fingerprint=review_fingerprint(root,edl.revision_id)
+                    status,decision=current_review(folder,edl.revision_id,fingerprint,technical)
+                    warnings+=qa.warnings
+                    package_hash=object_hash({'review':decision,'edl':edl,'caption':caps,'render':rendered}) if status=='approved' else None
+                    manifest=read_json(root/'exports'/rid/package_hash[:16]/'manifest.json') if package_hash else None
+                    exported=bool(manifest and manifest.get('package_hash')==package_hash)
+                except (OSError,ValueError,PipelineError):warnings.append('Versão final inválida ou incompleta; a prévia existente foi preservada.')
             result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':exported,'title':candidate.title_suggestion or 'Corte','rationale':candidate.rationale,'description':publication_description(candidate.description_suggestion,candidate.title_suggestion),'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
-                'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
+                'technical_pass':technical,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
-                'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.notes if decision else '',
+                'warnings':warnings,'content_hash':fingerprint,'notes':decision.notes if decision else '',
                 'removed_silence_us':sum(r['source_end_us']-r['source_start_us'] for r in edl.removed),
-                'pause_removals':edl.removed})
+                'pause_removals':edl.removed,'preview':preview,'final_state':final_state,
+                'can_render_final':bool(prepared and preview['state']=='available'),'analysis_hash':prepared.get('analysis_hash'),'plan_hash':prepared.get('plan_hash')})
         except (OSError,ValueError,PipelineError,HTTPException):
-            result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.']})
+            result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.'],'final_state':'invalid'})
     return result
+
 
 def list_deleted(root):
     result=[]

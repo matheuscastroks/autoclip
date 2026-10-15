@@ -42,6 +42,7 @@ class AppConfig(Input):
         return self
 
 class JobOptions(Input):
+    revision_ids:list[str]|None=Field(default=None,min_length=1,max_length=1000)
     analysis_hash:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
     candidate_ids:list[str]|None=Field(default=None,max_length=1000)
     authorize_text:bool=False

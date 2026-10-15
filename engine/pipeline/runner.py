@@ -106,6 +106,9 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 recipe={'captions':config.captions,'crop':config.reframe,'reframe_runtime':stage_dependencies('reframe'),'face_model':file_hash(face_model_path(config.reframe)) if face_model_path(config.reframe).is_file() else 'missing','caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
                 edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan')},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
                 plan_hash=object_hash(edl)
+                # Legacy custom encoder settings retain their historical immutable revisions.
+                # The new preview/final flow shares preparation regardless of output profile.
+                if stop_after=='render':recipe={**recipe,'legacy_export':config.export}
                 # Presentation identity excludes encoder quality; both profiles share this revision.
                 edl=edl.model_copy(update={'revision_id':uuid.uuid5(edl.revision_id,object_hash(recipe))})
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)

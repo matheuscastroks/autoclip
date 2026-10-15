@@ -2,7 +2,7 @@ import json,sys
 from pathlib import Path
 from engine.contracts import *
 from engine.pipeline.artifacts import atomic_json,file_hash,object_hash
-from engine.pipeline.runner import run_project,export_approved
+from engine.pipeline.runner import run_project,export_approved,render_final
 from engine.pipeline.request_budget import RequestBudget
 from engine.adapters.gemini.analyzer import GeminiAnalyzer
 from engine.adapters.openrouter.analyzer import OpenRouterAnalyzer
@@ -96,19 +96,23 @@ def main(folder:Path):
             packages=export_approved(root)
             if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid and editorially approved clips available.')
             stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now(),'exports':packages});return 0
+        elif operation=='render_final':
+            def final_progress(value):
+                progress.update(value);atomic_json(folder/'progress.json',progress)
+            render_final(root,request.get('selection',{}).get('revision_ids'),Path(settings['ffmpeg']),Path(settings['ffprobe']),cancelled=cancelled,progress=final_progress)
         else:
             source=Source.model_validate_json((root/'source.json').read_bytes())
             if file_hash(source.local_path)!=source.sha256:raise PipelineError('SOURCE_CHANGED','job','Source changed.')
             config=pipeline_config(settings,root)
             transcriber=PreparedTranscript(source,root) if (root/'transcript.json').is_file() else None
-            if operation in ('analyze','render') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
-            precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation=='render' else None
+            if operation in ('analyze','render','preview') and transcriber is None:raise PipelineError('TRANSCRIPT_REQUIRED','job','Transcribe first.')
+            precomputed=PreparedAnalysis(root,transcriber.transcript).analysis if operation in ('render','preview') else None
             if operation=='analyze':configure_analysis_requests(config,transcriber.transcript,settings,folder)
             analyzer=make_analyzer(settings,root,folder,config) if operation=='analyze' else None
             def pipeline_progress(value):
                 progress.update(value);atomic_json(folder/'progress.json',progress)
             selection=request.get('selection',{})
-            state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation,precomputed_analysis=precomputed,candidate_ids=selection.get('candidate_ids'),analysis_hash=selection.get('analysis_hash'),progress=pipeline_progress if operation=='render' else None)
+            state=run_project(source,config,root,cancelled,transcriber=transcriber,analyzer=analyzer,stop_after=operation,precomputed_analysis=precomputed,candidate_ids=selection.get('candidate_ids'),analysis_hash=selection.get('analysis_hash'),progress=pipeline_progress if operation in ('render','preview') else None)
             if state.status=='failed':raise PipelineError('RENDER_FAILED','job','One or more previews failed technical QA.')
         stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
     except BaseException as exc:

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .models import Source
+from .models import Source, RenderProfile
 
 RevisionReviewStatus = Literal['invalid', 'needs_review', 'stale_review', 'approved', 'rejected']
 ArtifactState = Literal['available', 'not_generated', 'invalid', 'unavailable', 'stale']
@@ -126,7 +126,7 @@ class Job(Response):
     id: str
     project_id: str
     status: JobStatus
-    operation: Literal['', 'prepare', 'import', 'transcribe', 'analyze', 'render', 'export'] = ''
+    operation: Literal['', 'prepare', 'import', 'transcribe', 'analyze', 'preview', 'render_final', 'render', 'export'] = ''
     created_at: str = ''
     requests_used: int = 0
     request_limit: int | None = None
@@ -155,6 +155,15 @@ class PauseRemoval(Response):
     reason: str
 
 
+class OutputVersion(Response):
+    state: Literal['available', 'invalid', 'not_generated']
+    asset: str | None = None
+    profile: RenderProfile | None = None
+    sha256: str | None = None
+    duration_us: int | None = None
+    message: str | None = None
+
+
 class Revision(Response):
     revision_id: str
     title: str
@@ -175,6 +184,11 @@ class Revision(Response):
     notes: str | None = None
     removed_silence_us: int | None = None
     pause_removals: list[PauseRemoval] | None = None
+    preview: OutputVersion | None = None
+    final_state: Literal['available', 'invalid', 'not_generated'] | None = None
+    can_render_final: bool | None = None
+    analysis_hash: str | None = None
+    plan_hash: str | None = None
 
 
 class Proposal(Response):

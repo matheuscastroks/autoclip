@@ -89,17 +89,24 @@ class JobManager:
             return clear_job_history(self.store,self.root,self.owned_alive)
 
     def start(self,project_id,operation,options,*,persist_selection=True):
-        if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
+        if operation not in ('prepare','import','transcribe','analyze','render','preview','render_final','export'):raise ValueError('Operação não suportada.')
         if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')
         row=self.store.get(project_id)
         if (Path(row['path'])/'manual-check.json').exists():raise ValueError('Projeto manual disponível apenas para consulta nesta fase.')
         with self.lock:
             if self.draining:raise RuntimeError('O motor está encerrando. Reabra o aplicativo.')
             settings=Settings(self.workspace).get()
-            if operation=='render' and options.get('candidate_ids') is not None:
+            if operation in ('render','preview') and options.get('candidate_ids') is not None:
                 from .analysis_view import save_selection,validate_selection
                 (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',300))
                 if not options['candidate_ids']:raise ValueError('Selecione pelo menos um trecho.')
+            if operation=='render_final':
+                from engine.pipeline.outputs import load_preparation
+                ids=options.get('revision_ids')
+                if not ids:raise ValueError('Selecione uma revisão preparada.')
+                known={r['revision_id'] for r in read_json(Path(row['path'])/'project.json',{}).get('revisions',[])}
+                if not set(ids)<=known:raise ValueError('Revisão não encontrada neste projeto.')
+                for rid in ids:load_preparation(Path(row['path']),rid)
             values={k:v for k,v in settings.items() if k not in ('gemini_key_configured','schema_version','tools_available','asr_available')}
             # Only typed request options are accepted by the API; no arbitrary command.
             values.update({k:options[k] for k in ('max_calls','window_seconds','max_text_chars') if k in options})
@@ -108,10 +115,10 @@ class JobManager:
             values['automatic_calls']=automatic
             active_rows=[self.status(j['id']) for j in self.store.jobs() if j['project_id']==project_id]
             ignored_ready=ignored_queued=0;ready_items=[];recipe=None
-            if operation=='render' and options.get('candidate_ids') is not None:
+            if operation in ('render','preview') and options.get('candidate_ids') is not None:
                 recipe=render_recipe(values);queued=set();ready={}
                 for prior in active_rows:
-                    if prior['operation']!='render':continue
+                    if prior['operation']!=operation:continue
                     old=read_json(self.root/prior['id']/'request.json',{}) or {}
                     if old.get('selection',{}).get('analysis_hash')!=options.get('analysis_hash'):continue
                     if old.get('render_recipe')!=recipe and not (old.get('render_recipe') is None and legacy_render_compatible(old,prior,values)):continue
@@ -120,11 +127,12 @@ class JobManager:
                         if item['state']=='ready':ready[item['candidate_id']]=item
                 # Only technically valid, existing revisions may be skipped as ready.
                 from .reviews import list_revisions
-                valid={r.get('candidate_id'):r for r in list_revisions(Path(row['path'])) if r['technical_pass']}
+                valid={r.get('candidate_id'):r for r in list_revisions(Path(row['path'])) if (r.get('preview',{}).get('state')=='available' if operation=='preview' else r['technical_pass'])}
                 checked_ready={}
                 for cid,item in ready.items():
                     if cid not in valid or cid not in options['candidate_ids']:continue
-                    rendered=read_json(Path(row['path'])/'revisions'/item.get('revision_id','missing')/'render.json',{}) or {}
+                    rendered=read_json(Path(row['path'])/'revisions'/item.get('revision_id','missing')/('preview.json' if operation=='preview' else 'render.json'),{}) or {}
+                    if operation=='preview':rendered=rendered.get('render',{})
                     path=Path(rendered.get('path','')).resolve()
                     if path.is_relative_to(Path(row['path']).resolve()) and path.is_file() and file_hash(path)==rendered.get('sha256'):checked_ready[cid]=item
                 ready=checked_ready
@@ -132,24 +140,31 @@ class JobManager:
                 ready_items=[ready[cid] for cid in wanted if cid in ready]
                 options={**options,'candidate_ids':[cid for cid in wanted if cid not in queued and cid not in ready]}
                 if not options['candidate_ids'] and ignored_queued:
-                    prior=next(j for j in active_rows if j['status'] in ACTIVE and j['operation']=='render' and set(read_json(self.root/j['id']/'request.json',{}).get('selection',{}).get('candidate_ids',[]))&set(wanted))
+                    prior=next(j for j in active_rows if j['status'] in ACTIVE and j['operation']==operation and set(read_json(self.root/j['id']/'request.json',{}).get('selection',{}).get('candidate_ids',[]))&set(wanted))
                     return {**prior,'ignored_ready':ignored_ready,'ignored_queued':ignored_queued,'enqueued_items':0}
             else:
                 for prior in active_rows:
                     old=read_json(self.root/prior['id']/'request.json',{}) or {}
-                    if prior['status'] in ACTIVE and prior['operation']==operation and old.get('settings')==values and old.get('source_input')==options.get('source_input'):return prior
+                    if prior['status'] in ACTIVE and prior['operation']==operation and old.get('selection',{}).get('revision_ids')==options.get('revision_ids') and (operation=='render_final' or old.get('settings')==values and old.get('source_input')==options.get('source_input')):return prior
             jid=str(uuid.uuid4());folder=self.root/jid;folder.mkdir()
             job={'id':jid,'project_id':project_id,'operation':operation,'status':'pending','created_at':now(),'requests_used':0,'request_mode':'automatic' if automatic else 'manual','request_limit':None if automatic else values['max_calls'],'events':[]}
             request={'job_id':jid,'project_id':project_id,'project_root':row['path'],'workspace':str(self.workspace),'operation':operation,'settings':values,'source_input':options.get('source_input')}
-            request['selection']={k:options[k] for k in ('analysis_hash','candidate_ids') if options.get(k) is not None}
+            request['selection']={k:options[k] for k in ('analysis_hash','candidate_ids','revision_ids') if options.get(k) is not None}
             if recipe:request['render_recipe']=recipe
             job.update(ignored_ready=ignored_ready,ignored_queued=ignored_queued,enqueued_items=len(options.get('candidate_ids',[])))
             atomic_json(folder/'request.json',request)
-            if operation=='render' and options.get('candidate_ids'):
+            if operation=='render_final':
+                final_items=[]
+                for rid in options['revision_ids']:
+                    revision_dir,prepared,*_=load_preparation(Path(row['path']),rid)
+                    candidate=read_json(revision_dir/'candidate.json',{})
+                    final_items.append({'candidate_id':str(prepared.candidate_id),'revision_id':rid,'title':candidate.get('title_suggestion','Corte'),'state':'pending','phase':'waiting','processed_us':0,'total_us':None})
+                atomic_json(folder/'progress.json',{'stage':'render_final','steps':{'render_final':'pending'},'phase':'waiting','items':final_items})
+            if operation in ('render','preview') and options.get('candidate_ids'):
                 analysis=read_json(Path(row['path'])/'analysis.json',{}) or {}
                 titles={c['id']:c.get('title_suggestion','Trecho') for c in analysis.get('candidates',[])}
                 atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'pending'},'phase':'waiting','items':[{'candidate_id':cid,'title':titles.get(cid,'Trecho'),'state':'pending','phase':'waiting','processed_us':0,'total_us':None} for cid in options['candidate_ids']]})
-            if operation=='render' and options.get('candidate_ids')==[]:
+            if operation in ('render','preview') and options.get('candidate_ids')==[]:
                 atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'completed'},'items':ready_items})
                 atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
                 job['status']='completed'
@@ -238,9 +253,9 @@ class JobManager:
         selection=request.get('selection',{})
         if candidate_id is not None:
             failed={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='failed'}
-            if job['operation']!='render' or candidate_id not in failed or candidate_id not in selection.get('candidate_ids',[]):raise ValueError('Este corte não está disponível para nova tentativa.')
+            if job['operation'] not in ('render','preview','render_final') or candidate_id not in failed or candidate_id not in selection.get('candidate_ids',[]):raise ValueError('Este corte não está disponível para nova tentativa.')
             selection={**selection,'candidate_ids':[candidate_id]}
-        if job['operation']=='render' and selection.get('candidate_ids'):
+        if job['operation'] in ('render','preview') and selection.get('candidate_ids'):
             ready={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='ready'}
             selection={**selection,'candidate_ids':[cid for cid in selection['candidate_ids'] if cid not in ready]}
             if not selection['candidate_ids']:raise ValueError('Todas as prévias já estão prontas.')

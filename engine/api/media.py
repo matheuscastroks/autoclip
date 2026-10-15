@@ -10,6 +10,20 @@ def asset_path(root:Path,asset:str)->Path:
         try:path=Source.model_validate_json((root/'source.json').read_bytes()).local_path.resolve()
         except (ValueError,OSError):raise HTTPException(404,'Vídeo original indisponível.')
     else:
+        if asset.startswith('preview-'):
+            from uuid import UUID
+            from engine.contracts import PreviewArtifact
+            from engine.pipeline.artifacts import file_hash
+            try:
+                rid=str(UUID(asset.removeprefix('preview-')))
+                folder=root/'revisions'/rid
+                if (folder/'deleted.json').exists():raise ValueError('Deleted')
+                manifest=PreviewArtifact.model_validate_json((folder/'preview.json').read_bytes())
+                path=manifest.render.path.resolve()
+                if not path.is_relative_to(root) or manifest.revision_id!=UUID(rid) or not all(manifest.checks.values()) or file_hash(path)!=manifest.render.sha256:
+                    raise ValueError('Invalid preview')
+            except (ValueError,OSError):raise HTTPException(404,'Prévia rápida indisponível.')
+            return path
         if asset=='manual':
             if not (root/'manual-check.json').is_file():raise HTTPException(404,'Prévia manual indisponível.')
             options=list((root/'previews').glob('*.mp4'));path=options[0].resolve() if options else root/'missing'

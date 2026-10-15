@@ -100,7 +100,7 @@ export interface Job {
   id: string;
   project_id: string;
   status: "pending" | "running" | "cancelling" | "completed" | "failed" | "cancelled" | "interrupted" | "rejected";
-  operation: "" | "prepare" | "import" | "transcribe" | "analyze" | "render" | "export";
+  operation: "" | "prepare" | "import" | "transcribe" | "analyze" | "preview" | "render_final" | "render" | "export";
   created_at: string;
   requests_used: number;
   request_limit?: number | null;
@@ -129,6 +129,17 @@ export interface JobProgress {
   processed_us?: number | null;
   total_us?: number | null;
   activity_at?: string | null;
+  [key: string]: unknown;
+}
+
+// prettier-ignore
+export interface OutputVersion {
+  state: "available" | "invalid" | "not_generated";
+  asset?: string | null;
+  profile?: RenderProfile | null;
+  sha256?: string | null;
+  duration_us?: number | null;
+  message?: string | null;
   [key: string]: unknown;
 }
 
@@ -198,6 +209,19 @@ export interface Proposal {
 }
 
 // prettier-ignore
+export interface RenderProfile {
+  schema_version: "1.0";
+  name: "preview" | "final";
+  width: number;
+  height: number;
+  fps: 30;
+  codec: "libx264";
+  preset: "veryfast" | "medium";
+  crf: number;
+  audio_kbps: number;
+}
+
+// prettier-ignore
 export interface Revision {
   revision_id: string;
   title: string;
@@ -218,6 +242,11 @@ export interface Revision {
   notes?: string | null;
   removed_silence_us?: number | null;
   pause_removals?: Array<PauseRemoval> | null;
+  preview?: OutputVersion | null;
+  final_state?: "available" | "invalid" | "not_generated" | null;
+  can_render_final?: boolean | null;
+  analysis_hash?: string | null;
+  plan_hash?: string | null;
   [key: string]: unknown;
 }
 
