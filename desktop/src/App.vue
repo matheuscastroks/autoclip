@@ -870,6 +870,7 @@ onUnmounted(() => {
             >Cancelar</AppButton
           >
           <AppButton
+            type="submit"
             class="button primary studio-submit-btn"
             :disabled="
               busy ||
@@ -878,6 +879,7 @@ onUnmounted(() => {
               !config?.tools_available ||
               (sourceKind === 'url' && !isYouTubeUrl)
             "
+            @click="create"
           >
             <LoaderCircle v-if="busy" class="spin" :size="15" />
             Criar projeto
