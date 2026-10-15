@@ -77,6 +77,18 @@ it('emits cancel and open events properly', async () => {
   w.unmount();
 });
 
+it('blocks only the job being changed while history cleanup is pending', async () => {
+  const w = mount(GlobalQueueModal, {
+    props: { jobs: dummyJobs, projects: [dummyProject], busy: true, pendingJobIds: ['job-run'] },
+  });
+  const buttons = w.findAll('.cancel-job-btn');
+  expect(buttons[0].attributes('disabled')).toBeDefined();
+  expect(buttons[1].attributes('disabled')).toBeUndefined();
+  await buttons[1].trigger('click');
+  expect(w.emitted('cancel')?.[0]).toEqual(['job-pend']);
+  w.unmount();
+});
+
 it('allows filtering between active jobs and recent history and emits close', async () => {
   const w = mount(GlobalQueueModal, {
     props: { jobs: dummyJobs, projects: [dummyProject], busy: false },
