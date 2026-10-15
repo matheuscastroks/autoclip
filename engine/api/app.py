@@ -179,11 +179,12 @@ def create_app(workspace:Path,token:str)->FastAPI:
     def gemini_test():return gemini_connection.validate()
     @app.get('/api/v1/system/profile')
     def system_profile():return {'schema_version':'1.0','profile':profile_hardware().to_dict()}
-    @app.post('/api/v1/system/provision')
+    from engine.contracts.api import ProvisionStatus
+    @app.post('/api/v1/system/provision',response_model=ProvisionStatus)
     def system_provision(value:SystemProvisionInput):
         try:return provisioner.start(value.model_id,value.install_ffmpeg)
         except RuntimeError as exc:raise HTTPException(409,str(exc))
-    @app.get('/api/v1/system/provision/status')
+    @app.get('/api/v1/system/provision/status',response_model=ProvisionStatus)
     def system_provision_status():
         st=provisioner.status()
         if st.get('status')=='ready' and st.get('model_path'):

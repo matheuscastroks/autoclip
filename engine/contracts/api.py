@@ -253,4 +253,22 @@ class CreatedProject(Response):
     job: Job
 
 
-API_MODELS = (Project, Job, Revision, Proposal, AnalysisView, GenerationItem, AnalysisEvent)
+class ProvisionStatus(Response):
+    status: Literal['idle','downloading','extracting','extracting_ffmpeg','cancelling','ready','failed','cancelled']
+    stage: str
+    item: str
+    downloaded_bytes: int = 0
+    total_bytes: int = 0
+    speed_bps: float = 0
+    percent: float | None = Field(default=None, ge=0, le=100)
+    error: str | None = None
+    heartbeat_at: str | None = None
+    eta_seconds: float | None = None
+    completed_units: int | None = None
+    total_units: int | None = None
+    model_path: str | None = None
+    ffmpeg_path: str | None = None
+    ffprobe_path: str | None = None
+
+
+API_MODELS = (Project, Job, Revision, Proposal, AnalysisView, GenerationItem, AnalysisEvent, ProvisionStatus)

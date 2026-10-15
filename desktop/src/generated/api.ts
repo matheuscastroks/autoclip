@@ -222,6 +222,26 @@ export interface Proposal {
 }
 
 // prettier-ignore
+export interface ProvisionStatus {
+  status: "idle" | "downloading" | "extracting" | "extracting_ffmpeg" | "cancelling" | "ready" | "failed" | "cancelled";
+  stage: string;
+  item: string;
+  downloaded_bytes: number;
+  total_bytes: number;
+  speed_bps: number;
+  percent?: number | null;
+  error?: string | null;
+  heartbeat_at?: string | null;
+  eta_seconds?: number | null;
+  completed_units?: number | null;
+  total_units?: number | null;
+  model_path?: string | null;
+  ffmpeg_path?: string | null;
+  ffprobe_path?: string | null;
+  [key: string]: unknown;
+}
+
+// prettier-ignore
 export interface RenderProfile {
   schema_version: "1.0";
   name: "preview" | "final";

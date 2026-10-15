@@ -6,6 +6,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Optional, Callable
+from engine.pipeline.telemetry import stamp
 
 def get_storage_base() -> Path:
     localappdata = os.environ.get("LOCALAPPDATA")
@@ -41,7 +42,11 @@ class DependencyProvisioner:
             "downloaded_bytes": 0,
             "total_bytes": 0,
             "speed_bps": 0.0,
-            "percent": 0.0,
+            "percent": None,
+            "heartbeat_at": None,
+            "eta_seconds": None,
+            "completed_units": None,
+            "total_units": None,
             "error": None,
             "model_path": None,
             "ffmpeg_path": None,
@@ -84,7 +89,9 @@ class DependencyProvisioner:
                 "downloaded_bytes": 0,
                 "total_bytes": 0,
                 "speed_bps": 0.0,
-                "percent": 0.0,
+                "percent": None,
+                "heartbeat_at": stamp(),
+                "eta_seconds": None,
                 "error": None
             })
 
@@ -98,20 +105,28 @@ class DependencyProvisioner:
 
     def _extract_ffmpeg_zip(self, zip_path: Path, tools_dir: Path):
         tools_dir.mkdir(parents=True, exist_ok=True)
-        exe_ext = ".exe" if os.name == "nt" else ""
-        ffmpeg_name = f"ffmpeg{exe_ext}"
-        ffprobe_name = f"ffprobe{exe_ext}"
-
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            for member in zf.namelist():
-                lower = member.lower().replace("\\", "/")
-                basename = lower.split("/")[-1]
-                if "/bin/" in lower and basename in ("ffmpeg.exe", "ffmpeg"):
-                    with zf.open(member) as src, open(tools_dir / basename, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
-                elif "/bin/" in lower and basename in ("ffprobe.exe", "ffprobe"):
-                    with zf.open(member) as src, open(tools_dir / basename, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
+        from uuid import uuid4
+        pending=[]
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                members=[m for m in zf.infolist() if '/bin/' in m.filename.lower().replace('\\','/') and m.filename.lower().replace('\\','/').split('/')[-1] in ('ffmpeg','ffmpeg.exe','ffprobe','ffprobe.exe')]
+                total=sum(m.file_size for m in members);done=0
+                for member in members:
+                    target=tools_dir/member.filename.lower().replace('\\','/').split('/')[-1]
+                    temp=tools_dir/(uuid4().hex+'.partial')
+                    pending.append((temp,target))
+                    with zf.open(member) as src,temp.open('xb') as dst:
+                        while chunk:=src.read(128*1024):
+                            if self._cancel_event.is_set():raise RuntimeError('Extraction cancelled')
+                            dst.write(chunk);done+=len(chunk)
+                            with self._lock:
+                                self._state.update(percent=round(done/total*100,1) if total else None,
+                                                   completed_units=done,total_units=total or None,
+                                                   heartbeat_at=stamp(),eta_seconds=None)
+            if self._cancel_event.is_set():raise RuntimeError('Extraction cancelled')
+            for temp,target in pending:temp.replace(target)
+        finally:
+            for temp,_ in pending:temp.unlink(missing_ok=True)
 
         try:
             zip_path.unlink()
@@ -125,6 +140,8 @@ class DependencyProvisioner:
         with self._lock:
             self._active_tmp_file = tmp_path
             self._state["item"] = item_name
+            self._state.update(percent=None,downloaded_bytes=0,total_bytes=0,
+                               completed_units=None,total_units=None,eta_seconds=None,heartbeat_at=stamp())
 
         req = urllib.request.Request(
             url,
@@ -149,13 +166,15 @@ class DependencyProvisioner:
                 elapsed = max(0.001, time.time() - start_time)
                 speed = downloaded / elapsed
 
-                pct = round((downloaded / total * 100), 1) if total > 0 else 0.0
+                pct = min(100,round((downloaded / total * 100), 1)) if total > 0 else None
 
                 with self._lock:
                     self._state["downloaded_bytes"] = downloaded
                     self._state["total_bytes"] = total
                     self._state["speed_bps"] = speed
                     self._state["percent"] = pct
+                    self._state.update(completed_units=downloaded,total_units=total or None,
+                                       heartbeat_at=stamp(),eta_seconds=max(0,(total-downloaded)/speed) if total and elapsed>=10 and speed>0 else None)
 
         if not self._cancel_event.is_set() and tmp_path.exists():
             if target_path.exists():
