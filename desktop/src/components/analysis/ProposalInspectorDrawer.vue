@@ -22,7 +22,14 @@ const emit = defineEmits<{
   toggleSelection: [];
   discard: [];
   restore: [];
+  restoreFocus: [];
 }>();
+let opener: HTMLElement | null = null;
+function restoreFocus(event?: Event) {
+  if (opener?.isConnected) return;
+  event?.preventDefault();
+  emit('restoreFocus');
+}
 const player = ref<HTMLVideoElement>();
 const url = ref('');
 const loading = ref(false);
@@ -101,9 +108,12 @@ function stopAtEnd() {
 watch(
   () => props.modelValue,
   open => {
-    if (open) closing.value = false;
+    if (open) {
+      closing.value = false;
+      opener = document.activeElement as HTMLElement | null;
+    }
   },
-  { flush: 'sync' }
+  { flush: 'sync', immediate: true }
 );
 watch([() => props.modelValue, () => props.proposal?.candidate_id, () => props.sourceUrl], load, {
   immediate: true,
@@ -122,6 +132,7 @@ onBeforeUnmount(() => {
     class="proposal-inspector-drawer"
     destroy-on-close
     :before-close="beforeClose"
+    @close-auto-focus="restoreFocus"
     @close="close"
     @update:model-value="$emit('update:modelValue', $event)"
   >

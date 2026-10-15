@@ -2,6 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { it, expect, vi } from 'vitest';
 import ProposalInspectorDrawer from '../src/components/analysis/ProposalInspectorDrawer.vue';
 import type { Proposal } from '../src/types';
+import { ElDrawer } from 'element-plus';
 const proposal = {
   candidate_id: 'one',
   title: 'Argumento',
@@ -34,6 +35,26 @@ function open(loadSource: () => Promise<string>) {
     global: { stubs: { teleport: true } },
   });
 }
+it('requests a connected focus fallback only when the opening control disappeared', async () => {
+  const opener = document.createElement('button');
+  document.body.append(opener);
+  opener.focus();
+  const w = open(async () => '/source.mp4');
+  try {
+    await flushPromises();
+    const ordinary = new Event('close-auto-focus', { cancelable: true });
+    w.getComponent(ElDrawer).vm.$emit('closeAutoFocus', ordinary);
+    expect(ordinary.defaultPrevented).toBe(false);
+    opener.remove();
+    const removed = new Event('close-auto-focus', { cancelable: true });
+    w.getComponent(ElDrawer).vm.$emit('closeAutoFocus', removed);
+    expect(removed.defaultPrevented).toBe(true);
+    expect(w.emitted('restoreFocus')).toHaveLength(1);
+  } finally {
+    opener.remove();
+    w.unmount();
+  }
+});
 it('ignores an obsolete media response when the inspected proposal changes', async () => {
   let resolve!: (url: string) => void;
   const load = vi
