@@ -1,32 +1,31 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Structure
 
-AutoClip is a Vue/Vite application. Keep product code in `src/`, reusable UI in `src/components/`, screens in `src/views/`, and shared state or integrations in the existing store and service modules. Put unchanged static files in `public/`; import bundled images and styles from `src/assets/`. Keep generated media, transcripts, local project data, `dist/`, and dependencies out of version control. Place tests beside their subjects as `*.spec.ts` or in the existing test directory.
+AutoClip is a local-first desktop editor with three layers. `engine/` contains the Python 3.12 media pipeline, API, provider adapters, contracts, and rendering code. `desktop/src/` contains the Vue 3/TypeScript interface; `desktop/src-tauri/` wraps it in Tauri 2. Python tests live in `tests/`, frontend tests in `desktop/tests/`, operational helpers in `scripts/`, and architecture/runbooks in `docs/`. Treat `.autoclip/`, `.runtime-tmp/`, `poc-projects/`, `poc-results/`, build output, media, and models as generated or local data, not source.
+
+More specific instructions in `engine/AGENTS.md`, `desktop/AGENTS.md`, and `research/AGENTS.md` override this guide within those directories.
 
 ## Build, Test, and Development Commands
 
-- `npm install` installs project dependencies.
-- `npm run dev` starts the Vite development server with hot reload.
-- `npm run build` creates the production bundle in `dist/`.
-- `npm run preview` serves the production bundle for a final local check.
-- `npm run lint` runs the configured static-analysis rules.
-- `npm test` runs the configured test suite.
+- `pip install -e ".[dev,desktop]"` installs the Python engine and development dependencies.
+- `pytest -m "not real_media" -q` runs the normal backend suite without opt-in media tests.
+- `npm ci --prefix desktop` installs the locked frontend dependencies.
+- `npm --prefix desktop run check` type-checks Vue and TypeScript.
+- `npm --prefix desktop run test:run` runs Vitest once.
+- `npm --prefix desktop run build` creates the frontend production bundle.
+- `npm --prefix desktop run desktop:build:local` builds the local debug Tauri executable.
 
-Use the scripts in `package.json` as the source of truth if a command differs.
+Use Python 3.12 and consult `docs/poc-runbook.md` or `docs/tauri-runbook.md` before running media or desktop workflows.
 
-## Coding Style & Naming Conventions
+## Style and Testing
 
-Follow existing Vue Single-File Component and TypeScript patterns. Use two-space indentation and let the configured formatter decide semicolons and quotes. Name components in PascalCase (`ClipInspector.vue`), composables with a `use` prefix (`useProjectQueue.ts`), and variables/functions in camelCase. Prefer typed props and emits, small components, and shared Element Plus controls. Keep user-facing Brazilian Portuguese consistent with the current interface.
+Follow `.editorconfig` and existing language conventions. Keep Python modules and tests in `snake_case`; use PascalCase Vue components, `useX` composables, and camelCase TypeScript identifiers. Frontend formatting is enforced by Prettier and ESLint. Avoid drive-by reformatting.
 
-## Testing Guidelines
+Add focused regression tests near the affected subsystem. Media, provider, concurrency, and resume changes need failure-path coverage. UI work must cover loading, empty, disabled, and error states. Never describe real-media, visual, or external-provider behavior as validated unless that check actually ran.
 
-Add focused tests for parsing, timing calculations, state transitions, and error recovery. Name tests after observable behavior. Before opening a pull request, run tests, linting, and a production build. For UI changes, manually exercise the affected workflow and check loading, empty, error, and disabled states. Follow any coverage threshold defined by repository configuration.
+## Commits, Pull Requests, and Security
 
-## Commit & Pull Request Guidelines
+Use the repository's concise conventional subjects, for example `fix(desktop): preserve clip selection`. Keep commits focused. Pull requests should explain the change, list exact verification commands, link relevant issues or design documents, and include screenshots or recordings for visible UI changes.
 
-Write concise, imperative commit subjects, optionally scoped: `fix(editor): preserve clip selection`. Keep commits focused. Pull requests should explain the problem and solution, list verification commands, link relevant issues, and include screenshots or a recording for visible changes. Call out configuration changes, new dependencies, and media-processing impact.
-
-## Security & Configuration
-
-Never commit API keys, local media, transcripts, or generated output. Store secrets in ignored environment files and document variable names in an example file without real values. Sanitize filenames and validate paths before invoking local tools.
+Never commit API keys, authenticated URLs, videos, transcripts, local databases, generated renders, or model files. Preserve human editorial approval gates and the rule that remote AI receives text only unless the project documentation explicitly changes that contract.
