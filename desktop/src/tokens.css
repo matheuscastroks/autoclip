@@ -1,28 +1,29 @@
 :root {
-  /* Canvas e Superfícies Sóbrias (Linear Standard) */
-  --color-canvas: #0d0f11;
-  --color-surface: #16181b;
-  --color-surface-raised: #1c1f23;
-  --color-surface-hover: #23262a;
-  --color-surface-selected: #292d32;
+  /* Graphite surfaces with a steel-blue selection accent. */
+  --color-canvas: #101316;
+  --color-surface: #171d22;
+  --color-surface-raised: #202930;
+  --color-surface-hover: #283540;
+  --color-surface-selected: #304451;
 
   /* Bordas Sutis e Delimitadores */
-  --color-border-subtle: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: #34434e;
+  --color-border-strong: #657e8e;
+  --color-border-control: #778e9e;
 
   /* Tipografia e Contraste */
-  --color-text-primary: #eceef0;
-  --color-text-secondary: #a5abb3;
-  --color-text-muted: #858c95;
+  --color-text-primary: #edf1f4;
+  --color-text-secondary: #a5b5be;
+  /* Raised from the initial #91a3af to keep 4.5:1 on selected surfaces. */
+  --color-text-muted: #9fb0ba;
 
-  /* Ação Primária Monocromática */
-  --color-action-primary: #e5e7eb;
-  --color-action-primary-hover: #f3f4f6;
-  --color-action-primary-text: #111317;
+  --color-action-primary: #afc6d5;
+  --color-action-primary-hover: #c5d9e6;
+  --color-action-primary-text: #16232d;
 
   /* Foco Acessível & Neutro */
-  --color-focus-ring: #b8c0ca;
-  --color-border-focus: rgba(229, 231, 235, 0.35);
+  --color-focus-ring: #afc6d5;
+  --color-border-focus: #afc6d5;
 
   /* Feedback Funcional Controlado */
   --color-warning-surface: rgba(245, 158, 11, 0.08);
@@ -70,8 +71,21 @@
   --warning: var(--color-warning-text);
   --heading: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --body: var(--heading);
-  --scrollbar-thumb: #464b52;
-  --scrollbar-thumb-hover: #656c75;
+  --scrollbar-thumb: #657e8e;
+  --scrollbar-thumb-hover: #91a3af;
+
+  --font-size-title: 22px;
+  --font-size-region: 16px;
+  --font-size-body: 14px;
+  --font-size-control: 13px;
+  --font-size-meta: 12px;
+  --control-height: 34px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
 
   /* Geometria e Superfícies */
   --radius-panel: 8px;

@@ -1,6 +1,6 @@
 /* One visual system for the local browser and native workspace. */
 body {
-  font: 14px/1.5 var(--body);
+  font: var(--font-size-body)/1.5 var(--body);
   color: var(--ink);
   background: var(--canvas);
 }
@@ -14,15 +14,15 @@ h3,
   text-wrap: balance;
 }
 h1 {
-  font-size: 24px;
+  font-size: var(--font-size-title);
   line-height: 1.25;
 }
 h2 {
-  font-size: 18px;
+  font-size: var(--font-size-region);
   line-height: 1.3;
 }
 h3 {
-  font-size: 14px;
+  font-size: var(--font-size-region);
   line-height: 1.4;
 }
 p {
@@ -46,7 +46,7 @@ time,
 small,
 .subtle {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-size-meta);
 }
 a {
   color: inherit;
@@ -139,7 +139,7 @@ textarea:focus-visible,
 }
 .global-navigation .nav-button.selected,
 .global-navigation .el-button.nav-button.selected {
-  background: var(--color-surface-hover) !important;
+  background: var(--color-surface-selected) !important;
   color: var(--color-text-primary) !important;
   font-weight: 600 !important;
 }

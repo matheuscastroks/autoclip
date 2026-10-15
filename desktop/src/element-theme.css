@@ -2,14 +2,14 @@
 
 html.dark,
 :root {
-  /* Marca e Destaque Neutro Studio */
-  --el-color-primary: var(--color-action-primary, #e5e7eb);
-  --el-color-primary-light-3: var(--color-action-primary-hover, #f3f4f6);
-  --el-color-primary-light-5: #ffffff;
-  --el-color-primary-light-7: rgba(229, 231, 235, 0.2);
+  /* Steel-blue identity shared with the application tokens. */
+  --el-color-primary: var(--color-action-primary);
+  --el-color-primary-light-3: var(--color-action-primary-hover);
+  --el-color-primary-light-5: var(--color-action-primary-hover);
+  --el-color-primary-light-7: var(--color-border-strong);
   --el-color-primary-light-8: var(--color-surface-raised);
   --el-color-primary-light-9: var(--color-surface-hover);
-  --el-color-primary-dark-2: var(--color-focus-ring, #b8c0ca);
+  --el-color-primary-dark-2: var(--color-focus-ring);
 
   /* Superfícies e Fundos */
   --el-bg-color: var(--color-canvas);
@@ -30,11 +30,14 @@ html.dark,
   --el-border-color: var(--color-border-subtle);
   --el-border-color-light: var(--color-border-subtle);
   --el-border-color-lighter: var(--color-border-subtle);
-  --el-border-color-extra-light: rgba(255, 255, 255, 0.04);
+  --el-border-color-extra-light: var(--color-border-subtle);
   --el-border-color-dark: var(--color-border-strong);
   --el-border-color-darker: var(--color-border-strong);
 
   /* Feedback Funcional */
+  --el-color-info: var(--color-text-secondary);
+  --el-color-info-light-9: var(--color-surface-raised);
+  --el-color-info-light-8: var(--color-border-subtle);
   --el-color-success: var(--color-success);
   --el-color-success-light-9: var(--color-success-soft);
   --el-color-warning: var(--color-warning-text);
@@ -44,12 +47,13 @@ html.dark,
 
   /* Raios de Arredondamento */
   --el-border-radius-base: var(--radius-control); /* 6px */
-  --el-border-radius-small: 4px;
+  --el-border-radius-small: var(--radius-control);
   --el-border-radius-round: 999px;
 
   /* Fontes e Tipografia */
   --el-font-family: var(--body);
-  --el-font-size-base: 13px;
+  --el-font-size-base: var(--font-size-control);
+  --el-component-size: var(--control-height);
 
   /* Sombras */
   --el-box-shadow: var(--shadow-panel);
@@ -66,17 +70,41 @@ html.dark,
 
 /* Botões */
 .el-button--primary {
-  background-color: var(--color-action-primary, #e5e7eb) !important;
-  border-color: var(--color-action-primary, #e5e7eb) !important;
-  color: var(--color-action-primary-text, #111317) !important;
+  --el-button-bg-color: var(--color-action-primary);
+  --el-button-border-color: var(--color-action-primary);
+  --el-button-text-color: var(--color-action-primary-text);
+  --el-button-hover-bg-color: var(--color-action-primary-hover);
+  --el-button-hover-border-color: var(--color-action-primary-hover);
+  --el-button-hover-text-color: var(--color-action-primary-text);
+  --el-button-active-bg-color: var(--color-action-primary-hover);
+  --el-button-active-border-color: var(--color-action-primary-hover);
+  --el-button-active-text-color: var(--color-action-primary-text);
   font-weight: 500;
 }
 
-.el-button--primary:hover,
-.el-button--primary:focus-visible {
-  background-color: var(--color-action-primary-hover, #f3f4f6) !important;
-  border-color: var(--color-action-primary-hover, #f3f4f6) !important;
-  color: var(--color-action-primary-text, #111317) !important;
+.el-button:is(.el-button--primary, .primary).is-disabled {
+  background-color: var(--color-surface-selected);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.el-input,
+.el-textarea {
+  --el-input-border-color: var(--color-border-control);
+  --el-input-hover-border-color: var(--color-focus-ring);
+  --el-input-focus-border-color: var(--color-focus-ring);
+}
+.el-select {
+  --el-border-color: var(--color-border-control);
+  --el-select-input-focus-border-color: var(--color-focus-ring);
+}
+.el-select-dropdown__item.is-selected {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+}
+.el-checkbox {
+  --el-checkbox-input-border: 1px solid var(--color-border-control);
 }
 
 .el-button--default {
@@ -168,6 +196,16 @@ html.dark,
 .el-tag {
   border-radius: 6px;
   font-weight: 500;
+}
+
+.el-tag.el-tag--dark:is(
+    .el-tag--info,
+    .el-tag--primary,
+    .el-tag--success,
+    .el-tag--warning,
+    .el-tag--danger
+  ) {
+  --el-tag-text-color: var(--color-action-primary-text);
 }
 
 /* Dropdowns & Menus */
