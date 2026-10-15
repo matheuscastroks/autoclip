@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vRecoverMedia } from '../directives/recoverMedia';
 import AppButton from './AppButton.vue';
 import { computed, ref, watch, toRef } from 'vue';
 import {
@@ -234,6 +235,7 @@ function copyDescription() {
     </div>
     <video
       v-if="mediaUrl"
+      v-recover-media="mediaUrl"
       class="manual-player"
       :src="mediaUrl"
       controls
@@ -683,7 +685,14 @@ function copyDescription() {
           aria-label="Prévia do corte selecionado"
         >
           <div class="clip-preview">
-            <video v-if="mediaUrl" :src="mediaUrl" controls preload="metadata" playsinline></video>
+            <video
+              v-if="mediaUrl"
+              v-recover-media="mediaUrl"
+              :src="mediaUrl"
+              controls
+              preload="metadata"
+              playsinline
+            ></video>
             <div v-else class="video-unavailable">Prévia indisponível</div>
           </div>
           <div class="player-subcaption" v-if="current">

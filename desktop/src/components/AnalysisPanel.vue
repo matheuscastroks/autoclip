@@ -22,6 +22,7 @@ import { time } from '../format';
 import { notify } from '../notifications';
 import AnalysisFeedback from './AnalysisFeedback.vue';
 import { useDiscardedProposals } from '../composables/useDiscardedProposals';
+import { vRecoverMedia } from '../directives/recoverMedia';
 
 const props = defineProps<{
   analysis: AnalysisView | null;
@@ -753,6 +754,7 @@ function choose(id: string) {
               <div class="mini-video-frame">
                 <video
                   v-if="sourceUrl"
+                  v-recover-media="sourceUrl"
                   ref="player"
                   :src="sourceUrl"
                   preload="metadata"
