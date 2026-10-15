@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import AppButton from './components/AppButton.vue';
+import AppIcon from './components/ui/AppIcon.vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
-  Scissors,
-  Layers,
-  Settings2,
-  HardDrive,
-  Plus,
   FileVideo,
   Link,
-  FolderOpen,
   X,
   RefreshCw,
   LoaderCircle,
-  ListOrdered,
   Sparkles,
   Check,
   AlertTriangle,
@@ -532,7 +526,7 @@ onUnmounted(() => {
     <div class="app-shell">
       <header class="global-header">
         <a class="brand" href="#" @click.prevent="navigate('projects')">
-          <span class="brand-symbol"><Scissors :size="21" /></span>
+          <span class="brand-symbol"><AppIcon name="scissors" /></span>
           <span>AutoClip</span>
         </a>
         <nav class="global-navigation" aria-label="Navegação principal">
@@ -542,7 +536,11 @@ onUnmounted(() => {
             :aria-current="page === 'projects' ? 'page' : undefined"
             @click="navigate('projects')"
           >
-            <Layers :size="16" />Projetos<span class="nav-badge">{{ projects.length }}</span>
+            <AppIcon
+              name="projects"
+              size="sm"
+              :variant="page === 'projects' ? 'filled' : 'regular'"
+            />Projetos<span class="nav-badge">{{ projects.length }}</span>
           </AppButton>
           <AppButton
             class="nav-button"
@@ -550,7 +548,11 @@ onUnmounted(() => {
             :aria-current="page === 'settings' ? 'page' : undefined"
             @click="navigate('settings')"
           >
-            <Settings2 :size="16" />Configurações
+            <AppIcon
+              name="settings"
+              size="sm"
+              :variant="page === 'settings' ? 'filled' : 'regular'"
+            />Configurações
           </AppButton>
         </nav>
         <div class="global-actions">
@@ -560,7 +562,7 @@ onUnmounted(() => {
             title="Fila global de tarefas"
             @click="showGlobalQueue = true"
           >
-            <ListOrdered :size="15" />Fila<el-tag
+            <AppIcon name="queue" size="sm" />Fila<el-tag
               v-if="activeJobsCount"
               size="small"
               type="primary"
@@ -573,19 +575,19 @@ onUnmounted(() => {
             class="button secondary small header-import-action"
             @click="importProject"
             :disabled="libraryBusy || createBusy || initial"
-            ><FolderOpen :size="15" />Importar projeto</AppButton
+            ><AppIcon name="folder-open" size="sm" />Importar projeto</AppButton
           >
           <AppButton
             class="button primary small new-project-action"
             @click="showCreate"
             :disabled="libraryBusy || createBusy || initial"
-            ><Plus :size="15" />Novo projeto</AppButton
+            ><AppIcon name="add" size="sm" />Novo projeto</AppButton
           >
           <details ref="engineMenu" class="engine-menu" @keydown.esc.prevent="closeEngineMenu">
             <summary>
               <span class="local-dot" :class="{ offline }"></span>
               {{ offline ? 'Sem conexão' : 'Motor local' }}
-              <HardDrive :size="15" />
+              <AppIcon name="engine" size="sm" />
             </summary>
             <div class="engine-popover">
               <div class="sidebar-session">
@@ -835,7 +837,7 @@ onUnmounted(() => {
               :disabled="createBusy"
               @click="pickVideo"
             >
-              <FolderOpen :size="15" />Selecionar arquivo de vídeo
+              <AppIcon name="folder-open" size="sm" />Selecionar arquivo de vídeo
             </AppButton>
             <small class="subtle">Formatos suportados: MP4, MOV, MKV, WebM</small>
           </div>

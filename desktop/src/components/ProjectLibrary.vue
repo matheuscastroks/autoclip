@@ -1,20 +1,10 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
+import AppIcon from './ui/AppIcon.vue';
 import AppSelect from './AppSelect.vue';
 import { computed, ref } from 'vue';
 import { ElTag, ElTooltip } from 'element-plus';
-import {
-  Search,
-  Film,
-  Trash2,
-  Plus,
-  FileVideo,
-  ListOrdered,
-  LayoutGrid,
-  List,
-  Clock,
-  Sparkles,
-} from '@lucide/vue';
+import { Clock } from '@lucide/vue';
 import type { Project } from '../types';
 import { time, projectLabel, stages } from '../format';
 
@@ -89,7 +79,7 @@ function timeAgo(value: number) {
     <!-- Barra de Ferramentas: Busca, Filtros, Ordenação e Alternador de Visão -->
     <section class="library-toolbar">
       <div class="search-box">
-        <Search :size="16" class="search-icon" />
+        <AppIcon name="search" size="sm" class="search-icon" />
         <input
           type="search"
           v-model="query"
@@ -138,7 +128,7 @@ function timeAgo(value: number) {
             @click="viewMode = 'grid'"
             @keydown.right.prevent="viewMode = 'list'"
           >
-            <LayoutGrid :size="16" />
+            <AppIcon name="grid" size="sm" />
           </button>
           <button
             type="button"
@@ -152,7 +142,7 @@ function timeAgo(value: number) {
             @click="viewMode = 'list'"
             @keydown.left.prevent="viewMode = 'grid'"
           >
-            <List :size="16" />
+            <AppIcon name="list" size="sm" />
           </button>
         </div>
         <AppButton
@@ -162,7 +152,7 @@ function timeAgo(value: number) {
           :disabled="busy"
           @click="$emit('trash')"
         >
-          <Trash2 :size="15" />Lixeira
+          <AppIcon name="trash" size="sm" />Lixeira
         </AppButton>
       </div>
     </section>
@@ -196,7 +186,7 @@ function timeAgo(value: number) {
             @error="brokenCovers[project.id] = covers?.[project.id] || ''"
           />
           <div v-else class="thumbnail-fallback">
-            <Film :size="32" />
+            <AppIcon name="video" size="lg" />
           </div>
 
           <!-- Duração do vídeo -->
@@ -283,7 +273,7 @@ function timeAgo(value: number) {
                 :disabled="busy || activeProjects?.includes(project.id)"
                 @click.stop="$emit('delete', project.id)"
               >
-                <Trash2 :size="15" />
+                <AppIcon name="trash" size="sm" />
               </AppButton>
             </el-tooltip>
             <span class="open-card-indicator">Abrir →</span>
@@ -327,7 +317,7 @@ function timeAgo(value: number) {
               loading="lazy"
               @error="brokenCovers[project.id] = covers?.[project.id] || ''"
             />
-            <Film v-else :size="26" />
+            <AppIcon v-else name="video" size="lg" />
           </span>
           <div>
             <AppButton class="project-title-link" @click.stop="$emit('open', project.id)">
@@ -381,7 +371,7 @@ function timeAgo(value: number) {
           :disabled="busy || activeProjects?.includes(project.id)"
           @click.stop="$emit('delete', project.id)"
         >
-          <Trash2 :size="16" />
+          <AppIcon name="trash" size="sm" />
         </AppButton>
       </div>
     </section>
@@ -389,7 +379,7 @@ function timeAgo(value: number) {
     <!-- ESTADO 3: ESTADO VAZIO -->
     <section v-if="!filtered.length" class="empty-state studio-empty-state">
       <div class="empty-icon-wrap">
-        <FileVideo :size="32" />
+        <AppIcon name="video" size="lg" />
       </div>
       <h2>{{ projects.length ? 'Nenhum resultado encontrado' : 'Nenhum projeto' }}</h2>
       <p>
@@ -405,7 +395,7 @@ function timeAgo(value: number) {
         class="button primary start-first-btn"
         @click="$emit('create')"
       >
-        <Plus :size="16" />
+        <AppIcon name="add" size="sm" />
         <span>Novo projeto</span>
       </AppButton>
     </section>

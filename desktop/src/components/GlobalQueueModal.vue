@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue';
 import AppButton from './AppButton.vue';
+import AppIcon from './ui/AppIcon.vue';
 import { ElScrollbar, ElTag, ElProgress, ElEmpty, ElCard } from 'element-plus';
-import {
-  ListOrdered,
-  X,
-  ArrowUpRight,
-  Square,
-  CheckCircle2,
-  AlertCircle,
-  LoaderCircle,
-  Trash2,
-} from '@lucide/vue';
+import { ArrowUpRight, Square, CheckCircle2, AlertCircle, LoaderCircle, Trash2 } from '@lucide/vue';
 import type { Job, Project } from '../types';
 import { active, labels, stages } from '../format';
 import { useJobQueue } from '../composables/useJobQueue';
@@ -76,7 +68,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
     <div class="global-queue-container">
       <header class="queue-modal-header">
         <div class="queue-title-area">
-          <span class="queue-icon-wrapper"><ListOrdered :size="20" /></span>
+          <span class="queue-icon-wrapper"><AppIcon name="queue" /></span>
           <div>
             <h2 id="queue-modal-title">Fila Global de Tarefas</h2>
             <p>
@@ -112,7 +104,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
             title="Fechar fila global"
             aria-label="Fechar"
             @click="$emit('close')"
-            ><X :size="18"
+            ><AppIcon name="close"
           /></AppButton>
         </div>
       </header>
@@ -224,7 +216,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
           class="queue-empty-state"
         >
           <template #image>
-            <ListOrdered :size="40" style="color: var(--color-text-muted, #9aa4b2)" />
+            <AppIcon name="queue" size="lg" />
           </template>
           <p>
             {{

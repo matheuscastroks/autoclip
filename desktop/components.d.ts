@@ -12,6 +12,7 @@ declare module 'vue' {
     AnalysisPanel: typeof import('./src/components/AnalysisPanel.vue')['default']
     ApiKeyField: typeof import('./src/components/ApiKeyField.vue')['default']
     AppButton: typeof import('./src/components/AppButton.vue')['default']
+    AppIcon: typeof import('./src/components/ui/AppIcon.vue')['default']
     AppSelect: typeof import('./src/components/AppSelect.vue')['default']
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
     ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']

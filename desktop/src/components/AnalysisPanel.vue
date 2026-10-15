@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
+import AppIcon from './ui/AppIcon.vue';
 import { computed, ref, watch } from 'vue';
 import {
-  Play,
   Search,
   Check,
   Scissors,
@@ -767,7 +767,7 @@ function choose(id: string) {
                     :disabled="!sourceUrl"
                     @click="play()"
                   >
-                    <Play :size="13" /> Ouvir trecho
+                    <AppIcon name="play" size="sm" /> Ouvir trecho
                   </AppButton>
                   <AppButton
                     class="button small secondary context-btn"
