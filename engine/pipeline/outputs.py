@@ -13,6 +13,7 @@ from engine.pipeline.fingerprints import stage_dependencies, tool_fingerprint
 from engine.pipeline.manifest import StageCache
 from engine.render.ffmpeg import FFmpegRenderer
 from engine.render.verify import verify_preview, verify_render
+from engine.pipeline.telemetry import observe
 
 
 def revision_path(root: Path, revision_id) -> Path:
@@ -113,9 +114,11 @@ def render_output(root: Path, revision_id, profile: RenderProfile, ffmpeg: Path,
                               progress=progress).render(source, edl, crop, caps, config)
 
     rendered = cache.run('output_' + profile.name, inputs, produce, RenderArtifact)
+    observe('render_final' if profile.name == 'final' else 'render',finished=True,
+            reused=('output_' + profile.name) in cache.reused)
     check()
     if progress:
-        progress(edl.duration_us, edl.duration_us, phase='verify')
+        progress(0, None, phase='verify')
     validation_inputs = {'render': rendered, 'edl': edl, 'tools': tools,
                          'runtime': stage_dependencies('verify')}
     if profile.name == 'preview':
@@ -136,4 +139,5 @@ def render_output(root: Path, revision_id, profile: RenderProfile, ffmpeg: Path,
         atomic_json(folder / 'render.json', rendered)
         atomic_json(folder / 'qa.json', qa)
         result = rendered
+    observe('verify',finished=True,reused='output_verify' in cache.reused)
     return result, recovered or ('output_' + profile.name) in cache.reused

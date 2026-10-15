@@ -12,7 +12,13 @@ def extract_audio(source: Source,ffmpeg: Path,project_root: Path,cancelled=lambd
     origin=source.probe.get('video_origin_us',0)/1e6
     filters=f'atrim=start={origin:.6f}:end={origin+source.duration_us/1e6:.6f},asetpts=PTS-{origin:.6f}/TB,aresample=16000:async=1:first_pts=0,apad,atrim=duration={source.duration_us/1e6:.6f}'
     try:
-        r=run_process([str(ffmpeg),'-nostdin','-v','error','-y','-copyts','-i',str(source.local_path),'-map',f"0:{source.probe['audio_stream_index']}",'-vn','-af',filters,'-ac','1','-ar','16000','-c:a','pcm_s16le',str(temp)],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
+        from engine.pipeline.telemetry import active, observe
+        from engine.media.audio_progress import WavProgress
+        extra={};monitor=[]
+        if active():
+            monitor=['-progress','pipe:1','-nostats']
+            extra['on_stdout_line']=WavProgress(temp,source.duration_us,lambda done,total:observe('audio',done,total,'media_us')).line
+        r=run_process([str(ffmpeg),*monitor,'-nostdin','-v','error','-y','-copyts','-i',str(source.local_path),'-map',f"0:{source.probe['audio_stream_index']}",'-vn','-af',filters,'-ac','1','-ar','16000','-c:a','pcm_s16le',str(temp)],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8',**extra)
         if r.returncode: raise PipelineError('AUDIO_FAILED','audio','FFmpeg audio extraction failed.')
         with wave.open(str(temp)) as wav: duration=round(wav.getnframes()/wav.getframerate()*1e6)
         if duration<=0: raise PipelineError('AUDIO_FAILED','audio','Empty decoded audio.')

@@ -28,7 +28,12 @@ def test_pipeline_resume_and_export_requires_editorial_approval(tmp_path,ffmpeg,
     def report(value):
         progress.append(value)
         if value['completed_items']:published.append(json.loads((root/'project.json').read_text(encoding='utf-8'))['revisions'])
-    state=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber(),progress=report)
+    from engine.pipeline.telemetry import observing
+    observations=[]
+    with observing(lambda *args,**kwargs:observations.append((args,kwargs))):
+        state=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber(),progress=report)
+    assert any(args[0]=='audio' and args[1] and args[2] for args,_ in observations)
+    assert any(args[0]=='verify' and kwargs.get('finished') for args,kwargs in observations)
     assert state.status=='needs_review' and len(state.revisions)==1
     assert published and published[-1]==state.revisions
     assert any(p['phase']=='render' and p['processed_us']>0 for p in progress)
@@ -49,7 +54,10 @@ def test_pipeline_resume_and_export_requires_editorial_approval(tmp_path,ffmpeg,
     assert rejected.value.code=='NO_APPROVED_CLIPS'
     atomic_json(root/'revisions'/revision/'review.json',record_review(__import__('uuid').UUID(revision),'approved',checks,'TEST ONLY: simulated human decision on generated fixture.',fingerprint))
     assert list_revisions(root)[0]['review_status']=='approved'
-    packages=export_approved(root)
+    observations.clear()
+    with observing(lambda *args,**kwargs:observations.append((args,kwargs))):
+        packages=export_approved(root)
+    assert any(args[0]=='copy' and args[1]==args[2] for args,_ in observations)
     assert (Path(packages[0])/'manifest.json').exists()
     assert (Path(packages[0])/'edl.json').exists()
     assert json.loads((Path(packages[0])/'metadata.json').read_text(encoding='utf-8'))['review']['decision']=='approved'

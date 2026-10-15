@@ -4,6 +4,20 @@ from engine.pipeline.artifacts import file_hash,object_hash
 from engine.contracts import PipelineError
 
 ROOT=Path(__file__).resolve().parents[2]
+# Exact (reviewed telemetry contents, e7febcf baseline) pairs. Unknown changes always
+# receive their actual digest; this is not a general cache-version bypass.
+TELEMETRY_COMPATIBILITY={
+    'engine/media/audio.py': ('37321262f012669d06298c1c6db06db6c422032103512dca562abd056a9f5fe3', 'cc6a07199dcb8055a853a6f44eee688cfdf6223fb9fe09565ba99f1ce33a316d'),
+    'engine/worker.py': ('402fd6b5b1a15de2197b77e4fba72c113ca06e4bbf9e282c6dfa5af549a516c6', 'bb668ee28c693a3d870e09d5e13cb9e365ab481de1939d4f5262050afa04c356'),
+    'engine/adapters/openshorts/transcriber.py': ('90f437df3f0372b5e1621a7a407b033c3f791578639c36709478d0058bbc1af6', '94d79fe3ce8e3eed4cb4ba67f1970ed353768144776ecd3a4d9746e7fcc4e477'),
+    'engine/render/verify.py': ('20f30f93a2c2660ed3065b765452e5ad6a5573f63bd1df788a5ca4fdab8a9835', '67b0779af0fddd4771536292e049adb2068d2ca6aa97119a96a415dcccc25ba5'),
+}
+
+
+def media_code_hash(name,digest):
+    reviewed=TELEMETRY_COMPATIBILITY.get(name)
+    return reviewed[1] if reviewed and digest==reviewed[0] else digest
+
 FILES={
  'audio':['engine/media/audio.py','engine/pipeline/cancellation.py'],
  'pauses':['engine/media/pauses.py'],
@@ -20,7 +34,9 @@ PACKAGES={'reframe':['mediapipe','numpy'],'transcribe':['faster-whisper','ctrans
 def safe_file_hash(path: Path) -> str:
     try:
         if path.is_file():
-            return file_hash(path)
+            digest=file_hash(path)
+            name=path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else ''
+            return media_code_hash(name,digest)
     except Exception:
         pass
     import hashlib

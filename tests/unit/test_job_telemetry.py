@@ -15,10 +15,12 @@ def test_percent_and_eta_are_measured_not_elapsed(tmp_path):
     clock[0] = 10
     recorder.update('transcribe', 20, 100, 'media_us')
     assert recorder.snapshot()['stage_eta_seconds'] == pytest.approx(40)
+    advanced = recorder.snapshot()['advanced_at']
     clock[0] = 30
     recorder.flush(force=True)
     assert recorder.snapshot()['stage_percent'] == 20
-    assert recorder.snapshot()['advanced_at'] != recorder.snapshot()['heartbeat_at']
+    assert recorder.snapshot()['advanced_at'] == advanced
+    assert recorder.snapshot()['heartbeat_at']
 
 
 def test_unknown_totals_and_terminal_states(tmp_path):
@@ -61,3 +63,37 @@ def test_liveness_does_not_assert_task_health():
     assert progress_warning('running', 125, 1, 125) == 'no_advance'
     assert progress_warning('pending', 125, None, None) is None
     assert progress_warning('completed', 125, 1, 1) is None
+
+
+def test_batch_forecast_accounts_for_unprocessed_clips(tmp_path):
+    from engine.pipeline.telemetry import ProgressRecorder
+    recorder = ProgressRecorder(tmp_path, weights={'render': 80, 'verify': 20},
+                                work_items={'first': 10, 'second': 30})
+    recorder.update('render', 10, 10, 'media_us', item='first', finished=True)
+    assert recorder.snapshot()['overall_percent'] == 20
+    recorder.update('verify', 1, 1, 'items', item='first', finished=True)
+    assert recorder.snapshot()['overall_percent'] == 25
+    recorder.update('render', 15, 30, 'media_us', item='second')
+    assert recorder.snapshot()['overall_percent'] == 55
+    recorder.update('render', 0, 30, 'media_us', item='second')
+    assert recorder.snapshot()['overall_percent'] == 55
+
+
+def test_cached_and_duplicate_completions_do_not_train_eta(tmp_path):
+    from engine.pipeline.telemetry import ProgressRecorder
+    clock=[0.0]
+    recorder=ProgressRecorder(tmp_path,clock=lambda:clock[0])
+    recorder.update('transcribe')
+    clock[0]=1
+    recorder.update('transcribe',finished=True,reused=True)
+    clock[0]=2
+    recorder.update('transcribe',finished=True)
+    assert 'transcribe' not in recorder.durations
+    recorder.update('audio')
+    clock[0]=62
+    recorder.update('audio',finished=True)
+    recorder.update('transcribe')
+    clock[0]=182
+    recorder.update('transcribe',finished=True)
+    recorder.update('transcribe',finished=True)
+    assert recorder.durations=={'audio':60,'transcribe':120}

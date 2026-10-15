@@ -10,21 +10,76 @@ import statistics
 import time
 
 _observer = ContextVar('job_progress_observer', default=None)
+_work_item = ContextVar('job_progress_work_item', default=None)
+
+
+def set_work_item(item):
+    _work_item.set(item)
 
 
 def observe(phase, completed=None, total=None, unit=None, *, finished=False, reused=False):
     callback = _observer.get()
     if callback:
-        callback(phase, completed, total, unit, finished=finished, reused=reused)
+        extra={'item':_work_item.get()} if _work_item.get() is not None else {}
+        callback(phase, completed, total, unit, finished=finished, reused=reused, **extra)
+
+
+def active():
+    return _observer.get() is not None
+
+
+def protocol_line(line):
+    if not line.startswith('AUTOCLIP_PROGRESS '):
+        return
+    try:
+        value = json.loads(line[len('AUTOCLIP_PROGRESS '):])
+        if value['phase'] not in ('model_load', 'transcribe'):
+            return
+        observe(value['phase'], value.get('completed'), value.get('total'), 'media_us')
+    except (ValueError, TypeError, KeyError):
+        pass
+
+
+def protocol_observer(phase, completed=None, total=None, unit=None, **kwargs):
+    if phase in ('model_load', 'transcribe'):
+        print('AUTOCLIP_PROGRESS ' + json.dumps({'phase': phase, 'completed': completed, 'total': total}), flush=True)
+
+
+class AnalysisProgress:
+    def __init__(self, callback):
+        self.callback = callback
+        self.total = None
+        self.done = set()
+
+    def event(self, kind, data):
+        if kind == 'analysis_started':
+            self.total = data.get('windows')
+            self.done = set()
+        elif kind in ('window_validated', 'window_reused') and data.get('window_id'):
+            self.done.add(data['window_id'])
+        else:
+            return
+        self.callback('analyze', len(self.done), self.total, 'items')
+
+    def __call__(self, phase, completed=None, total=None, unit=None, **kwargs):
+        self.callback(phase, completed, total, unit, **kwargs)
+
+
+def analysis_event(kind, data):
+    callback = _observer.get()
+    if isinstance(callback, AnalysisProgress):
+        callback.event(kind, data)
 
 
 @contextmanager
 def observing(callback):
     token = _observer.set(callback)
+    item_token = _work_item.set(None)
     try:
         yield
     finally:
         _observer.reset(token)
+        _work_item.reset(item_token)
 
 
 def stamp():
@@ -71,7 +126,7 @@ class DurationHistory:
 
 
 class ProgressRecorder:
-    def __init__(self, folder, *, clock=time.monotonic, weights=None):
+    def __init__(self, folder, *, clock=time.monotonic, weights=None, work_items=None):
         self.folder = Path(folder)
         self.clock = clock
         self.started = self.phase_started = clock()
@@ -80,19 +135,25 @@ class ProgressRecorder:
         self.samples = []
         self.completed_phases = set()
         self.durations = {}
+        self.phase_starts = {}
         self.weights = weights or {}
+        self.work_items = work_items or {}
+        self.fractions = {}
         self.overall = None
         self.state = {'stage_percent': None, 'overall_percent': None,
                       'stage_eta_seconds': None, 'eta_seconds': None,
                       'heartbeat_at': stamp(), 'advanced_at': stamp()}
 
-    def update(self, phase, completed=None, total=None, unit=None, *, finished=False, reused=False):
+    def update(self, phase, completed=None, total=None, unit=None, *, finished=False, reused=False, item=None):
         now = self.clock()
-        changed = self.phase != phase
+        identity=(phase,item)
+        changed = self.phase != identity
         if changed:
-            self.phase, self.phase_started, self.samples = phase, now, []
+            self.phase, self.phase_started, self.samples = identity, now, []
             self.state.update(phase=phase, stage_percent=None, stage_eta_seconds=None,
                               completed_units=None, total_units=None, unit=None, advanced_at=stamp())
+        if not finished:
+            self.phase_starts.setdefault(identity,now)
         valid = isinstance(total, (int, float)) and math.isfinite(total) and total > 0
         valid_done = isinstance(completed, (int, float)) and math.isfinite(completed) and completed >= 0
         previous = self.state.get('completed_units')
@@ -114,22 +175,30 @@ class ProgressRecorder:
             if elapsed >= 10 and delta > 0:
                 self.state['stage_eta_seconds'] = max(0, (total - done) * elapsed / delta)
         if finished:
-            self.completed_phases.add(phase)
+            if not self.work_items or item not in self.work_items:
+                self.completed_phases.add(phase)
             self.state['stage_percent'] = 100.0
             self.state['stage_eta_seconds'] = 0.0
             self.state['advanced_at'] = stamp()
-            if not reused:
-                self.durations[phase] = self.durations.get(phase, 0) + max(0, now - self.phase_started)
+            started=self.phase_starts.pop(identity,None)
+            if not reused and started is not None:
+                self.durations[phase] = self.durations.get(phase, 0) + max(0, now - started)
         if self.weights and phase in self.weights:
             fraction = (self.state['stage_percent'] or 0) / 100
-            earned = sum(value for name, value in self.weights.items() if name in self.completed_phases)
-            if phase not in self.completed_phases:
-                earned += self.weights[phase] * fraction
+            parts=self.fractions.setdefault(phase,{})
+            parts[item]=max(parts.get(item,0),fraction)
+            def phase_fraction(name):
+                if name in self.completed_phases:return 1.0
+                values=self.fractions.get(name,{})
+                if self.work_items:
+                    return sum(weight*values.get(key,0) for key,weight in self.work_items.items())/sum(self.work_items.values())
+                return values.get(None,0)
+            earned=sum(value*phase_fraction(name) for name,value in self.weights.items())
             self.overall = min(99, max(self.overall or 0, round(earned / sum(self.weights.values()) * 100, 1)))
-            remaining = sum(value for name, value in self.weights.items() if name not in self.completed_phases and name != phase)
+            remaining = sum(value*(1-phase_fraction(name)) for name,value in self.weights.items() if name != phase)
             stage_eta = self.state['stage_eta_seconds']
-            if stage_eta is None:
-                stage_eta = self.weights[phase] * (1 - fraction)
+            if stage_eta is None or self.work_items:
+                stage_eta = self.weights[phase] * (1 - phase_fraction(phase))
             self.state.update(overall_percent=self.overall, eta_seconds=remaining + stage_eta)
         self.flush(force=changed or finished)
 
@@ -141,11 +210,15 @@ class ProgressRecorder:
         if force or now - self.last_write >= 1:
             from engine.pipeline.artifacts import atomic_json
             self.state['heartbeat_at'] = stamp()
-            atomic_json(self.folder / 'telemetry.json', self.snapshot())
+            try:
+                atomic_json(self.folder / 'telemetry.json', self.snapshot())
+            except OSError:
+                # Losing optional feedback must not invalidate a completed render.
+                pass
             self.last_write = now
 
     def finish(self, status):
         self.state['eta_seconds'] = None
         if status == 'completed':
-            self.state.update(overall_percent=100.0, eta_seconds=0.0)
+            self.state.update(stage_percent=100.0, overall_percent=100.0, eta_seconds=0.0)
         self.flush(force=True)

@@ -24,6 +24,21 @@ def test_api_exposes_measured_progress_and_startup_warning(client):
     assert response['progress']['elapsed_seconds'] >= 60
     assert response['progress']['warning'] is None
 
+
+def test_serialized_legacy_counter_retains_percent_but_verify_does_not(client):
+    from engine.pipeline.artifacts import atomic_json
+    jobs=client.app.state.jobs
+    jobs.store.save_job({'id':'legacy-progress','project_id':'p','operation':'render',
+                         'status':'running'})
+    jobs.processes['legacy-progress']=type('Alive',(),{'poll':lambda self:None})()
+    folder=jobs.root/'legacy-progress'
+    atomic_json(folder/'progress.json',{'stage':'render','phase':'render','processed_us':50,'total_us':100})
+    response=client.get('/api/v1/jobs/legacy-progress').json()
+    assert response['progress']['stage_percent']==50
+    atomic_json(folder/'telemetry.json',{'phase':'verify','stage_percent':None})
+    response=client.get('/api/v1/jobs/legacy-progress').json()
+    assert response['progress']['stage_percent'] is None
+
 def test_one_job_at_a_time_and_cancellation(tmp_path):
     from engine.api.jobs import JobManager
     from engine.api.store import ProjectStore

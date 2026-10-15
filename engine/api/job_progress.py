@@ -1,5 +1,6 @@
 """Read-only progress presentation; polling never creates artificial advancement."""
 from datetime import datetime, timezone
+import math
 from engine.pipeline.telemetry import progress_warning
 from .projects import read_json
 
@@ -10,6 +11,10 @@ def present_progress(job, folder):
     telemetry = read_json(folder / 'telemetry.json', {}) or {}
     startup = read_json(folder / 'startup.json', {}) or {}
     progress = {**legacy, **telemetry}
+    if not telemetry and legacy.get('phase') in ('audio','transcribe','reframe','render','render_final'):
+        done,total=legacy.get('processed_us'),legacy.get('total_us')
+        if isinstance(done,(int,float)) and isinstance(total,(int,float)) and math.isfinite(done) and math.isfinite(total) and total>0:
+            progress['stage_percent']=min(100,max(0,done/total*100))
     end = datetime.now(timezone.utc)
     if job.get('finished_at'):
         try:

@@ -28,8 +28,11 @@ class OpenShortsTranscriber:
             from faster_whisper import WhisperModel
             factory=WhisperModel
         try:
+            from engine.pipeline.telemetry import observe
+            from .transcription_progress import progress_model
+            observe('model_load')
             model=factory(str(config.model_path),device=config.device,compute_type=config.compute_type,local_files_only=True)
-            raw=transcribe_explicit(str(audio.path),model,language=config.language)
+            raw=transcribe_explicit(str(audio.path),progress_model(model,audio.duration_us),language=config.language)
         except Exception as exc:
             raise PipelineError('ASR_FAILED','transcribe','ASR failed locally; check model/runtime compatibility.') from exc
         words=[];segments=[]

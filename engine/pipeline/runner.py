@@ -4,6 +4,7 @@ from engine.contracts import *
 from engine.media.probe import probe_source
 from engine.media.audio import extract_audio
 from engine.pipeline.artifacts import atomic_json,file_hash,object_hash
+from engine.pipeline.telemetry import observe, protocol_line, set_work_item
 from engine.pipeline.manifest import StageCache
 from engine.pipeline.cancellation import run_process
 from engine.adapters.gemini.analyzer import GeminiAnalyzer
@@ -29,7 +30,7 @@ def _asr_worker(audio,config,root,cancelled):
     atomic_json(folder/'audio.json',audio);atomic_json(folder/'config.json',config)
     from engine.system.subprocesses import engine_cmd
     cmd = engine_cmd('worker', folder/'audio.json', folder/'config.json', folder/'transcript.json', module='engine.worker')
-    result=run_process(cmd,cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
+    result=run_process(cmd,cancelled=cancelled,capture_output=True,text=True,encoding='utf-8',on_stdout_line=protocol_line)
     if result.returncode:
         raise PipelineError('ASR_FAILED','transcribe','Local worker failed; check model and runtime.')
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())
@@ -53,6 +54,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
     cache=StageCache(root)
     items=[];current=None
     def report(phase,processed_us=0,total_us=None):
+        observe(phase,processed_us,total_us,'media_us')
         if not progress:return
         from engine.pipeline.progress import activity_time
         if current:current['phase']=phase;current['state']='running';current['processed_us']=processed_us;current['total_us']=total_us
@@ -61,8 +63,10 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         if cancelled(): raise PipelineError('CANCELLED','run','Cancellation requested.')
     def stage(name,inputs,produce,model):
         check();print(f'Stage: {name}',flush=True)
+        observe(name)
         if items:report(name)
         result=cache.run(name,inputs,produce,model)
+        observe(name,finished=True,reused=name in cache.reused)
         check();return result
     try:
         ffmpeg_identity=tool_fingerprint(config.ffmpeg)
@@ -101,6 +105,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         failures=[]
         for candidate in candidates.candidates:
             current=next(i for i in items if i['candidate_id']==str(candidate.id))
+            set_work_item(str(candidate.id))
             try:
                 # A changed presentation creates a new revision, retaining the old render and its review.
                 recipe={'captions':config.captions,'crop':config.reframe,'reframe_runtime':stage_dependencies('reframe'),'face_model':file_hash(face_model_path(config.reframe)) if face_model_path(config.reframe).is_file() else 'missing','caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
@@ -190,9 +195,11 @@ def render_final(project_root, revision_ids, ffmpeg, ffprobe, *, cancelled=lambd
         candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
         items.append({'candidate_id':str(prepared.candidate_id),'revision_id':rid,'title':candidate.title_suggestion,'state':'pending','phase':'waiting'})
     def report(item,done=0,total=None,phase='render_final'):
+        observe(phase,done,total,'media_us')
         item.update(state='running',phase=phase,processed_us=done,total_us=total)
         if progress:progress({'operation':'render_final','phase':phase,'items':[dict(i) for i in items],'completed_items':sum(i['state']=='ready' for i in items),'total_items':len(items)})
     for item in items:
+        set_work_item(item['revision_id'])
         rid=item['revision_id'];report(item)
         try:
             rendered,reused=render_output(root,rid,FINAL_PROFILE,ffmpeg,ffprobe,cancelled=cancelled,progress=lambda done,total,phase='render_final':report(item,done,total,phase))
@@ -208,7 +215,7 @@ def render_final(project_root, revision_ids, ffmpeg, ffprobe, *, cancelled=lambd
     return state
 
 
-def export_approved(project_root:Path,revision_ids=None):
+def export_approved(project_root:Path,revision_ids=None,*,cancelled=lambda:False):
     root=Path(project_root).resolve();state=ProjectRun.model_validate_json((root/'project.json').read_bytes())
     if file_hash(state.source.local_path)!=state.source.sha256: raise PipelineError('SOURCE_CHANGED','export','Source changed.')
     exported=[]
@@ -240,7 +247,9 @@ def export_approved(project_root:Path,revision_ids=None):
             raise PipelineError('EXPORT_CONFLICT','export','Export package prefix collision; full content hash differs.')
         for src,name in [(rendered.path,'clip.mp4'),(caps.ass_path,'captions.ass'),(caps.srt_path,'captions.srt'),(folder/'edl.json','edl.json')]:
             dest=target/name
-            if not dest.exists(): shutil.copyfile(src,dest)
+            if not dest.exists():
+                from engine.pipeline.transfer import copy_observed
+                copy_observed(src,dest,cancelled=cancelled)
             if file_hash(src)!=file_hash(dest): raise PipelineError('EXPORT_INVALID','export','Export checksum mismatch.')
         atomic_json(target/'words.json',caps.words)
         from engine.editorial.social_copy import publication_description

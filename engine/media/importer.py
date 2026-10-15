@@ -9,6 +9,10 @@ def _download(url: str, root: Path):
     import yt_dlp
     import shutil
     opts={'format':'bv*[height<=720]+ba/best','outtmpl':str(root/'source.%(ext)s'),'noplaylist':True,'writeinfojson':True,'retries':1,'socket_timeout':20}
+    from engine.pipeline.telemetry import observe
+    def downloaded(value):
+        observe('download',value.get('downloaded_bytes'),value.get('total_bytes') or value.get('total_bytes_estimate'),'bytes')
+    opts['progress_hooks']=[downloaded]
     node=shutil.which('node')
     if node: opts['js_runtimes']={'node':{'path':node}}
     from .probe import locate_tools

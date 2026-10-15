@@ -13,7 +13,16 @@ def canonical(value) -> bytes:
     return json.dumps(value,sort_keys=True,ensure_ascii=False,separators=(',',':'),allow_nan=False,default=encode).encode('utf-8')
 
 def file_hash(path: Path) -> str:
-    with Path(path).open('rb') as f: return hashlib.file_digest(f,'sha256').hexdigest()
+    from engine.pipeline.telemetry import active, observe
+    with Path(path).open('rb') as f:
+        if not active():return hashlib.file_digest(f,'sha256').hexdigest()
+        total=Path(path).stat().st_size
+        digest=hashlib.sha256();done=0
+        observe('integrity',0,total,'bytes')
+        while chunk:=f.read(1024*1024):
+            digest.update(chunk);done+=len(chunk)
+            observe('integrity',done,total,'bytes')
+        return digest.hexdigest()
 
 def object_hash(value) -> str: return hashlib.sha256(canonical(value)).hexdigest()
 

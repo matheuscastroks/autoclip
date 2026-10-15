@@ -11,6 +11,8 @@ class EventWriter:
         self.secret=secret
 
     def emit(self,kind,message='',**data):
+        from engine.pipeline.telemetry import analysis_event
+        analysis_event(kind,data)
         if self.path is None:return
         def clean(value):
             if isinstance(value,str):return value.replace(self.secret,'[REDACTED]') if self.secret else value

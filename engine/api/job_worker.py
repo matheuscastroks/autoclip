@@ -62,11 +62,16 @@ def import_probed(input_value,root,ffprobe):
     atomic_json(root/'source.json',source)
     return source
 
-def main(folder:Path):
+def _main(folder:Path):
     request=json.loads((folder/'request.json').read_text(encoding='utf-8'));root=Path(request['project_root']);settings=request['settings'];operation=request['operation']
     cancelled=lambda:(folder/'cancel').exists()
     progress={'stage':operation,'steps':{s:'pending' for s in ('import','transcribe','analyze','render','export')}}
     def stage(name,status):
+        from engine.pipeline.telemetry import observe
+        # Pipeline stages own their timing. Operation status must not start or
+        # complete the same timed phase a second time.
+        if name in ('import','export') and status in ('running','completed'):
+            observe(name,finished=status=='completed')
         progress['stage']=name;progress['steps'][name]=status
         atomic_json(folder/'progress.json',progress)
         if status=='running' and cancelled():raise PipelineError('CANCELLED',name,'Cancelled')
@@ -93,7 +98,7 @@ def main(folder:Path):
         if operation=='import':
             source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
         elif operation=='export':
-            packages=export_approved(root)
+            packages=export_approved(root,cancelled=cancelled)
             if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid and editorially approved clips available.')
             stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now(),'exports':packages});return 0
         elif operation=='render_final':
@@ -132,5 +137,12 @@ def main(folder:Path):
         atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.')}})
         return 1
     return 0
+
+def main(folder:Path):
+    from engine.system.job_startup import start_startup_monitor
+    from engine.pipeline.job_telemetry import run_observed
+    running=start_startup_monitor(folder)
+    if running:running()
+    return run_observed(folder,_main)
 
 if __name__=='__main__':raise SystemExit(main(Path(sys.argv[1])))

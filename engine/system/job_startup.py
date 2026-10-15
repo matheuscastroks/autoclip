@@ -5,9 +5,13 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+_monitors = {}
+
 
 def start_startup_monitor(folder):
     folder = Path(folder)
+    if folder in _monitors:
+        return _monitors[folder]
     if not (folder / 'request.json').is_file():
         return
     stamp = datetime.now(timezone.utc).isoformat()
@@ -37,5 +41,6 @@ def start_startup_monitor(folder):
                 write()
 
     write()
+    _monitors[folder] = running
     threading.Thread(target=heartbeat, name='job-heartbeat', daemon=True).start()
     return running
