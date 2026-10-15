@@ -17,6 +17,7 @@ export function recoverMedia(
 ) {
   let generation = 0;
   let attempts = 0;
+  let retryWindowStarted = 0;
   let pending = false;
   let playing = !player.paused;
   let restore: (() => void) | undefined;
@@ -25,12 +26,18 @@ export function recoverMedia(
   const reset = () => {
     generation++;
     attempts = 0;
+    retryWindowStarted = 0;
     pending = false;
     if (restore) player.removeEventListener('loadedmetadata', restore);
     restore = undefined;
   };
   const onError = async () => {
     if (pending) return;
+    // Limit failure loops, while allowing another ticket to expire in a long session.
+    if (Date.now() - retryWindowStarted >= 60_000) {
+      attempts = 0;
+      retryWindowStarted = Date.now();
+    }
     if (restore) player.removeEventListener('loadedmetadata', restore);
     restore = undefined;
     if (attempts >= 2) {

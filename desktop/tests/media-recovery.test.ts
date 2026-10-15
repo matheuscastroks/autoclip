@@ -74,3 +74,24 @@ it('stops when renewed URLs also fail before metadata loads', async () => {
   expect(failed).toHaveBeenCalledOnce();
   controller.dispose();
 });
+
+it('permits renewal again when a later ticket expires in a long session', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+  const player = video();
+  const renew = vi.fn().mockResolvedValue('/renewed');
+  const controller = recoverMedia(player, renew, vi.fn());
+  try {
+    for (let i = 0; i < 3; i++) {
+      player.dispatchEvent(new Event('error'));
+      await flushPromises();
+    }
+    expect(renew).toHaveBeenCalledTimes(2);
+    clock.mockReturnValue(4_600_000);
+    player.dispatchEvent(new Event('error'));
+    await flushPromises();
+    expect(renew).toHaveBeenCalledTimes(3);
+  } finally {
+    controller.dispose();
+    clock.mockRestore();
+  }
+});
