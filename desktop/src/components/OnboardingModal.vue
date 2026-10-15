@@ -132,7 +132,9 @@ async function cancelProvision() {
     await api.cancelProvision();
     stopPolling();
     step.value = 'diagnosis';
-  } catch {}
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
 }
 
 async function handleSaveKey() {
@@ -181,6 +183,15 @@ onUnmounted(() => {
           Configuramos as ferramentas multimídia e o modelo Whisper diretamente no seu computador
           para garantir edição de cortes 100% offline.
         </p>
+        <button
+          v-if="step !== 'downloading'"
+          type="button"
+          class="button small secondary"
+          data-action="defer-setup"
+          @click="emit('close')"
+        >
+          Configurar depois e consultar projetos
+        </button>
       </header>
 
       <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px">

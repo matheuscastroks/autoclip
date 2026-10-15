@@ -1,6 +1,8 @@
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { describe, it, expect, vi } from 'vitest';
 import OnboardingModal from '../src/components/OnboardingModal.vue';
+import { api } from '../src/api';
+import type { ProvisionStatus } from '../src/types';
 
 describe('OnboardingModal', () => {
   const mockProfile = {
@@ -53,5 +55,50 @@ describe('OnboardingModal', () => {
     });
     const checkbox = wrapper.find<HTMLInputElement>('input[data-action="toggle-ffmpeg"]');
     expect(checkbox.element.checked).toBe(true);
+  });
+
+  it('lets the user defer missing tools to consult existing projects', async () => {
+    const wrapper = mount(OnboardingModal, {
+      props: { profile: mockProfile, toolsMissing: true, asrMissing: true },
+    });
+    await wrapper.get('[data-action=defer-setup]').trigger('click');
+    expect(wrapper.emitted('close')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('shows a cancellation failure while keeping installation status available', async () => {
+    const status: ProvisionStatus = {
+      status: 'downloading',
+      stage: 'download',
+      item: 'fixture',
+      downloaded_bytes: 0,
+      total_bytes: 100,
+      speed_bps: 0,
+      percent: 0,
+      error: null,
+    };
+    const provision = vi.spyOn(api, 'provision').mockResolvedValue(status);
+    const poll = vi.spyOn(api, 'provisionStatus').mockResolvedValue(status);
+    const cancel = vi
+      .spyOn(api, 'cancelProvision')
+      .mockRejectedValue(new Error('Falha ao cancelar instalação'));
+    const wrapper = mount(OnboardingModal, {
+      props: { profile: mockProfile, toolsMissing: true, asrMissing: true },
+    });
+    try {
+      await wrapper.get('[data-action=start-provision]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-action=cancel-provision]').trigger('click');
+      await flushPromises();
+      expect(wrapper.get('.onboarding-error-banner').text()).toContain(
+        'Falha ao cancelar instalação'
+      );
+      expect(wrapper.find('[data-action=cancel-provision]').exists()).toBe(true);
+    } finally {
+      wrapper.unmount();
+      provision.mockRestore();
+      poll.mockRestore();
+      cancel.mockRestore();
+    }
   });
 });
