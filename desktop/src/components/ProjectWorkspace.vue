@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import AppButton from './AppButton.vue';
 import { computed, ref, watch } from 'vue';
-import { Search, Clock, FileText } from '@lucide/vue';
+import TranscriptPanel from './TranscriptPanel.vue';
 import type {
   Project,
   Transcript,
@@ -18,7 +17,6 @@ import ProjectTabs, { type ProjectTab } from './layout/ProjectTabs.vue';
 import ReviewPanel from './ReviewPanel.vue';
 import PipelinePanel from './PipelinePanel.vue';
 import AnalysisPanel from './AnalysisPanel.vue';
-import { vRecoverMedia } from '../directives/recoverMedia';
 
 const props = defineProps<{
   project: Project;
@@ -57,7 +55,6 @@ defineEmits<{
 }>();
 
 const tab = defineModel<ProjectTab>('activeTab', { default: 'overview' });
-const player = ref<HTMLVideoElement>();
 const transcriptQuery = ref('');
 watch(
   () => props.project.warnings,
@@ -69,34 +66,6 @@ watch(
 );
 
 const processing = computed(() => props.jobs.some(j => active(j.status)));
-const segments = computed(() =>
-  props.transcript?.segments.length
-    ? props.transcript.segments
-    : props.transcript?.words.reduce<
-        { id: string; text: string; start_us: number; end_us: number }[]
-      >((all, w, i) => {
-        if (i % 12 === 0)
-          all.push({ id: w.id, text: w.text, start_us: w.start_us, end_us: w.end_us });
-        else {
-          all[all.length - 1].text += ' ' + w.text;
-          all[all.length - 1].end_us = w.end_us;
-        }
-        return all;
-      }, []) || []
-);
-
-const filteredSegments = computed(() => {
-  const q = transcriptQuery.value.trim().toLowerCase();
-  if (!q) return segments.value;
-  return segments.value.filter(s => s.text.toLowerCase().includes(q));
-});
-
-function seek(us: number) {
-  if (player.value) {
-    player.value.currentTime = us / 1e6;
-    player.value.play().catch(() => {});
-  }
-}
 </script>
 
 <template>
@@ -176,91 +145,13 @@ function seek(us: number) {
           />
         </div>
 
-        <!-- ABA 2: TRANSCRIÇÃO (SPLIT-SCREEN DESKTOP) -->
-        <section v-else-if="tab === 'transcript'" class="transcript-layout">
-          <div class="transcript-header">
-            <div class="transcript-header-info">
-              <h2>Transcrição original</h2>
-              <p>
-                {{ project.word_count.toLocaleString('pt-BR') }} palavras · Português · Timestamps
-                sincronizados · Consulta opcional, não bloqueia a geração de cortes
-              </p>
-            </div>
-            <div class="transcript-search-wrap">
-              <Search :size="15" />
-              <input
-                v-model="transcriptQuery"
-                type="search"
-                placeholder="Buscar termos na fala..."
-              />
-              <span v-if="transcriptQuery" class="search-match-count"
-                >{{ filteredSegments.length }} trecho(s)</span
-              >
-            </div>
-          </div>
-
-          <el-splitter v-if="transcript" class="transcript-body split-transcript-body">
-            <el-splitter-panel :size="380" :min="260" :max="600" class="transcript-player-column">
-              <div class="panel-inner-container">
-                <div class="sticky-player-wrapper">
-                  <video
-                    v-if="sourceUrl"
-                    ref="player"
-                    v-recover-media="sourceUrl"
-                    :src="sourceUrl"
-                    controls
-                    preload="metadata"
-                  ></video>
-                  <div v-if="sourceUrl" class="player-playback-meta">
-                    <Clock :size="13" />
-                    <span>Clique em qualquer parágrafo para saltar no vídeo</span>
-                  </div>
-                </div>
-              </div>
-            </el-splitter-panel>
-            <el-splitter-panel :min="320" class="transcript-segments-column">
-              <div class="panel-inner-container">
-                <el-scrollbar
-                  height="100%"
-                  class="transcript-segments"
-                  tabindex="0"
-                  role="region"
-                  aria-label="Segmentos da transcrição"
-                >
-                  <div
-                    v-for="segment in filteredSegments"
-                    :key="segment.id"
-                    role="button"
-                    tabindex="-1"
-                    class="transcript-segment-row"
-                    :class="{
-                      highlighted:
-                        transcriptQuery &&
-                        segment.text.toLowerCase().includes(transcriptQuery.toLowerCase()),
-                    }"
-                    @click="seek(segment.start_us)"
-                  >
-                    <time>{{ time(segment.start_us) }}</time>
-                    <span>{{ segment.text }}</span>
-                  </div>
-                  <div v-if="filteredSegments.length === 0" class="transcript-no-matches">
-                    Nenhum segmento encontrado para "{{ transcriptQuery }}".
-                  </div>
-                </el-scrollbar>
-              </div>
-            </el-splitter-panel>
-          </el-splitter>
-          <div v-else class="empty-state">
-            <el-empty description="Ainda sem transcrição">
-              <template #image>
-                <FileText :size="32" />
-              </template>
-              <template #default>
-                <p>Inicie a etapa de transcrição na visão geral.</p>
-              </template>
-            </el-empty>
-          </div>
-        </section>
+        <TranscriptPanel
+          v-else-if="tab === 'transcript'"
+          v-model:query="transcriptQuery"
+          :transcript="transcript"
+          :source-url="sourceUrl"
+          :word-count="project.word_count"
+        />
 
         <!-- ABA 3: CURADORIA EDITORIAL DE ANÁLISE -->
         <AnalysisPanel
@@ -306,142 +197,3 @@ function seek(us: number) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.transcript-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.transcript-search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 9px;
-  padding: 6px 12px;
-  color: var(--color-text-muted, var(--muted));
-  min-width: 260px;
-}
-
-.transcript-search-wrap input {
-  border: none;
-  background: transparent;
-  color: var(--color-text-primary, var(--ink));
-  font-size: 0.82rem;
-  width: 100%;
-  outline: none;
-}
-
-.search-match-count {
-  font-size: 0.72rem;
-  background: var(--color-surface-hover, var(--soft));
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.split-transcript-body {
-  display: flex;
-  flex: 1;
-  height: auto;
-  min-height: 0;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 12px);
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-:deep(.el-splitter) {
-  height: 100%;
-  width: 100%;
-}
-
-:deep(.el-splitter__bar) {
-  background: var(--color-border-subtle, var(--line));
-  width: 1px;
-  transition:
-    background 0.15s ease,
-    width 0.15s ease;
-}
-
-:deep(.el-splitter__bar:hover) {
-  background: var(--color-action-primary);
-  width: 3px;
-}
-
-.panel-inner-container {
-  height: 100%;
-  min-height: 0;
-  width: 100%;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.transcript-player-column .panel-inner-container {
-  overflow: auto;
-}
-
-.transcript-segments-column .panel-inner-container {
-  overflow: hidden;
-}
-
-.transcript-segments {
-  flex: 1;
-  min-height: 0;
-}
-
-.transcript-player-column,
-.transcript-segments-column {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  height: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.sticky-player-wrapper video {
-  width: 100%;
-  aspect-ratio: 16/9;
-  border-radius: 8px;
-  background: #000;
-  display: block;
-  border: 1px solid var(--color-border-subtle, var(--line));
-}
-
-.player-playback-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.73rem;
-  color: var(--color-text-muted, var(--muted));
-  margin-top: 10px;
-  padding: 0 4px;
-}
-
-.transcript-segment-row {
-  transition: background 0.12s ease;
-}
-
-.transcript-segment-row.highlighted {
-  background: var(--color-surface-selected);
-  border-color: var(--color-border-strong);
-}
-
-.transcript-no-matches {
-  padding: 24px;
-  text-align: center;
-  color: var(--color-text-muted, var(--muted));
-  font-size: 0.85rem;
-}
-</style>

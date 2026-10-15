@@ -67,7 +67,7 @@ describe('workflow visibility', () => {
     });
 
     for (const [tabId, contentSelector] of [
-      ['tab-transcript', '.transcript-layout'],
+      ['tab-transcript', '.transcript-panel'],
       ['tab-analysis', '.analysis-workspace'],
       ['tab-cuts', '.cuts-empty'],
     ]) {

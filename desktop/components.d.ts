@@ -18,9 +18,6 @@ declare module 'vue' {
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
     ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
-    ElScrollbar: typeof import('element-plus/es')['ElScrollbar']
-    ElSplitter: typeof import('element-plus/es')['ElSplitter']
-    ElSplitterPanel: typeof import('element-plus/es')['ElSplitterPanel']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     GenerationQueue: typeof import('./src/components/GenerationQueue.vue')['default']
@@ -47,6 +44,7 @@ declare module 'vue' {
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
     TechnicalDetails: typeof import('./src/components/ui/TechnicalDetails.vue')['default']
     TopicNavigation: typeof import('./src/components/analysis/TopicNavigation.vue')['default']
+    TranscriptPanel: typeof import('./src/components/TranscriptPanel.vue')['default']
     WorkspaceHeader: typeof import('./src/components/layout/WorkspaceHeader.vue')['default']
   }
 }
