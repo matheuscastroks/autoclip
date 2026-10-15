@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { it, expect } from 'vitest';
 import ReviewPanel from '../src/components/ReviewPanel.vue';
 it('selects a table row with the keyboard without changing bulk selection', async () => {
@@ -18,12 +18,15 @@ it('selects a table row with the keyboard without changing bulk selection', asyn
     props: { manual: false, mediaUrl: '/a.mp4', sourceUrl: '', revisions },
   });
   for (const check of w.findAll('input[type=checkbox]')) await check.setValue(true);
+  await w.get('select[aria-label="Ordenar cortes"]').setValue('title');
   await w.findAll('tbody tr')[1].trigger('keydown', { key: 'Enter' });
+  await flushPromises();
   expect(w.emitted('select')?.at(-1)).toEqual(['b']);
-  expect(w.get('.clip-information .preview-label').text()).toBe('Corte b');
+  expect(w.get('.clip-drawer-heading .preview-label').text()).toBe('Corte b');
   expect(w.get('tbody tr.selected').attributes('aria-selected')).toBe('true');
   expect(w.find('[data-action=approve]').exists()).toBe(false);
-  expect(w.find('.cuts-player-rail video').exists()).toBe(true);
+  expect(w.find('.cuts-player-rail').exists()).toBe(false);
+  expect(w.find('.clip-preview video').exists()).toBe(true);
   w.unmount();
 });
 
@@ -81,8 +84,10 @@ it('requires human confirmation of each editorial criterion before approval', as
       ],
     },
   });
+  await w.get('.clip-item').trigger('click');
+  await flushPromises();
   const approve = w.get('[data-action=editorial-approve]');
-  expect(w.get('a[download]').text()).toContain('prévia técnica');
+  expect(w.get('a[download]').text()).toContain('final técnico');
   expect((approve.element as HTMLButtonElement).disabled).toBe(true);
   const checks = w.findAll('.editorial-checklist input[type=checkbox]');
   expect(checks).toHaveLength(5);

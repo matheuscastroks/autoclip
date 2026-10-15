@@ -1,24 +1,10 @@
 <script setup lang="ts">
-import { vRecoverMedia } from '../directives/recoverMedia';
-import AppButton from './AppButton.vue';
 import { computed, ref, watch, toRef } from 'vue';
-import {
-  Scissors,
-  Info,
-  Download,
-  Trash2,
-  Check,
-  Clock,
-  Film,
-  Copy,
-  X,
-  LoaderCircle,
-  AlertCircle,
-  RotateCcw,
-} from '@lucide/vue';
-import type { Revision, Checks, Decision, Job, GenerationItem } from '../types';
-import { notify } from '../notifications';
-import { time, labels, latestJob, active } from '../format';
+import AppButton from './AppButton.vue';
+import ClipPreviewDrawer from './ClipPreviewDrawer.vue';
+import { vRecoverMedia } from '../directives/recoverMedia';
+import type { Revision, Decision, Job, GenerationItem } from '../types';
+import { time, labels, active, latestJob } from '../format';
 import { useBulkSelection } from '../composables/useBulkSelection';
 
 const props = defineProps<{
@@ -26,6 +12,7 @@ const props = defineProps<{
   manual: boolean;
   mediaUrl: string;
   sourceUrl: string;
+  loadMedia?: (asset: string) => Promise<string>;
   busy?: boolean;
   selectedRevision?: string;
   mediaLoading?: boolean;
@@ -39,200 +26,128 @@ const emit = defineEmits<{
   delete: [id: string];
   deleted: [];
   resume: [id: string];
+  cancel: [id: string];
+  renderFinal: [id: string];
   retry: [value: { job_id: string; candidate_id: string }];
   bulkDelete: [ids: string[]];
   bulkExport: [ids: string[]];
 }>();
-
 const filter = ref('all');
+const order = ref('recent');
+const selected = ref('');
+const drawerOpen = ref(false);
 const deleteBlockedReason = computed(() =>
   props.busy
     ? 'Aguarde a operação atual.'
     : (props.jobs || []).some(
           j => active(j.status) && !['transcribe', 'analyze'].includes(j.operation)
-        )
+        ) ||
+        (!props.jobs && props.processing)
       ? 'Aguarde ou cancele a geração, exportação ou importação para excluir este corte.'
-      : !props.jobs && props.processing
-        ? 'Aguarde o processamento para excluir este corte.'
-        : ''
+      : ''
 );
-
+const current = computed(() =>
+  props.revisions.find(r => r.revision_id === (props.selectedRevision || selected.value))
+);
+watch(
+  () => props.selectedRevision,
+  id => {
+    if (id) selected.value = id;
+  }
+);
+watch(
+  () => props.revisions,
+  rows => {
+    if (drawerOpen.value && !rows.some(r => r.revision_id === selected.value))
+      drawerOpen.value = false;
+  }
+);
+const renderJob = computed(() =>
+  latestJob(
+    (props.jobs || []).filter(j => ['render', 'preview', 'render_final'].includes(j.operation))
+  )
+);
 const phases: Record<string, string> = {
   waiting: 'Na fila',
-  edit_plan: 'Preparando edição',
+  edit_plan: 'Preparando cortes',
   pauses: 'Verificando pausas',
-  reframe: 'Acompanhando rosto',
   captions: 'Sincronizando legendas',
-  render: 'Codificando vídeo',
-  verify: 'Verificando áudio e vídeo',
-  ready: 'Pronta para revisar',
+  reframe: 'Acompanhando rosto',
+  render: 'Gerando prévia',
+  render_final: 'Renderizando versão final',
+  verify: 'Validando versão final',
+  ready: 'Disponível',
   failed: 'Falha neste corte',
 };
-const statePriority: Record<string, number> = { running: 0, failed: 1, waiting: 2, ready: 3 };
-
-const renderJob = computed(() =>
-  latestJob((props.jobs || []).filter(j => j.operation === 'render'))
-);
-
 const generationItems = computed(() => {
-  if (!props.jobs) return [];
   const seen = new Set<string>();
-  const items: (GenerationItem & { retry_job_id: string })[] = [];
-  for (const row of [...props.jobs]
-    .filter(j => j.operation === 'render')
+  const items: (GenerationItem & { retry_job_id: string; operation: string })[] = [];
+  for (const job of [...(props.jobs || [])]
+    .filter(j => ['render', 'preview', 'render_final'].includes(j.operation))
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))) {
-    for (const item of row.progress?.items || []) {
-      if (seen.has(item.candidate_id)) continue;
-      seen.add(item.candidate_id);
-      if (!['ready', 'cancelled'].includes(item.state)) {
-        items.push({ ...item, retry_job_id: row.id });
-      }
+    for (const item of job.progress?.items || []) {
+      const key =
+        job.operation + (job.operation === 'render_final' ? item.revision_id : item.candidate_id);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!['ready', 'cancelled'].includes(item.state))
+        items.push({ ...item, retry_job_id: job.id, operation: job.operation });
     }
   }
-  return items.sort((a, b) => (statePriority[a.state] ?? 2) - (statePriority[b.state] ?? 2));
+  return items;
 });
-
-const hasCutsOrGeneration = computed(
-  () => props.revisions.length > 0 || generationItems.value.length > 0
-);
-
+function outputJob(r: Revision) {
+  return generationItems.value.find(i => i.revision_id === r.revision_id);
+}
 const visibleRevisions = computed(() => {
-  if (filter.value === 'generation') return [];
-  return props.revisions.filter(
+  const rows = props.revisions.filter(
     r =>
       filter.value === 'all' ||
+      (filter.value === 'generation' && !!outputJob(r)) ||
       (filter.value === 'approved' && r.technical_pass && r.review_status === 'approved') ||
-      (filter.value === 'review' && ['needs_review', 'stale_review'].includes(r.review_status)) ||
+      (filter.value === 'review' &&
+        r.technical_pass &&
+        ['needs_review', 'stale_review'].includes(r.review_status)) ||
       (filter.value === 'exported' && r.exported)
   );
+  return order.value === 'title'
+    ? rows.sort((a, b) => a.title.localeCompare(b.title))
+    : order.value === 'duration'
+      ? rows.sort((a, b) => (b.duration_us || 0) - (a.duration_us || 0))
+      : rows.slice().reverse();
 });
-
-const visibleGeneration = computed(() => {
-  if (['approved', 'exported', 'review'].includes(filter.value)) return [];
-  return generationItems.value;
-});
-
-const visible = visibleRevisions;
-const totalCutsCount = computed(() => {
-  if (filter.value === 'generation') return visibleGeneration.value.length;
-  return visibleRevisions.value.length + visibleGeneration.value.length;
-});
-
+const visibleGeneration = computed(() =>
+  ['all', 'generation'].includes(filter.value)
+    ? generationItems.value.filter(i => !props.revisions.some(r => r.revision_id === i.revision_id))
+    : []
+);
 const { bulk, allVisible, exportableBulk, toggleAll } = useBulkSelection(
   toRef(props, 'revisions'),
   visibleRevisions
 );
-
-const selected = ref('');
-watch(
-  () => props.selectedRevision,
-  id => {
-    if (
-      id &&
-      props.revisions.some(r => r.revision_id === id) &&
-      !visibleRevisions.value.some(r => r.revision_id === id)
-    )
-      filter.value = 'all';
-  },
-  { flush: 'sync' }
-);
-const current = computed(
-  () =>
-    visibleRevisions.value.find(
-      r => r.revision_id === (props.selectedRevision || selected.value)
-    ) || visibleRevisions.value[0]
-);
-const editorialCriteria: { key: keyof Checks; label: string }[] = [
-  { key: 'completeness', label: 'O pensamento está completo' },
-  { key: 'context', label: 'O trecho funciona fora do vídeo original' },
-  { key: 'qualifications', label: 'Negações, números e ressalvas foram preservados' },
-  { key: 'words_and_boundaries', label: 'Nenhuma palavra ou argumento foi cortado' },
-  { key: 'audiovisual', label: 'Áudio, quadro e legendas foram revisados' },
-];
-function emptyEditorialChecks(): Checks {
-  return {
-    completeness: false,
-    context: false,
-    qualifications: false,
-    words_and_boundaries: false,
-    audiovisual: false,
-  };
-}
-const editorialChecks = ref<Checks>(emptyEditorialChecks());
-const editorialConfirmed = computed(() =>
-  editorialCriteria.every(({ key }) => editorialChecks.value[key])
-);
-watch(
-  [() => current.value?.revision_id, () => current.value?.content_hash],
-  () => (editorialChecks.value = emptyEditorialChecks())
-);
-watch(
-  visibleRevisions,
-  rows => {
-    if (props.selectedRevision && rows.some(r => r.revision_id === props.selectedRevision)) {
-      selected.value = props.selectedRevision;
-      return;
-    }
-    if (!rows.some(r => r.revision_id === selected.value) && rows.length) {
-      selected.value = rows[0].revision_id;
-      emit('select', selected.value);
-    }
-  },
-  { immediate: true }
-);
-watch(
-  current,
-  value => {
-    if (value && !value.technical_pass)
-      notify.error('A verificação técnica falhou. Gere a prévia novamente.', {
-        key: 'revision:' + value.revision_id + ':' + value.content_hash,
-      });
-  },
-  { immediate: true }
-);
-
 function choose(id: string) {
   selected.value = id;
   emit('select', id);
+  drawerOpen.value = true;
 }
-
-function makeDecision(decision: 'approved' | 'rejected') {
-  if (!current.value) return;
-  if (decision === 'approved' && (!current.value.technical_pass || !editorialConfirmed.value))
-    return;
-  emit('decision', {
-    revision_id: current.value.revision_id,
-    decision,
-    checks: { ...editorialChecks.value },
-    notes: '',
-    content_hash: current.value.content_hash || '',
-  });
-}
-
-function copyDescription() {
-  if (current.value?.description) {
-    navigator.clipboard
-      .writeText(current.value.description)
-      .then(() => {
-        notify.success('Descrição copiada para a área de transferência.');
-      })
-      .catch(() => {});
-  }
+function finalLabel(r: Revision) {
+  const job = outputJob(r);
+  if (job)
+    return job.operation === 'render_final'
+      ? job.state === 'failed'
+        ? 'Falha no final'
+        : phases[job.phase] || 'Render final na fila'
+      : phases[job.phase] || 'Em geração';
+  if (r.final_state === 'not_generated') return 'Final não gerada';
+  if (r.final_state === 'invalid') return 'Final inválida';
+  return labels[r.review_status] || r.review_status;
 }
 </script>
 
 <template>
   <div v-if="manual" class="manual-review">
-    <div class="subtle">
-      <Info :size="19" />
-      <div>
-        <strong>Prévia manual de renderização</strong>
-        <p>
-          Este trecho é um teste técnico. Não foi selecionado pelo Gemini e não está aprovado
-          editorialmente.
-        </p>
-      </div>
-    </div>
+    <h2>Prévia manual de renderização</h2>
+    <p>Teste técnico, sem aprovação editorial.</p>
     <video
       v-if="mediaUrl"
       v-recover-media="mediaUrl"
@@ -241,993 +156,337 @@ function copyDescription() {
       controls
       preload="metadata"
       playsinline
-    ></video>
+    />
   </div>
-
-  <div v-if="!manual && !hasCutsOrGeneration" class="empty-state cuts-empty">
-    <el-empty description="Nenhum corte disponível">
-      <template #image>
-        <span class="empty-icon"><Scissors :size="32" /></span>
-      </template>
-      <template #default>
-        <p>
-          A transcrição pode ser consultada. Na aba Análise, escolha propostas e gere prévias. Cada
-          prévia aparece aqui após a verificação técnica.
-        </p>
-        <span class="subtle">Os cortes ficam disponíveis após a validação técnica.</span>
-      </template>
-    </el-empty>
+  <div v-else class="cuts-review-layout">
+    <header class="cuts-table-heading">
+      <h2>
+        Cortes <span>{{ revisions.length }}</span>
+      </h2>
+      <AppButton
+        :disabled="
+          busy ||
+          processing ||
+          !revisions.some(r => r.technical_pass && r.review_status === 'approved')
+        "
+        @click="$emit('export')"
+        >Exportar aprovados</AppButton
+      >
+    </header>
+    <div class="cuts-list-toolbar">
+      <div class="cuts-filters" aria-label="Filtrar cortes">
+        <button
+          v-for="[id, label] in [
+            ['all', 'Todos'],
+            ['generation', 'Em geração'],
+            ['review', 'Para revisar'],
+            ['approved', 'Aprovados'],
+            ['exported', 'Exportados'],
+          ]"
+          :key="id"
+          type="button"
+          class="cuts-filter-chip"
+          :class="{ selected: filter === id }"
+          :aria-pressed="filter === id"
+          @click="filter = id"
+        >
+          {{ label }}
+        </button>
+      </div>
+      <select v-model="order" aria-label="Ordenar cortes">
+        <option value="recent">Mais recentes</option>
+        <option value="title">Título</option>
+        <option value="duration">Duração</option>
+      </select>
+      <AppButton class="cuts-trash" @click="$emit('deleted')">Lixeira</AppButton>
+    </div>
+    <div
+      v-if="
+        renderJob &&
+        ['failed', 'cancelled', 'interrupted'].includes(renderJob.status) &&
+        generationItems.length
+      "
+      class="render-resume-banner"
+    >
+      <span>Há cortes pendentes. Os arquivos concluídos foram preservados.</span
+      ><AppButton :disabled="busy" @click="$emit('resume', renderJob.id)"
+        >Continuar pendentes</AppButton
+      >
+    </div>
+    <div v-if="bulk.length" class="bulk-actions">
+      <span>{{ bulk.length }} selecionado(s)</span>
+      <AppButton :disabled="!!deleteBlockedReason" @click="$emit('bulkDelete', [...bulk])"
+        >Excluir selecionados</AppButton
+      >
+      <AppButton
+        :disabled="busy || processing || !exportableBulk"
+        @click="$emit('bulkExport', [...bulk])"
+        >Exportar selecionados</AppButton
+      >
+      <AppButton @click="bulk = []">Limpar seleção</AppButton>
+    </div>
+    <div v-if="visibleRevisions.length || visibleGeneration.length" class="cuts-table-scroll">
+      <table class="cuts-table" aria-label="Cortes disponíveis">
+        <thead>
+          <tr>
+            <th scope="col" class="bulk-check">
+              <input
+                v-if="visibleRevisions.length"
+                type="checkbox"
+                aria-label="Selecionar todos os cortes visíveis"
+                :checked="allVisible"
+                :indeterminate="
+                  !allVisible && visibleRevisions.some(r => bulk.includes(r.revision_id))
+                "
+                @change="toggleAll"
+              />
+            </th>
+            <th scope="col">Corte</th>
+            <th scope="col">Duração</th>
+            <th scope="col">Prévia</th>
+            <th scope="col">Versão final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="r in visibleRevisions"
+            :key="r.revision_id"
+            class="clip-item"
+            :class="{ selected: current?.revision_id === r.revision_id }"
+            :aria-selected="current?.revision_id === r.revision_id"
+            tabindex="0"
+            @click="choose(r.revision_id)"
+            @keydown.enter.prevent="choose(r.revision_id)"
+            @keydown.space.prevent="choose(r.revision_id)"
+          >
+            <td class="bulk-check" @click.stop @keydown.stop>
+              <input
+                v-model="bulk"
+                type="checkbox"
+                :value="r.revision_id"
+                :aria-label="'Selecionar corte: ' + r.title"
+              />
+            </td>
+            <td>
+              <button type="button" class="clip-open" @click.stop="choose(r.revision_id)">
+                {{ r.title }}
+              </button>
+            </td>
+            <td>{{ time(r.duration_us) }}</td>
+            <td>
+              {{
+                r.preview?.state === 'available'
+                  ? 'Prévia disponível'
+                  : r.preview?.state === 'invalid'
+                    ? 'Prévia inválida'
+                    : r.final_state === 'not_generated'
+                      ? 'Aguardando prévia'
+                      : 'Final legada'
+              }}
+            </td>
+            <td>
+              <span>{{ finalLabel(r) }}</span
+              ><progress
+                v-if="outputJob(r)?.total_us"
+                :value="outputJob(r)?.processed_us"
+                :max="outputJob(r)?.total_us || 1"
+              />
+            </td>
+          </tr>
+          <tr
+            v-for="item in visibleGeneration"
+            :key="item.retry_job_id + item.candidate_id"
+            class="clip-item-generating"
+            :data-state="item.state"
+          >
+            <td></td>
+            <td>
+              <strong>{{ item.title }}</strong>
+              <p v-if="item.error_message">{{ item.error_message }}</p>
+            </td>
+            <td>{{ time(item.total_us) }}</td>
+            <td colspan="2">
+              {{ phases[item.phase] || 'Na fila' }}
+              <progress v-if="item.total_us" :value="item.processed_us" :max="item.total_us" />
+              <AppButton
+                v-if="item.state === 'failed'"
+                class="retry-btn"
+                :aria-label="'Tentar novamente: ' + item.title"
+                @click="
+                  $emit('retry', { job_id: item.retry_job_id, candidate_id: item.candidate_id })
+                "
+                >Tentar novamente</AppButton
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div v-else class="empty-state cuts-empty">
+      <h3>
+        {{
+          !revisions.length && !generationItems.length
+            ? 'Nenhum corte disponível'
+            : 'Nenhum corte neste estado'
+        }}
+      </h3>
+      <p>
+        Na aba Análise, selecione propostas e gere prévias rápidas. Abra um corte para avaliar e
+        solicitar sua versão final.
+      </p>
+    </div>
+    <ClipPreviewDrawer
+      v-model="drawerOpen"
+      :revision="current"
+      :load-media="loadMedia"
+      :media-url="mediaUrl"
+      :source-url="sourceUrl"
+      :jobs="jobs"
+      :busy="busy"
+      :delete-blocked-reason="deleteBlockedReason"
+      @render-final="$emit('renderFinal', $event)"
+      @cancel="$emit('cancel', $event)"
+      @resume="$emit('resume', $event)"
+      @decision="$emit('decision', $event)"
+      @delete="$emit('delete', $event)"
+      @export="$emit('export')"
+    />
   </div>
-
-  <el-splitter v-if="!manual && hasCutsOrGeneration" class="cuts-review-layout">
-    <el-splitter-panel :size="800" :min="380" class="cuts-review-left-panel">
-      <div class="panel-inner-container custom-scrollbar">
-        <div class="cuts-review-left">
-          <!-- BARRA DE FILTROS DOS CORTES -->
-          <div class="cuts-filters" aria-label="Filtrar cortes">
-            <AppButton
-              v-for="[id, label] in [
-                ['all', 'Todos'],
-                ['generation', 'Em geração'],
-                ['review', 'Para revisar'],
-                ['approved', 'Aprovados'],
-                ['exported', 'Exportados'],
-              ]"
-              :key="id"
-              :class="{ selected: filter === id }"
-              :aria-pressed="filter === id"
-              class="cuts-filter-chip"
-              @click="filter = id"
-            >
-              {{ label }}
-            </AppButton>
-          </div>
-
-          <!-- BANNER DE RETOMADA SE O JOB FOI INTERROMPIDO -->
-          <div
-            v-if="
-              renderJob &&
-              ['failed', 'cancelled', 'interrupted'].includes(renderJob.status) &&
-              visibleGeneration.length
-            "
-            class="render-resume-banner"
-          >
-            <span>A renderização anterior foi interrompida ou apresentou falhas em prévias.</span>
-            <AppButton class="button small secondary" @click="$emit('resume', renderJob.id)"
-              >Continuar prévias pendentes</AppButton
-            >
-          </div>
-
-          <p v-if="filter === 'generation' && !visibleGeneration.length" class="subtle">
-            Nenhuma prévia em geração no momento.
-          </p>
-          <p
-            v-else-if="
-              filter !== 'generation' && !visibleRevisions.length && !visibleGeneration.length
-            "
-            class="subtle"
-          >
-            Nenhum corte neste estado.
-          </p>
-
-          <div v-if="visibleRevisions.length || visibleGeneration.length" class="review-grid">
-            <!-- TABELA / LISTA DE CORTES GERADOS E EM GERAÇÃO -->
-            <section class="clip-list cuts-table-section">
-              <header class="cuts-table-heading">
-                <div class="table-heading-title">
-                  <Film :size="16" />
-                  <h3>
-                    Cortes <span>{{ totalCutsCount }}</span>
-                  </h3>
-                </div>
-                <AppButton
-                  class="button small secondary"
-                  :disabled="
-                    busy ||
-                    processing ||
-                    !revisions.some(r => r.technical_pass && r.review_status === 'approved')
-                  "
-                  @click="$emit('export')"
-                >
-                  <Download :size="14" />Exportar aprovados
-                </AppButton>
-              </header>
-
-              <!-- AÇÕES EM LOTE (BULK ACTIONS) -->
-              <div v-if="bulk.length" class="bulk-actions">
-                <span class="bulk-count">{{ bulk.length }} selecionado(s)</span>
-                <AppButton
-                  class="button small danger"
-                  :disabled="!!deleteBlockedReason"
-                  @click="$emit('bulkDelete', [...bulk])"
-                >
-                  Excluir selecionados
-                </AppButton>
-                <AppButton
-                  class="button small secondary"
-                  :disabled="busy || processing || !exportableBulk"
-                  @click="$emit('bulkExport', [...bulk])"
-                >
-                  Exportar selecionados
-                </AppButton>
-                <AppButton class="button small secondary" @click="bulk = []"
-                  >Limpar seleção</AppButton
-                >
-              </div>
-
-              <el-scrollbar max-height="320px" class="cuts-table-scroll">
-                <table class="cuts-table" aria-label="Cortes disponíveis">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="bulk-check">
-                        <input
-                          v-if="visibleRevisions.length"
-                          type="checkbox"
-                          aria-label="Selecionar todos os cortes visíveis"
-                          :checked="allVisible"
-                          :indeterminate="
-                            !allVisible && visibleRevisions.some(r => bulk.includes(r.revision_id))
-                          "
-                          @change="toggleAll"
-                        />
-                      </th>
-                      <th scope="col">Corte</th>
-                      <th scope="col">Duração</th>
-                      <th scope="col">Original</th>
-                      <th scope="col">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- CORTES FINALIZADOS (REVISÕES) -->
-                    <tr
-                      v-for="(r, index) in visibleRevisions"
-                      :key="r.revision_id"
-                      class="clip-item"
-                      :class="{ selected: current?.revision_id === r.revision_id }"
-                      :aria-selected="current?.revision_id === r.revision_id"
-                      tabindex="0"
-                      @click="choose(r.revision_id)"
-                      @keydown.enter.prevent="choose(r.revision_id)"
-                      @keydown.space.prevent="choose(r.revision_id)"
-                    >
-                      <td class="bulk-check" @click.stop @keydown.stop>
-                        <input
-                          type="checkbox"
-                          v-model="bulk"
-                          :value="r.revision_id"
-                          :aria-label="'Selecionar corte: ' + r.title"
-                        />
-                      </td>
-                      <td>
-                        <span class="clip-number">{{ index + 1 }}</span>
-                        <strong>{{ r.title }}</strong>
-                      </td>
-                      <td>{{ time(r.duration_us) }}</td>
-                      <td>{{ time(r.start_us) }} – {{ time(r.end_us) }}</td>
-                      <td>
-                        <el-tag
-                          size="small"
-                          :type="
-                            r.review_status === 'approved'
-                              ? 'success'
-                              : r.review_status === 'rejected'
-                                ? 'danger'
-                                : 'warning'
-                          "
-                          effect="dark"
-                          class="status-pill"
-                          :data-status="r.review_status"
-                        >
-                          {{ labels[r.review_status] || r.review_status }}
-                        </el-tag>
-                      </td>
-                    </tr>
-
-                    <!-- CORTES EM GERAÇÃO / PROCESSAMENTO OU COM FALHA -->
-                    <tr
-                      v-for="item in visibleGeneration"
-                      :key="item.candidate_id"
-                      class="clip-item clip-item-generating"
-                      :data-state="item.state"
-                    >
-                      <td class="bulk-check">
-                        <span class="item-state-dot" :data-state="item.state"></span>
-                      </td>
-                      <td>
-                        <div class="generating-title-cell">
-                          <strong>{{ item.title || 'Trecho selecionado' }}</strong>
-                          <div v-if="item.error_code" class="generating-error-snippet">
-                            <small
-                              >{{
-                                item.error_stage
-                                  ? phases[item.error_stage] || item.error_stage
-                                  : 'Geração'
-                              }}
-                              · {{ item.error_code }}:
-                              {{ item.error_message || 'Falha na renderização' }}</small
-                            >
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span v-if="item.processed_us && item.total_us" class="subtle-time">{{
-                          time(item.processed_us)
-                        }}</span>
-                        <span v-else class="subtle">—</span>
-                      </td>
-                      <td>
-                        <div
-                          v-if="['render', 'reframe'].includes(item.phase) && item.total_us"
-                          class="row-progress-cell"
-                        >
-                          <el-progress
-                            :percentage="
-                              Math.min(100, Math.floor((item.processed_us / item.total_us) * 100))
-                            "
-                            :stroke-width="5"
-                            :show-text="false"
-                            color="var(--color-text-primary)"
-                          />
-                          <small
-                            >{{
-                              Math.min(100, Math.floor((item.processed_us / item.total_us) * 100))
-                            }}% {{ item.phase === 'reframe' ? 'rosto' : 'vídeo' }}</small
-                          >
-                        </div>
-                        <span v-else class="subtle-phase">{{
-                          phases[item.phase] || item.phase
-                        }}</span>
-                      </td>
-                      <td>
-                        <div class="generating-status-action">
-                          <el-tag
-                            size="small"
-                            :type="
-                              item.state === 'running'
-                                ? 'primary'
-                                : item.state === 'failed'
-                                  ? 'danger'
-                                  : 'info'
-                            "
-                            effect="dark"
-                            class="status-pill"
-                            :data-status="item.state"
-                          >
-                            <LoaderCircle v-if="item.state === 'running'" class="spin" :size="12" />
-                            <AlertCircle v-else-if="item.state === 'failed'" :size="12" />
-                            <Clock v-else :size="12" />
-                            {{
-                              item.state === 'running'
-                                ? 'Renderizando'
-                                : item.state === 'failed'
-                                  ? 'Falha'
-                                  : 'Na fila'
-                            }}
-                          </el-tag>
-                          <AppButton
-                            v-if="item.state === 'failed'"
-                            type="button"
-                            class="button small secondary retry-btn"
-                            :aria-label="'Tentar novamente: ' + item.title"
-                            @click.stop="
-                              $emit('retry', {
-                                job_id: item.retry_job_id,
-                                candidate_id: item.candidate_id,
-                              })
-                            "
-                          >
-                            <RotateCcw :size="12" /> Tentar novamente
-                          </AppButton>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </el-scrollbar>
-            </section>
-
-            <!-- PAINEL DE INFORMAÇÕES E ENTREGA DO CORTE SELECIONADO -->
-            <section v-if="current" class="clip-information">
-              <div class="clip-info-topbar">
-                <AppButton
-                  type="button"
-                  class="button small danger delete-cut-btn"
-                  :disabled="!!deleteBlockedReason"
-                  :title="deleteBlockedReason || 'Mover corte para a lixeira'"
-                  :aria-describedby="deleteBlockedReason ? 'delete-blocked-reason' : undefined"
-                  data-action="delete-clip"
-                  @click="current && $emit('delete', current.revision_id)"
-                >
-                  <Trash2 :size="13" />Excluir corte
-                </AppButton>
-                <p
-                  v-if="deleteBlockedReason"
-                  id="delete-blocked-reason"
-                  class="subtle delete-blocked-text"
-                >
-                  {{ deleteBlockedReason }}
-                </p>
-              </div>
-
-              <h2 class="preview-label">{{ current?.title }}</h2>
-
-              <div class="clip-meta-strip" v-if="current">
-                <el-tag size="small" effect="plain" class="meta-tag"
-                  ><Clock :size="12" /> {{ time(current.duration_us) }}</el-tag
-                >
-                <el-tag size="small" effect="plain" class="meta-tag"
-                  >Trecho: {{ time(current.start_us) }} às {{ time(current.end_us) }}</el-tag
-                >
-                <el-tag
-                  size="small"
-                  :type="
-                    current.review_status === 'approved'
-                      ? 'success'
-                      : current.review_status === 'rejected'
-                        ? 'danger'
-                        : 'warning'
-                  "
-                  effect="dark"
-                  class="status-pill"
-                  :data-status="current.review_status"
-                >
-                  {{ labels[current.review_status] || current.review_status }}
-                </el-tag>
-              </div>
-
-              <fieldset
-                class="editorial-checklist"
-                v-if="current && !manual && current.technical_pass"
-              >
-                <legend>Confirme após assistir ao original com contexto e ao corte completo</legend>
-                <label v-for="criterion in editorialCriteria" :key="criterion.key">
-                  <input type="checkbox" v-model="editorialChecks[criterion.key]" />
-                  {{ criterion.label }}
-                </label>
-              </fieldset>
-
-              <!-- Controle de Decisão Editorial (Aprovar / Descartar) -->
-              <div class="cut-decision-controls" v-if="current && !manual">
-                <span class="decision-heading">Decisão:</span>
-                <div class="decision-btn-group">
-                  <AppButton
-                    type="button"
-                    class="button small decision-btn approve-btn"
-                    :disabled="busy || processing || !current.technical_pass || !editorialConfirmed"
-                    :class="{ active: current.review_status === 'approved' }"
-                    data-action="editorial-approve"
-                    :title="
-                      current.review_status === 'approved'
-                        ? 'Corte aprovado para publicação'
-                        : 'Aprovar corte para publicação'
-                    "
-                    @click="makeDecision('approved')"
-                  >
-                    <Check :size="13" />
-                    <span>{{
-                      current.review_status === 'approved'
-                        ? 'Aprovado para publicação'
-                        : 'Aprovar corte'
-                    }}</span>
-                  </AppButton>
-                  <AppButton
-                    type="button"
-                    class="button small decision-btn reject-btn"
-                    :disabled="busy || processing"
-                    :class="{ active: current.review_status === 'rejected' }"
-                    data-action="editorial-reject"
-                    :title="
-                      current.review_status === 'rejected'
-                        ? 'Corte descartado'
-                        : 'Descartar este corte'
-                    "
-                    @click="makeDecision('rejected')"
-                  >
-                    <X :size="13" />
-                    <span>{{
-                      current.review_status === 'rejected' ? 'Descartado' : 'Descartar corte'
-                    }}</span>
-                  </AppButton>
-                </div>
-              </div>
-
-              <el-divider border-style="dashed" style="margin: 16px 0" />
-
-              <!-- Cópia Editorial para Redes Sociais -->
-              <div class="clip-copy">
-                <div class="copy-header-row">
-                  <h3>Descrição para publicação</h3>
-                  <el-tooltip
-                    v-if="current?.description"
-                    content="Copiar texto para área de transferência"
-                    placement="top"
-                  >
-                    <AppButton
-                      class="button small secondary copy-btn"
-                      title="Copiar descrição"
-                      @click="copyDescription"
-                    >
-                      <Copy :size="13" />Copiar
-                    </AppButton>
-                  </el-tooltip>
-                </div>
-                <div class="description-box">
-                  <p style="white-space: pre-line">
-                    {{ current?.description || 'Sem descrição gerada para este corte.' }}
-                  </p>
-                </div>
-
-                <!-- Botão de Download Principal do Arquivo MP4 9:16 -->
-                <div class="download-action-box">
-                  <a
-                    v-if="current?.technical_pass && mediaUrl && !mediaLoading"
-                    class="button primary download-main-btn"
-                    :href="mediaUrl + (mediaUrl.includes('?') ? '&' : '?') + 'download=1'"
-                    download
-                  >
-                    <Download :size="16" />Baixar prévia técnica (MP4 9:16)
-                  </a>
-                  <p v-else class="subtle">Download disponível após a validação técnica.</p>
-                  <p class="subtle">
-                    A publicação final exige aprovação editorial e a ação “Exportar aprovados”.
-                  </p>
-                </div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    </el-splitter-panel>
-
-    <!-- PLAYER VERTICAL 9:16 CALIBRADO (COLUNA DA DIREITA) -->
-    <el-splitter-panel :size="320" :min="260" :max="480" class="cuts-player-rail-panel">
-      <div class="panel-inner-container custom-scrollbar player-rail-container">
-        <aside
-          v-if="visibleRevisions.length && filter !== 'generation'"
-          class="cuts-player-rail"
-          aria-label="Prévia do corte selecionado"
-        >
-          <div class="clip-preview">
-            <video
-              v-if="mediaUrl"
-              v-recover-media="mediaUrl"
-              :src="mediaUrl"
-              controls
-              preload="metadata"
-              playsinline
-            ></video>
-            <div v-else class="video-unavailable">Prévia indisponível</div>
-          </div>
-          <div class="player-subcaption" v-if="current">
-            <span>Formato vertical 9:16 com enquadramento inteligente e legendas ativas</span>
-          </div>
-        </aside>
-
-        <!-- CARD INDICATIVO SE APENAS HOUVER PRÉVIAS EM GERAÇÃO (AINDA SEM PRÉVIAS PRONTAS) -->
-        <aside
-          v-else-if="visibleGeneration.length"
-          class="cuts-player-rail"
-          aria-label="Aguardando renderização"
-        >
-          <div class="clip-preview clip-preview-generating">
-            <div class="generating-rail-card">
-              <LoaderCircle class="spin" :size="32" />
-              <h4>Renderizando cortes</h4>
-              <p>
-                Seus vídeos com enquadramento vertical 9:16 e legendas dinâmicas estão em produção.
-              </p>
-              <span class="subtle"
-                >Assim que a primeira prévia estiver pronta, ela aparecerá aqui para você assistir e
-                aprovar.</span
-              >
-            </div>
-          </div>
-        </aside>
-      </div>
-    </el-splitter-panel>
-  </el-splitter>
 </template>
 
 <style scoped>
 .cuts-review-layout {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   height: 100%;
   min-height: 0;
   min-width: 0;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 12px);
-  overflow: hidden;
-  box-sizing: border-box;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 20px;
 }
-
-:deep(.el-splitter) {
-  height: 100%;
-  width: 100%;
-}
-
-:deep(.el-splitter__bar) {
-  background: var(--color-border-subtle, var(--line));
-  width: 1px;
-  transition:
-    background 0.15s ease,
-    width 0.15s ease;
-}
-
-:deep(.el-splitter__bar:hover) {
-  background: var(--color-action-primary);
-  width: 3px;
-}
-
-.panel-inner-container {
-  height: 100%;
-  min-height: 0;
-  width: 100%;
-  padding: 16px;
-  overflow-y: auto;
-  box-sizing: border-box;
-}
-
-.player-rail-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.cuts-review-left-panel,
-.cuts-player-rail-panel {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  height: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.cuts-review-left {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cuts-filters {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--color-canvas);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control, 6px);
-  padding: 2px;
-  margin-bottom: 4px;
-}
-
-.cuts-filter-chip {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-muted, var(--muted));
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.cuts-filter-chip:hover {
-  color: var(--color-text-primary, var(--ink));
-}
-
-.cuts-filter-chip.selected {
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  border-color: var(--color-border-subtle);
-  font-weight: 600;
-}
-
-.cuts-trash {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-}
-
-.review-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cuts-table-section {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-}
-
 .cuts-table-heading {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.table-heading-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.table-heading-title h3 {
-  font-size: 0.95rem;
-  margin: 0;
-}
-
-.cuts-table-scroll {
-  max-height: 280px;
-  overflow-y: auto;
-  border-radius: 8px;
-}
-
-.clip-information {
-  background: transparent;
-  border: none;
-  border-top: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 0;
-  padding: 16px 0 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.clip-info-topbar {
-  display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
-
-.delete-blocked-text {
-  font-size: 0.77rem;
-  color: var(--color-warning-text, #f59e0b);
+.cuts-table-heading h2 {
   margin: 0;
+  font-size: 16px;
 }
-
-.preview-label {
-  font-size: 1.15rem;
-  font-weight: 600;
-  line-height: 1.3;
-  margin: 0;
-  color: var(--color-text-primary, var(--ink));
+.cuts-table-heading h2 span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 8px;
 }
-
-.clip-meta-strip {
+.cuts-list-toolbar {
   display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
-}
-
-.meta-tag {
-  display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.77rem;
-  background: var(--color-surface-hover, var(--soft));
-  padding: 3px 8px;
-  border-radius: 6px;
-  color: var(--color-text-secondary, var(--muted));
-}
-
-.cut-decision-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 4px 0;
+}
+.cuts-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cuts-filter-chip {
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--muted);
   background: transparent;
-  border: none;
-  margin-top: 2px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 12px;
 }
-
-.editorial-checklist {
-  display: grid;
-  gap: 6px;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin: 12px 0 4px;
-  font-size: 0.78rem;
+.cuts-filter-chip.selected {
+  background: var(--soft);
+  color: var(--ink);
+  border-color: var(--line);
 }
-
-.editorial-checklist legend {
-  padding: 0 4px;
-  color: var(--color-text-secondary, var(--muted));
+.cuts-list-toolbar select {
+  color: var(--color-text-secondary);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 6px;
+  font-size: 12px;
+  margin-left: auto;
 }
-
-.editorial-checklist label {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+.cuts-table-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  max-height: none;
 }
-
-.decision-heading {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary, var(--ink));
+.cuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
 }
-
-.decision-btn-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.decision-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
+.cuts-table th {
+  text-align: left;
+  color: var(--muted);
   font-weight: 500;
-  border-radius: 7px;
-  transition: all 0.15s ease;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
 }
-
-.decision-btn.approve-btn.active {
-  background: var(--color-success-soft, rgba(16, 185, 129, 0.16));
-  color: var(--color-success-text, #34d399);
-  border-color: var(--color-success-border, rgba(16, 185, 129, 0.35));
-  font-weight: 600;
+.cuts-table th,
+.cuts-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
 }
-
-.decision-btn.reject-btn.active {
-  background: var(--color-danger-soft, rgba(239, 68, 68, 0.16));
-  color: var(--color-danger-text, #f87171);
-  border-color: var(--color-danger-border, rgba(239, 68, 68, 0.35));
-  font-weight: 600;
+.cuts-table th:first-child,
+.cuts-table td:first-child {
+  width: 32px;
+  padding-left: 0;
 }
-
-.clip-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+.cuts-table tr.clip-item {
+  cursor: pointer;
 }
-
-.copy-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.cuts-table tr.clip-item:hover,
+.cuts-table tr.selected {
+  background: var(--soft);
 }
-
-.copy-header-row h3 {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--color-text-primary, var(--ink));
+.clip-open {
+  padding: 0;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
 }
-
-.description-box {
-  background: rgba(255, 255, 255, 0.02);
-  border: none;
-  border-left: 2px solid var(--color-text-primary);
-  border-radius: 0 6px 6px 0;
-  padding: 8px 14px;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: var(--color-text-secondary, var(--muted));
-  max-height: 140px;
-  overflow-y: auto;
+.cuts-table td:nth-child(2) {
+  width: 40%;
+  min-width: 160px;
 }
-
-.download-action-box {
+.cuts-table progress {
+  display: block;
+  width: 100%;
+  height: 5px;
   margin-top: 6px;
 }
-
-.download-main-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  padding: 10px 20px;
-  text-decoration: none;
-}
-
-.cuts-player-rail {
-  position: static;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  align-self: stretch;
-  height: 100%;
-  min-height: 0;
-}
-
-.clip-preview {
-  width: 100%;
-  aspect-ratio: 9/16;
-  max-height: 100%;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #000;
-  border: 1px solid var(--color-border-subtle, var(--line));
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.clip-preview video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.player-subcaption {
-  font-size: 0.72rem;
-  color: var(--color-text-muted, var(--muted));
-  text-align: center;
-  padding: 0 8px;
-}
-
-@media (max-width: 950px) {
-  .cuts-review-layout {
-    grid-template-columns: 1fr;
-  }
-  .cuts-player-rail {
-    position: static;
-    max-width: 320px;
-    margin: 0 auto;
-  }
-}
-
+.bulk-actions,
 .render-resume-banner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--color-warning-soft, rgba(245, 158, 11, 0.12));
-  border: 1px solid var(--color-warning-border, rgba(245, 158, 11, 0.35));
-  border-radius: 9px;
-  padding: 10px 14px;
-  font-size: 0.82rem;
-  color: var(--color-warning-text, #fbbf24);
-  margin-bottom: 16px;
-}
-
-.clip-item-generating {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.clip-item-generating[data-state='running'] {
-  background: var(--color-surface-selected);
-}
-
-.clip-item-generating[data-state='failed'] {
-  background: rgba(239, 68, 68, 0.05);
-}
-
-.item-state-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-text-muted, var(--muted));
-}
-
-.item-state-dot[data-state='running'] {
-  background: var(--color-action-primary);
-  box-shadow: none;
-}
-
-.item-state-dot[data-state='failed'] {
-  background: var(--color-danger, #ef4444);
-}
-
-.generating-title-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.generating-error-snippet {
-  color: var(--color-danger-text, #f87171);
-  font-size: 0.74rem;
-  line-height: 1.3;
-}
-
-.row-progress-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 100px;
-}
-
-.row-progress-bar {
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-surface-hover, var(--soft));
-  overflow: hidden;
-}
-
-.row-progress-bar span {
-  display: block;
-  height: 100%;
-  background: var(--color-action-primary);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.subtle-time,
-.subtle-phase {
-  font-size: 0.78rem;
-  color: var(--color-text-secondary, var(--muted));
-}
-
-.generating-status-action {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  font-size: 12px;
+  padding-block: 8px;
 }
-
-.retry-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.74rem;
-  padding: 3px 8px;
-  border-radius: 6px;
-  color: var(--color-danger-text, #f87171);
-  border-color: rgba(239, 68, 68, 0.3);
+.clip-item-generating p {
+  color: var(--color-warning-text);
 }
-
-.retry-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.clip-preview-generating {
-  padding: 24px;
-  background: var(--color-surface, var(--panel));
-}
-
-.generating-rail-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 10px;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.generating-rail-card h4 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.generating-rail-card p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary, var(--muted));
-  line-height: 1.4;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.manual-player {
+  max-height: 60vh;
+  max-width: 100%;
 }
 </style>

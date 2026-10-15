@@ -1,5 +1,9 @@
 import { vi } from 'vitest';
 
+// jsdom has no media decoder; cleanup is still observable in Drawer tests.
+HTMLMediaElement.prototype.pause = vi.fn();
+HTMLMediaElement.prototype.load = vi.fn();
+
 // 1. Mock de ResizeObserver com classe construtora real
 class MockResizeObserver {
   observe = vi.fn();

@@ -9,13 +9,15 @@ defineEmits<{
   select: [id: string];
   retry: [value: { job_id: string; candidate_id: string }];
 }>();
-const job = computed(() => latestJob(props.jobs.filter(j => j.operation === 'render')));
+const job = computed(() =>
+  latestJob(props.jobs.filter(j => ['render', 'preview', 'render_final'].includes(j.operation)))
+);
 const statePriority: Record<string, number> = { running: 0, failed: 1, waiting: 2, ready: 3 };
 const orderedItems = computed(() => {
   const seen = new Set<string>();
   const items: (GenerationItem & { retry_job_id: string })[] = [];
   for (const row of [...props.jobs]
-    .filter(j => j.operation === 'render')
+    .filter(j => ['render', 'preview', 'render_final'].includes(j.operation))
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))) {
     for (const item of row.progress?.items || []) {
       if (seen.has(item.candidate_id)) continue;

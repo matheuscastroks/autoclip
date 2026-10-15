@@ -11,7 +11,7 @@ import type {
   AnalysisView,
   AnalysisSelection,
 } from '../types';
-import { time, projectLabel, active, latestJob } from '../format';
+import { time, projectLabel, active } from '../format';
 import { notify } from '../notifications';
 import ReviewPanel from './ReviewPanel.vue';
 import PipelinePanel from './PipelinePanel.vue';
@@ -28,6 +28,7 @@ const props = defineProps<{
   busy: boolean;
   selectedRevision?: string;
   mediaLoading?: boolean;
+  loadMedia?: (asset: string) => Promise<string>;
   analysis?: AnalysisView | null;
   selection?: AnalysisSelection | null;
 }>();
@@ -38,6 +39,7 @@ defineEmits<{
   analyze: [];
   resumeAnalysis: [];
   render: [value: { analysis_hash: string; candidate_ids: string[] }];
+  renderFinal: [id: string];
   selection: [value: AnalysisSelection];
   cancel: [id: string];
   resume: [id: string];
@@ -64,7 +66,6 @@ watch(
   { immediate: true }
 );
 
-const renderJob = computed(() => latestJob(props.jobs.filter(j => j.operation === 'render')));
 const processing = computed(() => props.jobs.some(j => active(j.status)));
 const segments = computed(() =>
   props.transcript?.segments.length
@@ -163,8 +164,8 @@ function seek(us: number) {
 
     <div class="project-tabs" role="tablist" aria-label="Áreas do projeto" @keydown="tabKey">
       <AppButton
-        role="tab"
         id="tab-overview"
+        role="tab"
         aria-controls="project-panel"
         :tabindex="tab === 'overview' ? 0 : -1"
         :aria-selected="tab === 'overview'"
@@ -173,8 +174,8 @@ function seek(us: number) {
         ><Play :size="16" />Preparação</AppButton
       >
       <AppButton
-        role="tab"
         id="tab-transcript"
+        role="tab"
         aria-controls="project-panel"
         :tabindex="tab === 'transcript' ? 0 : -1"
         :aria-selected="tab === 'transcript'"
@@ -185,8 +186,8 @@ function seek(us: number) {
         }}</span></AppButton
       >
       <AppButton
-        role="tab"
         id="tab-analysis"
+        role="tab"
         aria-controls="project-panel"
         :tabindex="tab === 'analysis' ? 0 : -1"
         :aria-selected="tab === 'analysis'"
@@ -195,8 +196,8 @@ function seek(us: number) {
         ><FileText :size="16" />Análise<span>{{ analysis?.proposals.length || 0 }}</span></AppButton
       >
       <AppButton
-        role="tab"
         id="tab-cuts"
+        role="tab"
         aria-controls="project-panel"
         :tabindex="tab === 'cuts' ? 0 : -1"
         :aria-selected="tab === 'cuts'"
@@ -220,6 +221,7 @@ function seek(us: number) {
           <PipelinePanel
             :source-url="sourceUrl"
             :selected-count="selection?.candidate_ids.length || 0"
+            :selected-candidate-ids="selection?.candidate_ids"
             :project="project"
             :jobs="jobs"
             :busy="busy"
@@ -252,14 +254,14 @@ function seek(us: number) {
               <h2>Transcrição original</h2>
               <p>
                 {{ project.word_count.toLocaleString('pt-BR') }} palavras · Português · Timestamps
-                sincronizados
+                sincronizados · Consulta opcional, não bloqueia a geração de cortes
               </p>
             </div>
             <div class="transcript-search-wrap">
               <Search :size="15" />
               <input
-                type="search"
                 v-model="transcriptQuery"
+                type="search"
                 placeholder="Buscar termos na fala..."
               />
               <span v-if="transcriptQuery" class="search-match-count"
@@ -274,13 +276,13 @@ function seek(us: number) {
                 <div class="sticky-player-wrapper">
                   <video
                     v-if="sourceUrl"
-                    v-recover-media="sourceUrl"
                     ref="player"
+                    v-recover-media="sourceUrl"
                     :src="sourceUrl"
                     controls
                     preload="metadata"
                   ></video>
-                  <div class="player-playback-meta" v-if="sourceUrl">
+                  <div v-if="sourceUrl" class="player-playback-meta">
                     <Clock :size="13" />
                     <span>Clique em qualquer parágrafo para saltar no vídeo</span>
                   </div>
@@ -347,10 +349,8 @@ function seek(us: number) {
         <!-- ABA 4: REVISÃO DOS CORTES -->
         <section v-else>
           <ReviewPanel
-            @bulk-delete="$emit('bulkDelete', $event)"
-            @bulk-export="$emit('bulkExport', $event)"
+            :load-media="loadMedia"
             :jobs="jobs"
-            @resume="$emit('resume', $event)"
             :revisions="revisions"
             :manual="project.is_manual"
             :media-url="previewUrl"
@@ -359,6 +359,11 @@ function seek(us: number) {
             :source-url="sourceUrl"
             :busy="busy"
             :processing="processing"
+            @render-final="$emit('renderFinal', $event)"
+            @cancel="$emit('cancel', $event)"
+            @bulk-delete="$emit('bulkDelete', $event)"
+            @bulk-export="$emit('bulkExport', $event)"
+            @resume="$emit('resume', $event)"
             @select="$emit('select', $event)"
             @decision="$emit('decision', $event)"
             @export="$emit('export')"

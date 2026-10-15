@@ -392,6 +392,7 @@ function choose(id: string) {
         <Scissors :size="16" />Gerar {{ validSelection.length }} prévia{{
           validSelection.length === 1 ? '' : 's'
         }}
+        rápida{{ validSelection.length === 1 ? '' : 's' }}
       </AppButton>
     </header>
 
@@ -973,6 +974,7 @@ function choose(id: string) {
         <Scissors :size="16" />Gerar {{ validSelection.length }} prévia{{
           validSelection.length === 1 ? '' : 's'
         }}
+        rápida{{ validSelection.length === 1 ? '' : 's' }}
         {{ validSelection.length === 1 ? 'vertical' : 'verticais' }}
       </AppButton>
     </footer>

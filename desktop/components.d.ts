@@ -14,7 +14,7 @@ declare module 'vue' {
     AppButton: typeof import('./src/components/AppButton.vue')['default']
     AppSelect: typeof import('./src/components/AppSelect.vue')['default']
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
-    ElDivider: typeof import('element-plus/es')['ElDivider']
+    ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
     ElProgress: typeof import('element-plus/es')['ElProgress']
     ElScrollbar: typeof import('element-plus/es')['ElScrollbar']

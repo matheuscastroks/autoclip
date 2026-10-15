@@ -1,8 +1,15 @@
 import { computed, type Ref } from 'vue';
 import type { Job } from '../types';
 
-export function useRenderFailures(jobsRef: Ref<Job[]>, importRecoveryRef: Ref<boolean>, recoveryRef: Ref<boolean>, currentJobRef: Ref<Job | undefined>) {
-  const renderJobs = computed(() => jobsRef.value.filter(j => j.operation === 'render'));
+export function useRenderFailures(
+  jobsRef: Ref<Job[]>,
+  importRecoveryRef: Ref<boolean>,
+  recoveryRef: Ref<boolean>,
+  currentJobRef: Ref<Job | undefined>
+) {
+  const renderJobs = computed(() =>
+    jobsRef.value.filter(j => ['render', 'preview', 'render_final'].includes(j.operation))
+  );
 
   const failedRenderItem = computed(() => {
     for (const rj of renderJobs.value) {
@@ -30,7 +37,10 @@ export function useRenderFailures(jobsRef: Ref<Job[]>, importRecoveryRef: Ref<bo
     return (
       importRecoveryRef.value ||
       !!failedRenderItem.value ||
-      (recoveryRef.value && !['analyze', 'render'].includes(currentJobRef.value?.operation || ''))
+      (recoveryRef.value &&
+        !['analyze', 'render', 'preview', 'render_final'].includes(
+          currentJobRef.value?.operation || ''
+        ))
     );
   });
 
@@ -42,12 +52,15 @@ export function useRenderFailures(jobsRef: Ref<Job[]>, importRecoveryRef: Ref<bo
   });
 
   const lastFailureReason = computed(() => {
-    if (importRecoveryRef.value) return currentJobRef.value?.error?.message || 'Fonte bloqueada ou inacessível';
-    if (failedRenderItem.value?.item.error_message) return failedRenderItem.value.item.error_message;
+    if (importRecoveryRef.value)
+      return currentJobRef.value?.error?.message || 'Fonte bloqueada ou inacessível';
+    if (failedRenderItem.value?.item.error_message)
+      return failedRenderItem.value.item.error_message;
     if (failedRenderItem.value?.item.error_code) {
       return `${failedRenderItem.value.item.error_code} · Renderizador`;
     }
-    if (currentJobRef.value?.error?.code) return `${currentJobRef.value.error.code} · Motor de processamento`;
+    if (currentJobRef.value?.error?.code)
+      return `${currentJobRef.value.error.code} · Motor de processamento`;
     if (currentJobRef.value?.error?.message) return currentJobRef.value.error.message;
     return 'Ocorreu um erro durante a execução da etapa.';
   });

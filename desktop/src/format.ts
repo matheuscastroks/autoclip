@@ -72,6 +72,8 @@ export const stages: Record<string, string> = {
   reframe: 'Acompanhando rosto',
   captions: 'Gerando legendas',
   render: 'Renderizando',
-  verify: 'Verificando prévia',
+  preview: 'Gerando prévias rápidas',
+  render_final: 'Renderizando versão final',
+  verify: 'Validando saída',
   export: 'Exportando',
 };

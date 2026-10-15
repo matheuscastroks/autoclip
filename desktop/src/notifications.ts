@@ -65,15 +65,19 @@ export function notifyJob(job: Job, force = false) {
     });
   else if (job.status === 'completed')
     notify.success(
-      job.operation === 'render'
-        ? 'Prévias prontas para revisão'
-        : job.operation === 'export'
-          ? 'Exportação concluída'
-          : job.operation === 'import'
-            ? 'Vídeo importado'
-            : job.operation === 'transcribe'
-              ? 'Transcrição concluída'
-              : 'Análise concluída',
+      job.operation === 'preview'
+        ? 'Prévias rápidas disponíveis'
+        : job.operation === 'render_final'
+          ? 'Versão final disponível para revisão editorial'
+          : job.operation === 'render'
+            ? 'Prévias prontas para revisão'
+            : job.operation === 'export'
+              ? 'Exportação concluída'
+              : job.operation === 'import'
+                ? 'Vídeo importado'
+                : job.operation === 'transcribe'
+                  ? 'Transcrição concluída'
+                  : 'Análise concluída',
       { key, force }
     );
 }

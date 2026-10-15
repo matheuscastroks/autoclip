@@ -236,7 +236,10 @@ describe('review identity across refresh and failures', () => {
     const w = await open();
     await w.get('#tab-cuts').trigger('click');
     await flushPromises();
-    await w.findAll('.clip-item')[1].trigger('click');
+    await w
+      .findAll('.clip-item')
+      .find(row => row.text().includes('Corte B'))!
+      .trigger('click');
     await flushPromises();
     expect(w.get('.clip-preview > video').attributes('src')).toBe('/media/B');
     expect(w.find('[data-action=approve]').exists()).toBe(false);
@@ -259,8 +262,14 @@ describe('review identity across refresh and failures', () => {
           else resolveB = resolve;
         })
     );
-    await w.findAll('.clip-item')[0].trigger('click');
-    await w.findAll('.clip-item')[1].trigger('click');
+    await w
+      .findAll('.clip-item')
+      .find(row => row.text().includes('Corte A'))!
+      .trigger('click');
+    await w
+      .findAll('.clip-item')
+      .find(row => row.text().includes('Corte B'))!
+      .trigger('click');
     resolveB('/media/B');
     await flushPromises();
     resolveA('/media/A');

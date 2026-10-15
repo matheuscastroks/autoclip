@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { describe, it, expect, vi } from 'vitest';
 import ProjectLibrary from '../src/components/ProjectLibrary.vue';
 import SettingsPanel from '../src/components/SettingsPanel.vue';
@@ -37,7 +37,7 @@ const config = {
   gemini_key_configured: true,
 };
 describe('workspace interactions', () => {
-  it('places publication copy and download beside the portrait player', () => {
+  it('places publication copy and download in an on-demand Drawer', async () => {
     const w = mount(ReviewPanel, {
       props: {
         revisions: [
@@ -54,8 +54,10 @@ describe('workspace interactions', () => {
         sourceUrl: '',
       },
     });
-    expect(w.get('.clip-preview').find('.preview-label').exists()).toBe(false);
-    expect(w.get('.clip-information .preview-label').text()).toBe('Corte');
+    expect(w.find('video').exists()).toBe(false);
+    await w.get('.clip-item').trigger('click');
+    await flushPromises();
+    expect(w.get('.clip-drawer-heading .preview-label').text()).toBe('Corte');
     expect(w.find('.clip-information .review-editorial').exists()).toBe(false);
     expect(w.find('a[download]').exists()).toBe(true);
     w.unmount();
@@ -88,6 +90,8 @@ describe('workspace interactions', () => {
         selectedRevision: 'a',
       },
     });
+    await w.findAll('.clip-item')[0].trigger('click');
+    await flushPromises();
     await w
       .findAll('.cuts-filters button')
       .find(b => b.text() === 'Aprovados')!
@@ -182,6 +186,8 @@ describe('workspace interactions', () => {
       },
     });
     expect(w.find('[data-action=approve]').exists()).toBe(false);
+    await w.get('.clip-item').trigger('click');
+    await flushPromises();
     expect(w.get('a[download]').attributes('href')).toBe('/fixture-preview.mp4?download=1');
     expect(w.emitted('decision')).toBeUndefined();
   });

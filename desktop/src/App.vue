@@ -105,7 +105,7 @@ async function saveSelection(value: AnalysisSelection) {
 }
 async function generateSelected(value: { analysis_hash: string; candidate_ids: string[] }) {
   await selectionWrite;
-  await start('render', value);
+  await start('preview', value);
 }
 const covers = ref<Record<string, string>>({}),
   trashDialog = ref<HTMLDialogElement>(),
@@ -412,7 +412,7 @@ async function start(operation: string, options: Record<string, unknown> = {}) {
     'project:' + pid,
     async () => {
       const queued = await api.start(pid, operation, options);
-      if (operation === 'render')
+      if (operation === 'render' || operation === 'preview')
         notify.info(
           `${queued.enqueued_items || 0} prévia(s) enviada(s) · ${queued.ignored_ready || 0} pronta(s) e ${queued.ignored_queued || 0} já na fila, ignoradas.`
         );
@@ -435,20 +435,11 @@ async function review(decision: Decision) {
   );
 }
 async function selectClip(id: string) {
-  if (!project.value) return;
-  const pid = project.value.id;
-  const current = generation;
   selectedRevision.value = id;
-  previewUrl.value = '';
-  mediaLoading.value = true;
-  const url = await api.media(pid, id).catch(() => {
-    notify.error('Não foi possível abrir esta prévia.', { key: 'preview:' + pid + ':' + id });
-    return '';
-  });
-  if (project.value?.id === pid && current === generation && selectedRevision.value === id) {
-    previewUrl.value = url;
-    mediaLoading.value = false;
-  }
+}
+async function loadClipMedia(asset: string) {
+  if (!project.value) throw new Error('Abra um projeto para reproduzir o corte.');
+  return api.media(project.value.id, asset);
 }
 async function saveConfig(value: Config) {
   config.value = await api.saveConfig(value);
@@ -715,10 +706,12 @@ onUnmounted(() => {
                   :source-url="sourceUrl"
                   :preview-url="previewUrl"
                   :selected-revision="selectedRevision"
+                  :load-media="loadClipMedia"
                   :media-loading="mediaLoading"
                   :busy="projectBusy"
                   :analysis="analysis"
                   :selection="selection"
+                  @render-final="start('render_final', { revision_ids: [$event] })"
                   @selection="saveSelection"
                   @back="navigate('projects')"
                   @folder="openFolder"
