@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './ui/AppIcon.vue';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElSteps, ElStep, ElProgress, ElTag, ElAlert } from 'element-plus';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
@@ -15,13 +15,13 @@ const props = defineProps<{
   asrMissing: boolean;
   geminiKeyConfigured?: boolean;
   openrouterKeyConfigured?: boolean;
+  saveKey?: (key: string) => Promise<unknown>;
+  saveOpenRouterKey?: (key: string) => Promise<unknown>;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'configured'): void;
-  (e: 'saveKey', key: string): void;
-  (e: 'saveOpenRouterKey', key: string): void;
 }>();
 
 const step = ref<'diagnosis' | 'downloading' | 'apikey'>('diagnosis');
@@ -38,6 +38,11 @@ const error = ref<string | null>(null);
 const apiKeyProvider = ref<'gemini' | 'openrouter'>('gemini');
 const apiKeyInput = ref<string>('');
 const keySaved = ref<boolean>(false);
+watch(apiKeyProvider, () => {
+  apiKeyInput.value = '';
+  keySaved.value = false;
+  error.value = null;
+});
 
 const tiers = [
   {
@@ -130,16 +135,15 @@ async function cancelProvision() {
 }
 
 async function handleSaveKey() {
-  if (!apiKeyInput.value.trim()) return;
+  if (busy.value || !apiKeyInput.value.trim()) return;
   busy.value = true;
   error.value = null;
   try {
-    if (apiKeyProvider.value === 'gemini') {
-      emit('saveKey', apiKeyInput.value.trim());
-    } else {
-      emit('saveOpenRouterKey', apiKeyInput.value.trim());
-    }
+    const save = apiKeyProvider.value === 'gemini' ? props.saveKey : props.saveOpenRouterKey;
+    if (!save) throw new Error('Salvamento indisponível. Abra Configurações para salvar a chave.');
+    await save(apiKeyInput.value.trim());
     keySaved.value = true;
+    apiKeyInput.value = '';
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -185,6 +189,7 @@ onUnmounted(() => {
           type="button"
           class="button small secondary"
           data-action="defer-setup"
+          :disabled="busy"
           @click="emit('close')"
         >
           Configurar depois e consultar projetos
@@ -371,6 +376,8 @@ onUnmounted(() => {
               type="button"
               class="pill-btn"
               :class="{ active: apiKeyProvider === 'gemini' }"
+              :aria-pressed="apiKeyProvider === 'gemini'"
+              :disabled="busy"
               @click="apiKeyProvider = 'gemini'"
             >
               Google Gemini
@@ -379,6 +386,8 @@ onUnmounted(() => {
               type="button"
               class="pill-btn"
               :class="{ active: apiKeyProvider === 'openrouter' }"
+              :aria-pressed="apiKeyProvider === 'openrouter'"
+              :disabled="busy"
               @click="apiKeyProvider = 'openrouter'"
             >
               OpenRouter
@@ -396,6 +405,7 @@ onUnmounted(() => {
             <div class="input-with-button">
               <input
                 v-model="apiKeyInput"
+                :disabled="busy"
                 type="password"
                 class="key-text-input"
                 autocomplete="new-password"
@@ -412,14 +422,16 @@ onUnmounted(() => {
                 @click="handleSaveKey"
               >
                 <AppIcon name="key" size="sm" />
-                <span>Salvar Chave</span>
+                <span>{{ busy ? 'Salvando…' : 'Salvar chave' }}</span>
               </button>
             </div>
           </div>
 
           <p v-if="keySaved" class="success-pill-msg">
-            <AppIcon name="check" size="sm" /> Chave de API validada e configurada com sucesso!
+            <AppIcon name="check" size="sm" /> Chave salva. Confira a conexão em Configurações antes
+            de iniciar a análise.
           </p>
+          <p v-if="error" role="alert" class="onboarding-error-banner">{{ error }}</p>
         </div>
 
         <div class="onboarding-actions">
@@ -427,6 +439,7 @@ onUnmounted(() => {
             type="button"
             class="button primary large full-width"
             data-action="finish-onboarding"
+            :disabled="busy"
             @click="finish"
           >
             <AppIcon name="check" size="md" />

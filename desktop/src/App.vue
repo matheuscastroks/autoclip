@@ -955,10 +955,10 @@ onUnmounted(() => {
       :asr-missing="!config?.asr_available"
       :gemini-key-configured="Boolean(config?.gemini_key_configured)"
       :openrouter-key-configured="Boolean(config?.openrouter_key_configured)"
+      :save-key="saveKey"
+      :save-open-router-key="saveOpenRouterKey"
       @close="onboardingDismissed = true"
       @configured="onDependenciesConfigured"
-      @save-key="saveKey"
-      @save-open-router-key="saveOpenRouterKey"
     />
     <el-backtop :right="30" :bottom="30" />
   </el-config-provider>
