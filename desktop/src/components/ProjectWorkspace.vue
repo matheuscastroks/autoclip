@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
-import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { ArrowLeft, FolderOpen, FileText, Scissors, Play, Search, Clock } from '@lucide/vue';
 import type {
   Project,
@@ -52,34 +52,8 @@ defineEmits<{
 }>();
 
 const tab = ref('overview'),
-  player = ref<HTMLVideoElement>(),
-  workArea = ref<HTMLElement>(),
-  areaHeight = ref(450);
+  player = ref<HTMLVideoElement>();
 const transcriptQuery = ref('');
-let resizeObserver: ResizeObserver | undefined;
-function measureArea() {
-  if (workArea.value)
-    areaHeight.value = Math.max(
-      240,
-      Math.floor(window.innerHeight - workArea.value.getBoundingClientRect().top - 24)
-    );
-}
-onMounted(() => {
-  measureArea();
-  window.addEventListener('resize', measureArea);
-  if (typeof ResizeObserver !== 'undefined' && workArea.value?.parentElement) {
-    resizeObserver = new ResizeObserver(measureArea);
-    resizeObserver.observe(workArea.value.parentElement);
-  }
-});
-onUnmounted(() => {
-  window.removeEventListener('resize', measureArea);
-  resizeObserver?.disconnect();
-});
-watch(
-  () => props.project.title,
-  () => void nextTick(measureArea)
-);
 watch(
   () => props.project.warnings,
   values => {
@@ -232,9 +206,7 @@ function seek(us: number) {
     </div>
 
     <div
-      ref="workArea"
       class="workspace-body"
-      :style="{ '--work-area-height': areaHeight + 'px' }"
       :class="{
         'cuts-workspace': tab === 'cuts',
         'transcript-workspace': tab === 'transcript',

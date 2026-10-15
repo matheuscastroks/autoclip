@@ -681,8 +681,10 @@ function copyDescription() {
 
 <style scoped>
 .cuts-review-layout {
-  height: 600px;
-  min-height: 520px;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
@@ -710,6 +712,7 @@ function copyDescription() {
 
 .panel-inner-container {
   height: 100%;
+  min-height: 0;
   width: 100%;
   padding: 16px;
   overflow-y: auto;
@@ -964,18 +967,20 @@ function copyDescription() {
 }
 
 .cuts-player-rail {
-  position: sticky;
-  top: 14px;
+  position: static;
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
 }
 
 .clip-preview {
   width: 100%;
   aspect-ratio: 9/16;
-  max-height: 480px;
+  max-height: 100%;
   border-radius: 14px;
   overflow: hidden;
   background: #000;
