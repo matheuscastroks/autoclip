@@ -73,11 +73,15 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 .app-shell {
-  display: block;
-  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 .global-header {
   height: var(--shell-height);
+  flex: none;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -279,13 +283,32 @@ textarea:focus-visible,
   background: #b45309;
 }
 .main-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   margin: 0;
   width: 100%;
+  overflow: auto;
 }
 .page-content {
   padding: 22px 24px 24px;
   max-width: 1760px;
   margin: auto;
+}
+.page-content.project-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.project-page .screen-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .page-heading {
   margin-bottom: 22px;
