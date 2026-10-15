@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './ui/AppIcon.vue';
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onUnmounted, watch } from 'vue';
 import { ElSteps, ElStep, ElProgress, ElTag, ElAlert } from 'element-plus';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
@@ -31,6 +31,17 @@ const stepIndex = computed(() => {
   return 2;
 });
 const selectedTier = ref<number>(props.profile?.recommended_tier || 2);
+const modelChosen = ref(false);
+watch(
+  () => props.profile?.recommended_tier,
+  tier => {
+    if (tier && !modelChosen.value && step.value === 'diagnosis') selectedTier.value = tier;
+  }
+);
+function chooseModel(tier: number) {
+  modelChosen.value = true;
+  selectedTier.value = tier;
+}
 const installFfmpeg = ref<boolean>(props.toolsMissing);
 const busy = ref<boolean>(false);
 const error = ref<string | null>(null);
@@ -38,6 +49,9 @@ const error = ref<string | null>(null);
 const apiKeyProvider = ref<'gemini' | 'openrouter'>('gemini');
 const apiKeyInput = ref<string>('');
 const keySaved = ref<boolean>(false);
+watch(apiKeyInput, value => {
+  if (value) keySaved.value = false;
+});
 watch(apiKeyProvider, () => {
   apiKeyInput.value = '';
   keySaved.value = false;
@@ -138,6 +152,7 @@ async function handleSaveKey() {
   if (busy.value || !apiKeyInput.value.trim()) return;
   busy.value = true;
   error.value = null;
+  keySaved.value = false;
   try {
     const save = apiKeyProvider.value === 'gemini' ? props.saveKey : props.saveOpenRouterKey;
     if (!save) throw new Error('Salvamento indisponível. Abra Configurações para salvar a chave.');
@@ -154,12 +169,6 @@ async function handleSaveKey() {
 function finish() {
   emit('close');
 }
-
-onMounted(() => {
-  if (props.profile) {
-    selectedTier.value = props.profile.recommended_tier;
-  }
-});
 
 onUnmounted(() => {
   stopPolling();
@@ -260,7 +269,7 @@ onUnmounted(() => {
                 selected: selectedTier === item.tier,
                 recommended: profile && profile.recommended_tier === item.tier,
               }"
-              @click="selectedTier = item.tier"
+              @click="chooseModel(item.tier)"
             >
               <div class="tier-top">
                 <span class="tier-title">{{ item.title }}</span>

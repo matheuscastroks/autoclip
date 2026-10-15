@@ -43,6 +43,13 @@ describe('OnboardingModal', () => {
       expect((wrapper.get('.key-text-input').element as HTMLInputElement).value).toBe('');
       expect(wrapper.get('.success-pill-msg').text()).toContain('Chave salva');
       expect(wrapper.get('.success-pill-msg').text()).not.toContain('validada');
+      router.mockRejectedValueOnce(new Error('Falha ao substituir chave'));
+      await wrapper.get('.key-text-input').setValue('replacement-fixture');
+      expect(wrapper.find('.success-pill-msg').exists()).toBe(false);
+      await wrapper.get('.api-key-card .button.primary').trigger('click');
+      await flushPromises();
+      expect(wrapper.get('[role=alert]').text()).toContain('Falha ao substituir');
+      expect(wrapper.find('.success-pill-msg').exists()).toBe(false);
     } finally {
       wrapper.unmount();
       provision.mockRestore();
@@ -129,6 +136,21 @@ describe('OnboardingModal', () => {
     expect(wrapper.text()).toContain('RTX 3060');
     expect(wrapper.text()).toContain('Tier 3');
     expect(wrapper.find('[data-tier="3"]').classes()).toContain('recommended');
+  });
+
+  it('adopts a late hardware recommendation unless the user has already chosen a model', async () => {
+    const wrapper = mount(OnboardingModal, {
+      props: { profile: null, toolsMissing: true, asrMissing: true },
+    });
+    try {
+      await wrapper.setProps({ profile: mockProfile });
+      expect(wrapper.get('[data-tier="3"]').attributes('aria-pressed')).toBe('true');
+      await wrapper.get('[data-tier="1"]').trigger('click');
+      await wrapper.setProps({ profile: { ...mockProfile, recommended_tier: 2 } });
+      expect(wrapper.get('[data-tier="1"]').attributes('aria-pressed')).toBe('true');
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it('allows user to manually override recommended tier', async () => {
