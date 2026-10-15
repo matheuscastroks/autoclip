@@ -163,7 +163,7 @@ const editorialConfirmed = computed(() =>
   editorialCriteria.every(({ key }) => editorialChecks.value[key])
 );
 watch(
-  () => current.value?.revision_id,
+  [() => current.value?.revision_id, () => current.value?.content_hash],
   () => (editorialChecks.value = emptyEditorialChecks())
 );
 watch(

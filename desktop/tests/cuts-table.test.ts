@@ -99,6 +99,13 @@ it('requires human confirmation of each editorial criterion before approval', as
       audiovisual: true,
     },
   });
+  await w.setProps({ revisions: [{ ...w.props('revisions')[0], content_hash: 'b'.repeat(64) }] });
+  expect((approve.element as HTMLButtonElement).disabled).toBe(true);
+  expect(
+    w
+      .findAll('.editorial-checklist input')
+      .every(input => !(input.element as HTMLInputElement).checked)
+  ).toBe(true);
   w.unmount();
 });
 
