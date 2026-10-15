@@ -346,8 +346,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
         with jobs.lock:
             editable(pid)
             root=Path(store.get(pid)['path']);ids=set(value.revision_ids)
-            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['technical_pass']}
-            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam passar pela validação técnica.')
+            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['technical_pass'] and r['review_status']=='approved'}
+            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam de aprovação editorial válida.')
             from engine.pipeline.runner import export_approved
             return {'paths':export_approved(root,ids)}
     @app.get('/api/v1/projects/{pid}/revisions')

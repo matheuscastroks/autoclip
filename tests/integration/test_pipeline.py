@@ -2,7 +2,7 @@ import subprocess,json
 from pathlib import Path
 import pytest
 
-def test_pipeline_resume_and_export_without_review_gate(tmp_path,ffmpeg,ffprobe):
+def test_pipeline_resume_and_export_requires_editorial_approval(tmp_path,ffmpeg,ffprobe):
     from engine.contracts import (Word,TranscriptArtifact,Candidate,EditorialFlags,AnalysisArtifact,PipelineConfig,ASRConfig,AnalysisConfig,ExportConfig,PipelineError,EditorialChecks)
     from engine.pipeline.runner import run_project,export_approved
     from engine.media.importer import import_source
@@ -34,15 +34,25 @@ def test_pipeline_resume_and_export_without_review_gate(tmp_path,ffmpeg,ffprobe)
     assert any(p['phase']=='render' and p['processed_us']>0 for p in progress)
     assert any(p['phase']=='verify' and p['completed_items']==0 for p in progress)
     assert create_report(root).exists()
-    assert export_approved(root) # Technical validation is sufficient; no human review file exists.
+    from engine.api.reviews import list_revisions
+    assert list_revisions(root)[0]['review_status']=='needs_review'
+    with pytest.raises(PipelineError) as pending:export_approved(root)
+    assert pending.value.code=='NO_APPROVED_CLIPS'
     resumed=run_project(source,config,root,analyzer=Analyzer(),transcriber=Transcriber())
     assert counts=={'asr':1,'llm':1} and resumed.revisions==state.revisions
     revision=state.revisions[0]['revision_id']
     checks=EditorialChecks(completeness=True,context=True,qualifications=True,words_and_boundaries=True,audiovisual=True)
-    atomic_json(root/'revisions'/revision/'review.json',record_review(__import__('uuid').UUID(revision),'approved',checks,'TEST ONLY: simulated human decision on generated fixture.',review_fingerprint(root,__import__('uuid').UUID(revision))))
+    fingerprint=review_fingerprint(root,__import__('uuid').UUID(revision))
+    atomic_json(root/'revisions'/revision/'review.json',record_review(__import__('uuid').UUID(revision),'rejected',checks,'TEST ONLY: rejection fixture.',fingerprint))
+    assert list_revisions(root)[0]['review_status']=='rejected'
+    with pytest.raises(PipelineError) as rejected:export_approved(root)
+    assert rejected.value.code=='NO_APPROVED_CLIPS'
+    atomic_json(root/'revisions'/revision/'review.json',record_review(__import__('uuid').UUID(revision),'approved',checks,'TEST ONLY: simulated human decision on generated fixture.',fingerprint))
+    assert list_revisions(root)[0]['review_status']=='approved'
     packages=export_approved(root)
     assert (Path(packages[0])/'manifest.json').exists()
     assert (Path(packages[0])/'edl.json').exists()
+    assert json.loads((Path(packages[0])/'metadata.json').read_text(encoding='utf-8'))['review']['decision']=='approved'
     # Presentation changes add a revision; they do not replace an approved preview.
     old_fingerprint=review_fingerprint(root,__import__('uuid').UUID(revision))
     config.export.crf+=1
@@ -53,7 +63,7 @@ def test_pipeline_resume_and_export_without_review_gate(tmp_path,ffmpeg,ffprobe)
     from engine.api.reviews import set_deleted
     set_deleted(root,revision,True)
     with pytest.raises(PipelineError) as deleted:export_approved(root,[revision])
-    assert deleted.value.code=='NO_READY_CLIPS'
+    assert deleted.value.code=='NO_APPROVED_CLIPS'
     set_deleted(root,revision,False)
     assert export_approved(root,[revision])==packages
     render=json.loads((root/'revisions'/revision/'render.json').read_text())

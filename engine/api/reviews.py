@@ -2,8 +2,8 @@ from pathlib import Path
 from uuid import UUID
 from fastapi import HTTPException
 from engine.contracts import *
-from engine.pipeline.artifacts import atomic_json
-from engine.editorial.review import review_fingerprint,record_review
+from engine.pipeline.artifacts import atomic_json,object_hash
+from engine.editorial.review import review_fingerprint,record_review,current_review
 from engine.pipeline.runner import export_approved
 from .projects import read_json
 from engine.editorial.social_copy import publication_description
@@ -27,14 +27,18 @@ def list_revisions(root:Path):
             qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
             candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
             caps=CaptionArtifact.model_validate_json((folder/'captions.json').read_bytes())
+            rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
             for path in (caps.ass_path,caps.srt_path):
                 if not path.resolve().is_relative_to(root.resolve()):raise ValueError('Caption outside project')
-            decision=read_json(folder/'review.json',{}) or {};fingerprint=review_fingerprint(root,edl.revision_id)
-            status='ready' if qa.technical_pass else 'invalid'
-            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':any((root/'exports'/rid).glob('*/manifest.json')),'title':candidate.title_suggestion or 'Corte','rationale':candidate.rationale,'description':publication_description(candidate.description_suggestion,candidate.title_suggestion),'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
+            fingerprint=review_fingerprint(root,edl.revision_id)
+            status,decision=current_review(folder,edl.revision_id,fingerprint,qa.technical_pass)
+            package_hash=object_hash({'review':decision,'edl':edl,'caption':caps,'render':rendered}) if status=='approved' else None
+            manifest=read_json(root/'exports'/rid/package_hash[:16]/'manifest.json') if package_hash else None
+            exported=bool(manifest and manifest.get('package_hash')==package_hash)
+            result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':exported,'title':candidate.title_suggestion or 'Corte','rationale':candidate.rationale,'description':publication_description(candidate.description_suggestion,candidate.title_suggestion),'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
                 'technical_pass':qa.technical_pass,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
-                'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.get('notes',''),
+                'warnings':qa.warnings+edl.warnings,'content_hash':fingerprint,'notes':decision.notes if decision else '',
                 'removed_silence_us':sum(r['source_end_us']-r['source_start_us'] for r in edl.removed),
                 'pause_removals':edl.removed})
         except (OSError,ValueError,PipelineError,HTTPException):
@@ -81,5 +85,5 @@ def decide(root,revision,decision,checks,notes,content_hash):
 def export(root):
     if not (Path(root)/'project.json').is_file():raise HTTPException(400,'Nenhum corte pronto para exportar.')
     packages=export_approved(root)
-    if not packages:raise HTTPException(400,'Gere pelo menos um corte tecnicamente válido antes de exportar.')
+    if not packages:raise HTTPException(400,'Aprove editorialmente pelo menos um corte antes de exportar.')
     return {'paths':packages}

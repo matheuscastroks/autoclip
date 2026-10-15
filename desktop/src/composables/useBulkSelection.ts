@@ -1,7 +1,10 @@
 import { ref, computed, watch, type Ref } from 'vue';
 import type { Revision } from '../types';
 
-export function useBulkSelection(revisionsRef: Ref<Revision[]>, visibleRevisionsRef: Ref<Revision[]>) {
+export function useBulkSelection(
+  revisionsRef: Ref<Revision[]>,
+  visibleRevisionsRef: Ref<Revision[]>
+) {
   const bulk = ref<string[]>([]);
 
   const allVisible = computed(
@@ -13,7 +16,11 @@ export function useBulkSelection(revisionsRef: Ref<Revision[]>, visibleRevisions
   const exportableBulk = computed(
     () =>
       bulk.value.length > 0 &&
-      bulk.value.every(id => revisionsRef.value.some(r => r.revision_id === id && r.technical_pass))
+      bulk.value.every(id =>
+        revisionsRef.value.some(
+          r => r.revision_id === id && r.technical_pass && r.review_status === 'approved'
+        )
+      )
   );
 
   watch(

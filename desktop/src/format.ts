@@ -31,7 +31,7 @@ export const labels: Record<string, string> = {
   transcribed: 'Transcrito',
   analyzed: 'Analisado',
   processing: 'Processando',
-  needs_review: 'Pronto para baixar',
+  needs_review: 'Revisão editorial pendente',
   no_candidates: 'Sem cortes elegíveis',
   completed: 'Concluído',
   failed: 'Precisa de atenção',

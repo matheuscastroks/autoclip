@@ -75,7 +75,7 @@ describe('workflow visibility', () => {
     expect(w.get('[data-stage=transcribe]').text()).toContain('Na fila');
     w.unmount();
   });
-  it('omits review and permits export of technically valid previews', () => {
+  it('offers final export only when an editorially approved preview exists', () => {
     const revisions = [
       {
         revision_id: 'a',
@@ -104,7 +104,7 @@ describe('workflow visibility', () => {
       },
     });
     expect(w.find('[data-stage=review]').exists()).toBe(false);
-    expect(w.get('[data-stage=export]').text()).toContain('Exportar prontos');
+    expect(w.get('[data-stage=export]').text()).toContain('Exportar aprovados');
     w.unmount();
   });
   it.each(['running', 'completed'])(

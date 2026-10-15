@@ -17,3 +17,18 @@ def review_fingerprint(project_root:Path,revision_id:UUID) -> str:
 
 def record_review(revision_id:UUID,decision:Literal['approved','rejected'],checks:EditorialChecks,notes:str,content_hash:str|None=None) -> ReviewDecision:
     return ReviewDecision(revision_id=revision_id,decision=decision,checks=checks,notes=notes,content_hash=content_hash)
+
+
+def current_review(folder:Path,revision_id:UUID,content_hash:str,technical_pass:bool):
+    if not technical_pass:
+        return 'invalid',None
+    review_path=Path(folder)/'review.json'
+    if not review_path.exists():
+        return 'needs_review',None
+    try:
+        decision=ReviewDecision.model_validate_json(review_path.read_bytes())
+    except (OSError,ValueError):
+        return 'stale_review',None
+    if decision.revision_id!=revision_id or decision.content_hash!=content_hash:
+        return 'stale_review',decision
+    return decision.decision,decision

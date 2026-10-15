@@ -90,7 +90,7 @@ describe('workspace interactions', () => {
     });
     await w
       .findAll('.cuts-filters button')
-      .find(b => b.text() === 'Prontos')!
+      .find(b => b.text() === 'Aprovados')!
       .trigger('click');
     await w.setProps({ selectedRevision: 'b', mediaUrl: '/b.mp4' });
     expect(w.get('.preview-label').text()).toBe('Aprovada');

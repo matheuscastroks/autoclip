@@ -147,6 +147,9 @@ export interface Checks {
   words_and_boundaries: boolean;
   audiovisual: boolean;
 }
+export type RevisionReviewStatus =
+  'invalid' | 'needs_review' | 'stale_review' | 'approved' | 'rejected';
+
 export interface Revision {
   opening_text?: string;
   opening_duration_us?: number;
@@ -157,7 +160,7 @@ export interface Revision {
   title: string;
   rationale?: string;
   technical_pass: boolean;
-  review_status: string;
+  review_status: RevisionReviewStatus;
   duration_us?: number;
   start_us?: number;
   end_us?: number;
