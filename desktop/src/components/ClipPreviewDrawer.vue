@@ -26,7 +26,7 @@ const emit = defineEmits<{
   delete: [id: string];
   export: [];
 }>();
-const version = ref<'preview' | 'final' | 'source'>('preview');
+const version = ref<'preview' | 'final' | 'source' | null>(null);
 const url = ref('');
 const loading = ref(false);
 const error = ref('');
@@ -35,6 +35,19 @@ const closing = ref(false);
 let request = 0;
 const hasPreview = computed(() => props.revision?.preview?.state === 'available');
 const hasFinal = computed(() => !!props.revision && isFinalAvailable(props.revision));
+const availability = computed(() => {
+  const preview = hasPreview.value
+    ? 'Prévia disponível'
+    : props.revision?.preview?.state === 'invalid'
+      ? 'Prévia inválida'
+      : 'Prévia indisponível';
+  const final = hasFinal.value
+    ? labels[props.revision?.review_status || ''] || 'Final disponível'
+    : props.revision?.final_state === 'invalid' || props.revision?.final_state === 'available'
+      ? 'Final inválida'
+      : 'Final ainda não gerada';
+  return `${preview} · ${final}`;
+});
 const finalJob = computed(() =>
   [...(props.jobs || [])]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -73,11 +86,13 @@ const canReview = computed(
 );
 const confirmed = computed(() => criteria.every(c => checks.value[c.key]));
 const title = computed(() =>
-  version.value === 'source'
-    ? 'Original com contexto'
-    : version.value === 'preview'
-      ? 'Prévia rápida · 540 × 960'
-      : 'Versão final · 1080 × 1920'
+  !version.value
+    ? 'Nenhuma versão disponível'
+    : version.value === 'source'
+      ? 'Original com contexto'
+      : version.value === 'preview'
+        ? 'Prévia rápida · 540 × 960'
+        : 'Versão final · 1080 × 1920'
 );
 
 function releasePlayer() {
@@ -103,7 +118,14 @@ async function load() {
   releasePlayer();
   url.value = '';
   error.value = '';
-  if (!props.modelValue || closing.value || !props.revision) {
+  if (
+    !props.modelValue ||
+    closing.value ||
+    !props.revision ||
+    !version.value ||
+    (version.value === 'preview' && !hasPreview.value) ||
+    (version.value === 'final' && !hasFinal.value)
+  ) {
     loading.value = false;
     return;
   }
@@ -130,11 +152,31 @@ watch(
   [() => props.modelValue, () => props.revision?.revision_id],
   () => {
     if (props.modelValue) closing.value = false;
-    version.value = hasPreview.value ? 'preview' : 'final';
+    version.value = hasPreview.value
+      ? 'preview'
+      : hasFinal.value
+        ? 'final'
+        : props.sourceUrl
+          ? 'source'
+          : null;
     checks.value = emptyChecks();
   },
   { immediate: true, flush: 'sync' }
 );
+watch([hasPreview, hasFinal, () => props.sourceUrl], () => {
+  if (
+    !version.value ||
+    (version.value === 'preview' && !hasPreview.value) ||
+    (version.value === 'final' && !hasFinal.value)
+  )
+    version.value = hasPreview.value
+      ? 'preview'
+      : hasFinal.value
+        ? 'final'
+        : props.sourceUrl
+          ? 'source'
+          : null;
+});
 watch(
   [
     () => props.modelValue,
@@ -142,6 +184,9 @@ watch(
     () => props.revision?.content_hash,
     version,
     () => props.mediaUrl,
+    () => props.revision?.preview?.asset,
+    hasPreview,
+    hasFinal,
   ],
   load,
   { immediate: true }
@@ -190,13 +235,7 @@ onBeforeUnmount(() => {
         <h2 :id="titleId" class="preview-label">{{ revision?.title || 'Visualizar corte' }}</h2>
         <p>
           {{ time(revision?.duration_us) }} ·
-          {{
-            finalRunning
-              ? 'Versão final em processamento'
-              : hasFinal
-                ? labels[revision?.review_status || '']
-                : 'Prévia disponível · final ainda não gerada'
-          }}
+          {{ finalRunning ? 'Versão final em processamento' : availability }}
         </p>
       </div>
     </template>

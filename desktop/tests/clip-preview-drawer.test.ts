@@ -26,6 +26,43 @@ function open(revision = preview, loadMedia = vi.fn().mockResolvedValue('/previe
   });
 }
 describe('clip preview drawer', () => {
+  it.each(['invalid', 'not_generated'] as const)(
+    'never requests unavailable versions or claims a preview exists when final is %s',
+    async final_state => {
+      const load = vi.fn().mockResolvedValue('/must-not-load.mp4');
+      const w = open({ ...preview, preview: null, final_state }, load);
+      try {
+        await flushPromises();
+        expect(w.get('.clip-drawer-heading').text()).not.toContain('Prévia disponível');
+        expect(w.get('.clip-drawer-heading').text()).toContain(
+          final_state === 'invalid' ? 'Final inválida' : 'Final ainda não gerada'
+        );
+        expect(load).not.toHaveBeenCalled();
+        expect(w.find('video').exists()).toBe(false);
+        expect(w.get('.clip-version-label').text()).toBe('Nenhuma versão disponível');
+      } finally {
+        w.unmount();
+      }
+    }
+  );
+  it('unloads a preview invalidated by polling and loads its restored asset only when available', async () => {
+    const load = vi.fn().mockImplementation(async asset => '/media/' + asset);
+    const w = open(preview, load);
+    try {
+      await flushPromises();
+      await w.setProps({ revision: { ...preview, preview: { state: 'invalid' } } as Revision });
+      await flushPromises();
+      expect(w.find('video').exists()).toBe(false);
+      expect(w.get('.clip-drawer-heading').text()).toContain('Prévia inválida');
+      await w.setProps({
+        revision: { ...preview, preview: { state: 'available', asset: 'restored' } } as Revision,
+      });
+      await flushPromises();
+      expect(w.get('video').attributes('src')).toBe('/media/restored');
+    } finally {
+      w.unmount();
+    }
+  });
   it('keeps final details collapsed and blocks export when technical validation no longer passes', async () => {
     const w = open({
       ...preview,
