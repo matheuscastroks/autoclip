@@ -5,17 +5,12 @@ import { reactive, ref, watch, computed, onMounted, nextTick } from 'vue';
 import {
   FolderOpen,
   KeyRound,
-  Monitor,
   Save,
   Cpu,
   Sparkles,
   Scissors,
   CheckCircle2,
   AlertCircle,
-  ChevronRight,
-  ChevronLeft,
-  HardDrive,
-  Sliders,
 } from '@lucide/vue';
 import { notify } from '../notifications';
 import type { Config, GeminiConnection } from '../types';
@@ -51,7 +46,6 @@ const settingsCategories = [
   { title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves', icon: Sparkles },
   { title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo', icon: Scissors },
 ];
-const settingsLabels = ['Recursos locais', 'IA e modelos', 'Duração dos cortes'];
 
 let invalidHandled = false;
 function invalidSetting(event: Event) {
@@ -67,7 +61,7 @@ function invalidSetting(event: Event) {
     details = details.parentElement?.closest('details') || null
   )
     details.open = true;
-  notify.error('Confira os campos destacados desta etapa antes de salvar.');
+  notify.error('Confira os campos destacados antes de salvar.');
   void nextTick(() => {
     target.focus();
     invalidHandled = false;
@@ -253,6 +247,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
     <header class="page-heading">
       <div>
         <h1>Configurações</h1>
+        <p>Preferências de processamento, inteligência artificial e cortes.</p>
       </div>
     </header>
 
@@ -262,17 +257,19 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
         <nav
           class="settings-tiles"
           role="tablist"
-          aria-label="Etapas de configuração"
+          aria-label="Categorias de configuração"
+          aria-orientation="vertical"
           @keydown="settingsKey"
         >
-          <AppButton
+          <button
             v-for="(cat, index) in settingsCategories"
+            :id="'settings-tab-' + index"
             :key="cat.title"
             role="tab"
-            :id="'settings-tab-' + index"
             :aria-selected="settingsStep === index"
             aria-controls="settings-content"
             :tabindex="settingsStep === index ? 0 : -1"
+            type="button"
             class="settings-category-btn"
             :class="{ selected: settingsStep === index }"
             @click="settingsStep = index"
@@ -282,6 +279,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
               <span class="cat-sub">{{ cat.sub }}</span>
             </div>
             <div
+              aria-hidden="true"
               class="cat-indicator"
               :class="
                 index === 0
@@ -299,7 +297,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                     : 'ready'
               "
             ></div>
-          </AppButton>
+          </button>
         </nav>
       </aside>
 
@@ -313,7 +311,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
           @submit.prevent="saveSettings"
           @invalid.capture="invalidSetting"
         >
-          <!-- Etapa 0: Recursos Locais (Grid de 2 Colunas) -->
+          <!-- Recursos locais -->
           <div
             v-show="settingsStep === 0"
             data-settings-step="0"
@@ -334,7 +332,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                     <AlertCircle v-else :size="20" />
                   </div>
                   <div class="readiness-card-info">
-                    <strong>Whisper (Transcrição de Áudio)</strong>
+                    <strong>Transcrição · Whisper</strong>
                     <span>{{
                       config.asr_available
                         ? 'Modelo local encontrado e pronto para uso'
@@ -349,7 +347,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                     <AlertCircle v-else :size="20" />
                   </div>
                   <div class="readiness-card-info">
-                    <strong>FFmpeg & ffprobe (Corte e Renderização)</strong>
+                    <strong>Vídeo · FFmpeg e ffprobe</strong>
                     <span>{{
                       config.tools_available
                         ? 'Ferramentas multimídia detectadas e operacionais'
@@ -363,7 +361,6 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
             <!-- Coluna 2: Caminhos dos Executáveis e Modelos -->
             <section class="setting-section">
               <div class="section-title-wrap">
-                <div class="section-icon"><FolderOpen :size="20" /></div>
                 <div>
                   <h2>Caminhos e executáveis</h2>
                   <p>Aponte as pastas dos modelos e ferramentas no disco.</p>
@@ -439,10 +436,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 
           <!-- Etapa 1: IA & Provedor -->
           <div v-show="settingsStep === 1" data-settings-step="1" class="step-ia-wrap">
-            <!-- Full Width: Seletor Visual de Provedor -->
+            <!-- Provedor de IA -->
             <section class="setting-section provider-selector-section">
               <div class="section-title-wrap">
-                <div class="section-icon"><Sparkles :size="20" /></div>
                 <div>
                   <h2>Provedor de inteligência artificial</h2>
                   <p>
@@ -459,8 +455,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                   @click="values.ai_provider = 'gemini'"
                 >
                   <input
-                    type="radio"
                     v-model="values.ai_provider"
+                    type="radio"
                     value="gemini"
                     data-field="provider-gemini"
                     @change="values.ai_provider = 'gemini'"
@@ -468,20 +464,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                   <div class="provider-card-content">
                     <div class="provider-card-header">
                       <strong>Google Gemini</strong>
-                      <el-tag
-                        :type="config.gemini_key_configured ? 'success' : 'warning'"
-                        size="small"
-                        effect="dark"
-                        class="badge"
-                        :class="config.gemini_key_configured ? 'badge-ready' : 'badge-warn'"
-                      >
-                        {{ config.gemini_key_configured ? 'Chave pronta' : 'Sem chave' }}
-                      </el-tag>
                     </div>
-                    <small
-                      >Gemini 2.5 Flash nativo com catálogo sincronizado e validação direta de
-                      modelos da Google.</small
-                    >
+                    <small>Modelos Google, com catálogo e conexão validados pelo aplicativo.</small>
                   </div>
                 </label>
 
@@ -491,8 +475,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                   @click="values.ai_provider = 'openrouter'"
                 >
                   <input
-                    type="radio"
                     v-model="values.ai_provider"
+                    type="radio"
                     value="openrouter"
                     data-field="provider-openrouter"
                     @change="values.ai_provider = 'openrouter'"
@@ -500,45 +484,23 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                   <div class="provider-card-content">
                     <div class="provider-card-header">
                       <strong>OpenRouter</strong>
-                      <el-tag
-                        :type="
-                          values.openrouter_key_configured || config.openrouter_key_configured
-                            ? 'success'
-                            : 'warning'
-                        "
-                        size="small"
-                        effect="dark"
-                        class="badge"
-                        :class="
-                          values.openrouter_key_configured || config.openrouter_key_configured
-                            ? 'badge-ready'
-                            : 'badge-warn'
-                        "
-                      >
-                        {{
-                          values.openrouter_key_configured || config.openrouter_key_configured
-                            ? 'Chave pronta'
-                            : 'Sem chave'
-                        }}
-                      </el-tag>
                     </div>
                     <small
-                      >Modelos gratuitos (:free) como Llama 3.3 70B, Gemma ou DeepSeek sem custos de
-                      geração.</small
+                      >Acesso a diferentes modelos. Preço e disponibilidade dependem do
+                      modelo.</small
                     >
                   </div>
                 </label>
               </div>
             </section>
 
-            <!-- 2 Colunas Lado a Lado: Credencial (Esquerda) e Seleção de Modelo (Direita) -->
+            <!-- Credenciais e modelo do provedor selecionado -->
             <div class="provider-details-grid">
               <!-- PROVEDOR: GEMINI -->
               <template v-if="values.ai_provider === 'gemini'">
                 <!-- Coluna 1: Credencial Gemini -->
                 <section class="credential-panel">
                   <div class="section-title-wrap">
-                    <div class="section-icon"><KeyRound :size="20" /></div>
                     <div class="title-with-pill">
                       <h2>Chave Gemini</h2>
                       <el-tag
@@ -582,11 +544,11 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                   <label class="field">
                     {{ config.gemini_key_configured ? 'Substituir chave' : 'Adicionar chave' }}
                     <input
-                      type="password"
-                      @keydown.enter.prevent="!busy && key.trim() && handleSaveKey()"
                       v-model="key"
+                      type="password"
                       autocomplete="new-password"
                       placeholder="Cole sua chave de API do Google Gemini..."
+                      @keydown.enter.prevent="!busy && key.trim() && handleSaveKey()"
                     />
                   </label>
 
@@ -607,7 +569,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                       :disabled="busy || !config.gemini_key_configured"
                       @click="handleTestConnection"
                     >
-                      {{ validating ? 'Validando…' : 'Testar conexão / Catálogo' }}
+                      {{ validating ? 'Validando…' : 'Testar conexão' }}
                     </AppButton>
                   </div>
 
@@ -623,13 +585,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                 <!-- Coluna 2: Seleção de Trechos / Modelo Gemini -->
                 <section class="setting-section">
                   <div class="section-title-wrap">
-                    <div class="section-icon"><Sparkles :size="20" /></div>
                     <div>
                       <h2>Seleção de trechos</h2>
-                      <p>
-                        Projetos novos seguem da transcrição para a análise com Gemini
-                        automaticamente.
-                      </p>
+                      <p>Defina o modelo que analisa a transcrição e sugere os cortes.</p>
                     </div>
                   </div>
 
@@ -661,7 +619,6 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                 <!-- Coluna 1: Credencial OpenRouter -->
                 <section class="credential-panel">
                   <div class="section-title-wrap">
-                    <div class="section-icon"><KeyRound :size="20" /></div>
                     <div class="title-with-pill">
                       <h2>Chave OpenRouter</h2>
                       <el-tag
@@ -696,13 +653,13 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                         : 'Adicionar chave OpenRouter'
                     }}
                     <input
+                      v-model="openrouterKey"
                       type="password"
+                      autocomplete="new-password"
+                      placeholder="Cole sua chave sk-or-v1-..."
                       @keydown.enter.prevent="
                         !busy && openrouterKey.trim() && handleSaveOpenRouterKey()
                       "
-                      v-model="openrouterKey"
-                      autocomplete="new-password"
-                      placeholder="Cole sua chave sk-or-v1-..."
                     />
                   </label>
 
@@ -724,18 +681,14 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                 <!-- Coluna 2: Modelo OpenRouter & Chips Rápidos -->
                 <section class="setting-section">
                   <div class="section-title-wrap">
-                    <div class="section-icon"><Sparkles :size="20" /></div>
                     <div>
                       <h2>Modelo OpenRouter</h2>
-                      <p>
-                        Selecione um modelo gratuito sugerido ou informe qualquer modelo do
-                        catálogo.
-                      </p>
+                      <p>Escolha um atalho ou informe o identificador de um modelo do catálogo.</p>
                     </div>
                   </div>
 
                   <div class="quick-chips-wrap">
-                    <span class="chips-label">Modelos populares gratuitos:</span>
+                    <span class="chips-label">Modelos sugeridos:</span>
                     <div class="quick-chips">
                       <button
                         v-for="m in freeModels"
@@ -783,7 +736,6 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
           <div v-show="settingsStep === 2" data-settings-step="2" class="step-cuts-wrap">
             <section class="setting-section cuts-duration-section">
               <div class="section-title-wrap">
-                <div class="section-icon"><Scissors :size="20" /></div>
                 <div>
                   <h2>Duração dos cortes</h2>
                   <p>
@@ -797,9 +749,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                 <label class="field">
                   Duração preferida (segundos)
                   <input
+                    v-model.number="values.clip_preferred_seconds"
                     type="number"
                     data-field="clip-preferred"
-                    v-model.number="values.clip_preferred_seconds"
                     min="60"
                     max="300"
                     required
@@ -809,9 +761,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                 <label class="field">
                   Duração máxima (segundos)
                   <input
+                    v-model.number="values.clip_max_seconds"
                     type="number"
                     data-field="clip-max"
-                    v-model.number="values.clip_max_seconds"
                     min="60"
                     max="300"
                     required
@@ -823,9 +775,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
               <div class="editorial-options">
                 <label class="check-row">
                   <input
+                    v-model="values.show_thought_summaries"
                     type="checkbox"
                     data-field="thought-summaries"
-                    v-model="values.show_thought_summaries"
                   />
                   <span>Mostrar resumos de análise enviados pela IA</span>
                 </label>
@@ -840,28 +792,12 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
               class="button primary"
               data-action="save-config"
               :disabled="busy || missingModel"
-              @click="saveSettings"
             >
-              <Save :size="16" />Salvar configurações
+              <Save :size="16" />{{ busy ? 'Salvando…' : 'Salvar configurações' }}
             </AppButton>
-            <div class="actions">
-              <AppButton
-                v-if="settingsStep > 0"
-                type="button"
-                class="button secondary"
-                @click="settingsStep--"
-              >
-                <ChevronLeft :size="15" />Anterior
-              </AppButton>
-              <AppButton
-                v-if="settingsStep < 2"
-                type="button"
-                class="button secondary"
-                @click="settingsStep++"
-              >
-                Próximo passo<ChevronRight :size="15" />
-              </AppButton>
-            </div>
+            <p class="save-hint">
+              As preferências são aplicadas ao salvar. Chaves são salvas separadamente.
+            </p>
           </div>
         </form>
       </main>
@@ -871,492 +807,410 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 
 <style scoped>
 .settings-workspace {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-bottom: 16px;
 }
-
+.settings-workspace .page-heading {
+  margin-bottom: 28px;
+}
 .settings-hub-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 40px;
   align-items: start;
-  width: 100%;
 }
-
 .settings-nav-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
   position: sticky;
   top: 20px;
 }
-
-.settings-tiles {
+.settings-workspace .settings-tiles {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: var(--radius-panel, 14px);
-  padding: 8px;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
 }
-
-.settings-category-btn {
+.settings-workspace .settings-tiles .settings-category-btn {
+  width: 100%;
+  height: auto;
+  min-height: 56px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+  justify-content: flex-start;
+  white-space: normal;
+}
+.settings-workspace .settings-category-btn :deep(> span) {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-text-secondary, var(--muted));
-  transition: all 0.15s ease;
-  position: relative;
 }
-
-.settings-category-btn:hover {
-  background: var(--color-surface-hover, var(--soft));
-  color: var(--color-text-primary, var(--ink));
+.settings-workspace .settings-tiles .settings-category-btn:hover {
+  background: var(--color-surface);
+  color: var(--ink);
 }
-
-.settings-category-btn.selected {
+.settings-workspace .settings-tiles .settings-category-btn.selected {
   background: var(--color-surface-selected);
-  border-color: var(--color-border-strong);
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
-
-.cat-num {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.85rem;
-  font-weight: 700;
-  opacity: 0.7;
-}
-
 .cat-content {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
   flex: 1;
+  flex-direction: column;
+  gap: 5px;
   min-width: 0;
 }
-
 .cat-title {
-  font-size: 0.88rem;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.4;
 }
-
 .cat-sub {
-  font-size: 0.73rem;
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
 }
-
 .cat-indicator {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--color-text-muted);
 }
-
-.cat-indicator.ready {
-  background: #10b981;
-}
-
 .cat-indicator.warn {
-  background: #f59e0b;
+  background: var(--color-warning-text);
 }
-
 .settings-content-pane {
   min-width: 0;
-  width: 100%;
 }
-
-.settings-main {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel, 14px);
-  padding: 26px;
+.settings-workspace .settings-main {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  width: 100%;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
 }
-
-/* Grids que aproveitam a largura de visualização */
-.step-grid-2col {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  width: 100%;
-}
-
-.step-ia-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-}
-
-.step-cuts-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-}
-
-.editorial-options {
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-
+.step-grid-2col,
+.step-ia-wrap,
+.step-cuts-wrap,
 .provider-details-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  width: 100%;
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
-
-.setting-section {
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 22px 24px;
+.settings-workspace .setting-section,
+.settings-workspace .credential-panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-sizing: border-box;
+  padding: 24px 0;
+  margin: 0;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
 }
-
-.credential-panel {
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 22px 24px;
+.settings-workspace [data-settings-step] > .setting-section:first-child {
+  padding-top: 0;
+}
+.section-title-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  box-sizing: border-box;
+  align-items: start;
+  gap: 12px;
 }
-
+.section-title-wrap h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.section-title-wrap p,
+.settings-workspace .credential-panel p,
+.section-desc {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.title-with-pill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
 .fields-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
-
-.section-title-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 4px;
-}
-
-.section-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: var(--color-surface, var(--panel));
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid var(--color-border-subtle, var(--line));
-}
-
-.title-with-pill {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.section-title-wrap h2 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin: 0 0 3px;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.section-title-wrap p {
+.settings-workspace .settings-main .field {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--color-text-muted, var(--muted));
-  line-height: 1.4;
-}
-
-.section-desc {
-  font-size: 0.8rem;
-  color: var(--color-text-muted, var(--muted));
-  margin: 0;
-  line-height: 1.45;
-}
-
-/* Cards de Provedor */
-.provider-switch-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.provider-radio-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border-subtle, var(--line));
-  background: var(--color-surface, var(--panel));
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.provider-radio-card input[type='radio'] {
-  margin-top: 3px;
-}
-
-.provider-radio-card:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-hover);
-}
-
-.provider-radio-card.selected {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-selected);
-  box-shadow: 0 0 0 1px var(--color-border-strong);
-}
-
-.provider-card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-
-.provider-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+  font-size: 12px;
 }
-
-.provider-card-header strong {
-  font-size: 0.95rem;
-  color: var(--color-text-primary, var(--ink));
+.settings-workspace .field small {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
 }
-
-.provider-card-content small {
-  font-size: 0.77rem;
-  color: var(--color-text-muted, var(--muted));
-  line-height: 1.4;
+.settings-workspace .input-action {
+  min-width: 0;
 }
-
-.badge {
-  font-size: 0.7rem;
-  padding: 2px 7px;
-  border-radius: 6px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.settings-workspace .input-action input {
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
 }
-
-.badge-ready {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.badge-warn {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-/* Readiness Cards Verticais no Step 0 */
 .readiness-banner-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
 }
-
 .readiness-card {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--color-surface, var(--panel));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  transition: all 0.2s ease;
+  gap: 10px;
+  align-items: start;
 }
-
-.readiness-card.ok {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.08);
-}
-
 .readiness-card-icon {
-  margin-top: 1px;
-  color: #f59e0b;
+  color: var(--color-warning-text);
+  padding-top: 1px;
 }
-
 .readiness-card.ok .readiness-card-icon {
-  color: #10b981;
+  color: var(--color-text-secondary);
 }
-
 .readiness-card-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
 }
-
 .readiness-card-info strong {
-  font-size: 0.85rem;
-  color: var(--color-text-primary, var(--ink));
+  font-size: 12px;
+  font-weight: 500;
 }
-
 .readiness-card-info span {
-  font-size: 0.77rem;
-  color: var(--color-text-muted, var(--muted));
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
 }
-
-/* Chips Rápidos de Modelo */
+.provider-switch-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.provider-radio-card {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.provider-radio-card.selected {
+  background: var(--color-surface);
+  border-color: var(--color-text-muted);
+}
+.provider-radio-card:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.provider-radio-card input {
+  margin-top: 3px;
+  accent-color: var(--color-action-primary);
+}
+.provider-card-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+.provider-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.provider-card-header strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.provider-card-header .badge {
+  display: none;
+}
+.provider-card-content small {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+.credential-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-workspace .status-pill {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--color-text-secondary);
+}
+.settings-workspace .status-pill[data-status='running'] {
+  color: var(--color-warning-text);
+}
+.settings-workspace .test-timestamp,
+.settings-workspace .api-cost-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
 .quick-chips-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
-
 .chips-label {
-  font-size: 0.78rem;
-  color: var(--color-text-muted, var(--muted));
-  font-weight: 500;
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
-
 .quick-chips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.model-chip {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 9px 12px;
-  border-radius: 9px;
-  border: 1px solid var(--color-border-subtle, var(--line));
-  background: var(--color-surface, var(--panel));
-  color: var(--color-text-primary, var(--ink));
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.model-chip {
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
   cursor: pointer;
-  text-align: left;
-  transition: all 0.18s ease;
 }
-
-.model-chip:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-hover);
-}
-
+.model-chip:hover,
 .model-chip.active {
-  border-color: var(--color-border-strong);
   background: var(--color-surface-selected);
+  color: var(--ink);
 }
-
 .chip-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
   gap: 6px;
 }
-
 .chip-title-row strong {
-  font-size: 0.8rem;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.chip-badge {
-  font-size: 0.65rem;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-weight: 700;
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-
-.model-chip small {
-  font-size: 0.69rem;
-  color: var(--color-text-muted, var(--muted));
-  line-height: 1.3;
-}
-
-.credential-buttons-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.test-timestamp {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, var(--muted));
-  margin: 0;
-}
-
-.api-cost-note {
-  font-size: 0.77rem;
-  color: var(--color-text-muted, var(--muted));
-  margin: 0;
-}
-
-.warning-text {
-  color: var(--color-warning-text, #f59e0b);
+  font-size: 11px;
   font-weight: 500;
 }
-
-.setting-save {
+.model-chip small,
+.chip-badge {
+  display: none;
+}
+.settings-workspace .field .warning-text {
+  color: var(--color-warning-text);
+}
+.field-pair {
+  max-width: 560px;
+  gap: 24px;
+}
+.editorial-options {
+  padding-top: 8px;
+}
+.check-row {
+  font-size: 12px;
+}
+.provider-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.provider-details-grid > section {
+  border-bottom: 0;
+}
+.settings-workspace .settings-main .setting-save {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
+  flex-direction: row-reverse;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 18px;
-  border-top: 1px solid var(--color-border-subtle, var(--line));
-  margin-top: 4px;
+  gap: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  background: var(--canvas);
 }
-
-.setting-save .actions {
-  display: flex;
-  gap: 8px;
+.save-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  flex: 1;
+  max-width: 42ch;
 }
-
-/* Responsividade fluida */
+.settings-workspace .setting-save :deep(.el-button) {
+  background-color: var(--color-action-primary) !important;
+  border-color: var(--color-action-primary) !important;
+  color: var(--color-action-primary-text) !important;
+}
+.settings-workspace .setting-save :deep(.el-button:hover:not(:disabled)) {
+  background-color: var(--color-action-primary-hover) !important;
+  border-color: var(--color-action-primary-hover) !important;
+}
 @media (max-width: 1100px) {
-  .step-grid-2col,
-  .provider-details-grid {
+  .settings-hub-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 28px;
+  }
+  .provider-switch-row,
+  .provider-details-grid,
+  .readiness-banner-vertical {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
-
-@media (max-width: 860px) {
+@media (max-width: 760px) {
+  .settings-workspace .page-heading {
+    margin-bottom: 20px;
+  }
   .settings-hub-layout {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
   .settings-nav-sidebar {
     position: static;
   }
-  .provider-switch-row,
-  .quick-chips {
+  .settings-workspace .settings-tiles {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .settings-workspace .settings-tiles .settings-category-btn {
+    width: auto;
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+  .cat-sub,
+  .cat-indicator {
+    display: none;
+  }
+  .field-pair {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .settings-workspace .settings-main .setting-save {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 }
 </style>

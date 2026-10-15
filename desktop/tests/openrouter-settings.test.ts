@@ -67,7 +67,7 @@ describe('OpenRouter settings in SettingsPanel', () => {
     expect(w.find('[data-action="save-openrouter-key"]').exists()).toBe(true);
     expect(w.find('[data-field="openrouter-model"]').exists()).toBe(true);
     expect(w.text()).toContain('Chave OpenRouter');
-    expect(w.text()).toContain('Modelos populares gratuitos');
+    expect(w.text()).toContain('Modelos sugeridos');
     w.unmount();
   });
 
