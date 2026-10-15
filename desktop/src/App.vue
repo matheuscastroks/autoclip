@@ -1,20 +1,12 @@
 <script setup lang="ts">
 import AppButton from './components/AppButton.vue';
+import NewProjectDialog, { type NewProjectInput } from './components/dialogs/NewProjectDialog.vue';
 import AppRail from './components/layout/AppRail.vue';
 import WorkspaceHeader from './components/layout/WorkspaceHeader.vue';
 import type { ProjectTab } from './components/layout/ProjectTabs.vue';
 import AppIcon from './components/ui/AppIcon.vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import {
-  FileVideo,
-  Link,
-  X,
-  RefreshCw,
-  LoaderCircle,
-  Sparkles,
-  Check,
-  AlertTriangle,
-} from '@lucide/vue';
+import { X, RefreshCw, LoaderCircle, Sparkles, Check, AlertTriangle } from '@lucide/vue';
 import { api } from './api';
 import type {
   Project,
@@ -82,7 +74,7 @@ const page = ref<'projects' | 'settings'>('projects'),
   previewUrl = ref(''),
   initial = ref(true),
   offline = ref(false),
-  dialog = ref<HTMLDialogElement>(),
+  newProjectOpen = ref(false),
   analysisDialog = ref<HTMLDialogElement>();
 const selectedRevision = ref(''),
   mediaLoading = ref(false),
@@ -234,11 +226,16 @@ async function restore(id: string) {
 
 const newName = ref(''),
   sourceInput = ref(''),
-  sourceKind = ref('file'),
+  sourceKind = ref<'file' | 'url'>('file'),
   windowSeconds = ref(600);
-const isYouTubeUrl = computed(() => {
-  if (sourceKind.value !== 'url' || !sourceInput.value.trim()) return true;
-  return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i.test(sourceInput.value.trim());
+const createError = ref('');
+const newProjectSummary = computed(() => {
+  const provider = config.value?.ai_provider === 'openrouter' ? 'OpenRouter' : 'Gemini';
+  const model =
+    config.value?.ai_provider === 'openrouter'
+      ? config.value?.openrouter_model
+      : config.value?.gemini_model;
+  return 'Whisper local · ' + provider + (model ? ' · ' + model : '');
 });
 const reportJobs = createJobNotifier();
 let connectionFailed = false,
@@ -383,23 +380,30 @@ async function pickVideo() {
     }
   });
 }
-async function create() {
+async function create(value: NewProjectInput) {
   await action('create', async () => {
-    const value = await api.create(newName.value.trim(), sourceInput.value.trim(), {
-      automatic: !setupMissing.value,
-    });
-    dialog.value?.close();
+    createError.value = '';
+    let result;
+    try {
+      result = await api.create(value.name, value.sourceInput, { automatic: !setupMissing.value });
+    } catch (error) {
+      createError.value =
+        error instanceof Error ? error.message : 'Não foi possível criar o projeto.';
+      throw error;
+    }
+    newProjectOpen.value = false;
     newName.value = '';
     sourceInput.value = '';
     await refresh();
-    await openProject(value.project.id);
+    await openProject(result.project.id);
   });
 }
 function showCreate() {
   newName.value = '';
   sourceInput.value = '';
   sourceKind.value = 'file';
-  dialog.value?.showModal();
+  createError.value = '';
+  newProjectOpen.value = true;
 }
 function showAnalysis() {
   if (!keyConfigured.value) {
@@ -760,148 +764,24 @@ onUnmounted(() => {
       @close="showGlobalQueue = false"
     />
 
-    <!-- MODAL DE NOVO PROJETO (MINIMALISTA LINEAR / 1080P SAFE) -->
-    <dialog ref="dialog" class="modal studio-dialog">
-      <form @submit.prevent="create" class="studio-import-form">
-        <header class="studio-dialog-header">
-          <div class="studio-dialog-title-wrap">
-            <h2>Novo projeto</h2>
-            <p>Selecione um vídeo local ou informe um link do YouTube.</p>
-          </div>
-          <AppButton
-            type="button"
-            class="icon-button modal-close-btn"
-            title="Fechar"
-            @click="dialog?.close()"
-          >
-            <X :size="18" />
-          </AppButton>
-        </header>
-
-        <!-- Alternador de Fonte de Vídeo -->
-        <div class="source-switch" role="radiogroup" aria-label="Fonte do vídeo">
-          <AppButton
-            type="button"
-            :class="{ selected: sourceKind === 'file' }"
-            role="radio"
-            :aria-checked="sourceKind === 'file'"
-            @click="
-              sourceKind = 'file';
-              sourceInput = '';
-            "
-          >
-            <FileVideo :size="15" />Arquivo local
-          </AppButton>
-          <AppButton
-            type="button"
-            :class="{ selected: sourceKind === 'url' }"
-            role="radio"
-            :aria-checked="sourceKind === 'url'"
-            @click="
-              sourceKind = 'url';
-              sourceInput = '';
-            "
-          >
-            <Link :size="15" />Link do YouTube
-          </AppButton>
-        </div>
-
-        <!-- Área de Origem: Arquivo Local -->
-        <div v-if="sourceKind === 'file'" class="file-drop studio-file-drop">
-          <div v-if="sourceInput" class="selected-file-row">
-            <div class="file-meta">
-              <strong>{{ sourceInput.split(/[\\/]/).pop() }}</strong>
-              <small :title="sourceInput">{{ sourceInput }}</small>
-            </div>
-            <AppButton
-              type="button"
-              class="button small secondary"
-              :disabled="createBusy"
-              @click="pickVideo"
-            >
-              Trocar
-            </AppButton>
-          </div>
-          <div v-else class="drop-prompt">
-            <AppButton
-              type="button"
-              class="button secondary pick-video-btn"
-              :disabled="createBusy"
-              @click="pickVideo"
-            >
-              <AppIcon name="folder-open" size="sm" />Selecionar arquivo de vídeo
-            </AppButton>
-            <small class="subtle">Formatos suportados: MP4, MOV, MKV, WebM</small>
-          </div>
-        </div>
-
-        <!-- Área de Origem: Link do YouTube -->
-        <div v-else class="url-input-container">
-          <label class="field url-field">
-            URL do vídeo
-            <div class="url-field-wrapper">
-              <Link :size="15" class="url-field-icon" />
-              <input
-                type="url"
-                v-model="sourceInput"
-                placeholder="https://www.youtube.com/watch?v=..."
-                required
-              />
-            </div>
-            <small v-if="!isYouTubeUrl" style="color: var(--color-warning-text); font-weight: 500">
-              Informe um link válido do YouTube.
-            </small>
-          </label>
-        </div>
-
-        <!-- Nome do Projeto -->
-        <label class="field project-name-field">
-          Nome do projeto
-          <input
-            v-model="newName"
-            placeholder="Ex.: Entrevista com especialista"
-            maxlength="100"
-            required
-          />
-        </label>
-
-        <div v-if="setupMissing" class="readiness-items studio-setup-warning">
-          <span>Configuração de processamento incompleta.</span>
-          <AppButton
-            type="button"
-            class="button secondary small"
-            @click="
-              dialog?.close();
-              navigate('settings');
-            "
-          >
-            Configurar
-          </AppButton>
-        </div>
-
-        <!-- Rodapé com Ações -->
-        <footer class="studio-dialog-footer">
-          <AppButton type="button" class="button secondary" @click="dialog?.close()"
-            >Cancelar</AppButton
-          >
-          <AppButton
-            type="submit"
-            class="button primary studio-submit-btn"
-            :disabled="
-              createBusy ||
-              !sourceInput.trim() ||
-              !newName.trim() ||
-              !config?.tools_available ||
-              (sourceKind === 'url' && !isYouTubeUrl)
-            "
-            @click="create"
-          >
-            <LoaderCircle v-if="createBusy" class="spin" :size="15" />
-            Criar projeto
-          </AppButton>
-        </footer>
-      </form>
-    </dialog>
+    <NewProjectDialog
+      v-model="newProjectOpen"
+      v-model:name="newName"
+      v-model:source-input="sourceInput"
+      v-model:source-kind="sourceKind"
+      :busy="isPending('create')"
+      :picking="isPending('pick-video')"
+      :setup-ready="!setupMissing"
+      :tools-available="!!config?.tools_available"
+      :config-summary="newProjectSummary"
+      :error="createError"
+      @submit="create"
+      @request-file-picker="pickVideo"
+      @open-settings="
+        newProjectOpen = false;
+        navigate('settings');
+      "
+    />
 
     <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
     <dialog ref="deleteConfirmDialog" class="modal delete-confirm-modal">
@@ -1145,261 +1025,6 @@ onUnmounted(() => {
   color: #10b981;
   border-color: rgba(16, 185, 129, 0.3);
   background: rgba(16, 185, 129, 0.06);
-}
-
-.studio-dialog {
-  width: min(640px, 94vw);
-  max-width: 640px;
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 18px;
-  background: var(--color-surface, var(--panel));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  padding: 0;
-  overflow: hidden;
-}
-
-.studio-import-form {
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-  gap: 18px;
-}
-
-.studio-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-border-subtle, var(--line));
-}
-
-.dialog-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
-  margin-bottom: 4px;
-}
-
-.studio-dialog-header h2 {
-  font-size: 1.25rem;
-  margin: 0;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.studio-dialog-header p {
-  font-size: 0.82rem;
-  color: var(--color-text-secondary, var(--muted));
-  margin: 2px 0 0;
-}
-
-.source-switch {
-  display: flex;
-  gap: 8px;
-  background: var(--color-surface-hover, var(--soft));
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border-subtle, var(--line));
-}
-
-.source-switch button {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border-radius: 8px;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-secondary, var(--muted));
-  transition: all 0.15s ease;
-}
-
-.source-switch button.selected {
-  background: var(--color-surface-selected);
-  color: var(--color-text-primary);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-
-.studio-file-drop {
-  border: 1px dashed var(--color-border-subtle, #3b4252);
-  border-radius: 12px;
-  background: var(--color-surface-hover, var(--soft));
-  padding: 20px;
-  text-align: center;
-  transition: border-color 0.15s ease;
-}
-
-.studio-file-drop:hover {
-  border-color: var(--color-border-strong);
-}
-
-.drop-prompt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.drop-icon-wrap {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  color: var(--color-text-primary);
-  display: grid;
-  place-items: center;
-  margin-bottom: 4px;
-}
-
-.drop-prompt strong {
-  font-size: 0.95rem;
-  color: var(--color-text-primary, var(--ink));
-}
-
-.drop-prompt p {
-  font-size: 0.78rem;
-  color: var(--color-text-muted, var(--muted));
-  margin: 0 0 8px;
-}
-
-.selected-file-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-align: left;
-}
-
-.file-icon-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.file-info-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.file-info-col strong {
-  font-size: 0.9rem;
-  color: var(--color-text-primary, var(--ink));
-  word-break: break-all;
-}
-
-.file-path-text {
-  font-size: 0.72rem;
-  color: var(--color-text-muted, var(--muted));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 340px;
-}
-
-.ready-pill {
-  width: fit-content;
-  margin-top: 4px;
-  font-size: 0.72rem;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-.url-input-container {
-  display: flex;
-  flex-direction: column;
-}
-
-.url-field-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-top: 6px;
-}
-
-.url-field-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--color-text-muted, var(--muted));
-  pointer-events: none;
-}
-
-.url-field-wrapper input {
-  width: 100%;
-  padding-left: 36px;
-}
-
-.project-name-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.project-name-field input {
-  padding: 10px 14px;
-  border-radius: 8px;
-}
-
-.studio-pipeline-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--color-surface-hover, var(--soft));
-  border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 10px;
-}
-
-.summary-pipeline-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-primary);
-  font-size: 0.85rem;
-}
-
-.summary-details {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 0.78rem;
-  color: var(--color-text-secondary, var(--muted));
-}
-
-.pipeline-cost-notice {
-  font-size: 0.75rem;
-  margin: -4px 0 0;
-  line-height: 1.4;
-}
-
-.studio-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border-subtle, var(--line));
-}
-
-.studio-submit-btn {
-  font-weight: 600;
-  padding: 9px 20px;
 }
 
 .delete-confirm-modal {
