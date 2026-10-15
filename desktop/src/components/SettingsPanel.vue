@@ -181,7 +181,7 @@ async function execute(fn: () => Promise<unknown>, success: string) {
   }
 }
 
-async function saveKey() {
+async function handleSaveKey() {
   validating.value = true;
   await execute(async () => {
     const result = await props.saveKey(key.value.trim());
@@ -196,7 +196,7 @@ async function saveKey() {
   validating.value = false;
 }
 
-async function saveOpenRouterKey() {
+async function handleSaveOpenRouterKey() {
   const saveFn = props.saveOpenRouterKey;
   if (!saveFn) {
     notify.error('Função para salvar chave OpenRouter não está disponível.');
@@ -212,7 +212,7 @@ async function saveOpenRouterKey() {
   validating.value = false;
 }
 
-async function testConnection() {
+async function handleTestConnection() {
   if (!props.testConnection) return;
   validating.value = true;
   await execute(async () => {
@@ -240,7 +240,7 @@ async function saveSettings() {
   await execute(() => props.saveConfig({ ...values }), 'Configurações salvas.');
 }
 
-async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe') {
+async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe') {
   await execute(async () => {
     const result = await props.pick(kind);
     if (result) values[field] = result;
@@ -384,7 +384,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                         type="button"
                         class="icon-button"
                         title="Escolher pasta do modelo"
-                        @click="pick('model', 'asr_model_path')"
+                        @click="handlePick('model', 'asr_model_path')"
                         ><FolderOpen :size="18"
                       /></AppButton>
                     </el-tooltip>
@@ -405,7 +405,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                         type="button"
                         class="icon-button"
                         title="Localizar FFmpeg"
-                        @click="pick('ffmpeg', 'ffmpeg')"
+                        @click="handlePick('ffmpeg', 'ffmpeg')"
                         ><FolderOpen :size="17"
                       /></AppButton>
                     </el-tooltip>
@@ -426,7 +426,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                         type="button"
                         class="icon-button"
                         title="Localizar ffprobe"
-                        @click="pick('ffprobe', 'ffprobe')"
+                        @click="handlePick('ffprobe', 'ffprobe')"
                         ><FolderOpen :size="17"
                       /></AppButton>
                     </el-tooltip>
@@ -583,7 +583,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                     {{ config.gemini_key_configured ? 'Substituir chave' : 'Adicionar chave' }}
                     <input
                       type="password"
-                      @keydown.enter.prevent="!busy && key.trim() && saveKey()"
+                      @keydown.enter.prevent="!busy && key.trim() && handleSaveKey()"
                       v-model="key"
                       autocomplete="new-password"
                       placeholder="Cole sua chave de API do Google Gemini..."
@@ -596,7 +596,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                       class="button secondary"
                       data-action="save-key"
                       :disabled="busy || !key.trim()"
-                      @click="saveKey"
+                      @click="handleSaveKey"
                     >
                       <KeyRound :size="16" />{{ validating ? 'Validando…' : 'Salvar e validar' }}
                     </AppButton>
@@ -605,7 +605,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                       class="button secondary"
                       data-action="test-gemini"
                       :disabled="busy || !config.gemini_key_configured"
-                      @click="testConnection"
+                      @click="handleTestConnection"
                     >
                       {{ validating ? 'Validando…' : 'Testar conexão / Catálogo' }}
                     </AppButton>
@@ -697,7 +697,9 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                     }}
                     <input
                       type="password"
-                      @keydown.enter.prevent="!busy && openrouterKey.trim() && saveOpenRouterKey()"
+                      @keydown.enter.prevent="
+                        !busy && openrouterKey.trim() && handleSaveOpenRouterKey()
+                      "
                       v-model="openrouterKey"
                       autocomplete="new-password"
                       placeholder="Cole sua chave sk-or-v1-..."
@@ -710,7 +712,7 @@ async function pick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ffprobe'
                       class="button secondary"
                       data-action="save-openrouter-key"
                       :disabled="busy || !openrouterKey.trim()"
-                      @click="saveOpenRouterKey"
+                      @click="handleSaveOpenRouterKey"
                     >
                       <KeyRound :size="16" />{{
                         validating ? 'Salvando…' : 'Salvar chave OpenRouter'

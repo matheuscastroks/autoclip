@@ -118,6 +118,7 @@ async function loadCover(row: Project) {
   try {
     covers.value[row.id] = await api.media(row.id, 'thumbnail');
   } catch {
+    // Optional covers fall back to the library's video placeholder.
   } finally {
     coverPending.delete(row.id);
   }
@@ -158,7 +159,9 @@ async function confirmDeleteProject() {
   const permanent = deleteMode.value === 'permanent';
   try {
     deleteConfirmDialog.value?.close();
-  } catch {}
+  } catch {
+    // The confirmation may already have been closed by navigation.
+  }
   await action('project:' + id, async () => {
     if (permanent) await api.deletePermanent(id);
     else await api.deleteProject(id);
