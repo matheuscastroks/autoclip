@@ -375,6 +375,28 @@ class CaptionConfig(Contract):
     opening_seconds: int = Field(default=7,ge=5,le=10)
 
 
+class RenderProfile(Contract):
+    model_config = ConfigDict(extra='forbid', allow_inf_nan=False, frozen=True)
+    name: Literal['preview', 'final'] = 'final'
+    width: int = Field(default=1080, gt=0, le=1080)
+    height: int = Field(default=1920, gt=0, le=1920)
+    fps: Literal[30] = 30
+    codec: Literal['libx264'] = 'libx264'
+    preset: Literal['veryfast', 'medium'] = 'medium'
+    crf: int = Field(default=20, ge=0, le=51)
+    audio_kbps: int = Field(default=192, ge=32, le=320)
+
+    @model_validator(mode='after')
+    def geometry(self):
+        if self.width * 16 != self.height * 9 or self.width % 2 or self.height % 2:
+            raise ValueError('Render profile requires even 9:16 dimensions')
+        return self
+
+
+FINAL_PROFILE = RenderProfile()
+PREVIEW_PROFILE = RenderProfile(name='preview', width=540, height=960, preset='veryfast', crf=30, audio_kbps=96)
+
+
 class ExportConfig(Contract):
     width: Literal[1080] = 1080
     height: Literal[1920] = 1920
@@ -382,6 +404,13 @@ class ExportConfig(Contract):
     fps_den: Literal[1] = 1
     crf: int = Field(default=20, ge=0, le=51)
     output_root: Path
+    profile: RenderProfile = FINAL_PROFILE
+
+    @model_validator(mode='after')
+    def legacy_quality(self):
+        if 'profile' not in self.model_fields_set and self.crf != FINAL_PROFILE.crf:
+            object.__setattr__(self, 'profile', FINAL_PROFILE.model_copy(update={'crf': self.crf}))
+        return self
 
 
 class ReframeConfig(Contract):

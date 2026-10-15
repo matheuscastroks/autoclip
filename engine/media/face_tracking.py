@@ -51,16 +51,16 @@ def simplify_crop_points(points,max_segments=60,epsilon=0.005):
         curr_eps*=1.5;res=rdp(points,curr_eps)
     return res
 
-def crop_expression(points):
+def crop_expression(points, width=1080):
     # Piecewise linear interpolation, clamped to frame edges. Capped to safe FFmpeg evaluator limit (~60 terms).
-    if not points:return 'max(0,min(iw-1080,(iw-1080)/2))'
+    if not points:return f'max(0,min(iw-{width},(iw-{width})/2))'
     if len(points)>60:points=simplify_crop_points(points,max_segments=60)
     value=f'{points[0].center_x:.8f}'
     for a,b in zip(points,points[1:]):
         dt=(b.output_us-a.output_us)/1e6
         slope=(b.center_x-a.center_x)/dt
         if abs(slope)>1e-8:value+=f'+({slope:.8f})*clip(t-{a.output_us/1e6:.6f},0,{dt:.6f})'
-    return f'max(0,min(iw-1080,iw*({value})-540))'
+    return f'max(0,min(iw-{width},iw*({value})-{width // 2}))'
 
 def track_faces(source,edl,config,ffmpeg,*,cancelled=lambda:False,progress=None,detector_factory=None):
     path=model_path(config)
