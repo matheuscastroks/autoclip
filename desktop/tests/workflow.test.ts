@@ -22,6 +22,33 @@ const project = {
   error: null,
 };
 describe('workflow visibility', () => {
+  it('keeps the active tab and panel associated while switching project areas', async () => {
+    const w = mount(ProjectWorkspace, {
+      props: {
+        project,
+        transcript: null,
+        revisions: [],
+        jobs: [],
+        sourceUrl: '',
+        previewUrl: '',
+        busy: false,
+      },
+    });
+
+    for (const [tabId, contentSelector] of [
+      ['tab-transcript', '.transcript-layout'],
+      ['tab-analysis', '.analysis-workspace'],
+      ['tab-cuts', '.cuts-empty'],
+    ]) {
+      await w.get(`#${tabId}`).trigger('click');
+      expect(w.get(`#${tabId}`).attributes('aria-selected')).toBe('true');
+      expect(w.get('#project-panel').attributes('aria-labelledby')).toBe(tabId);
+      expect(w.find(contentSelector).exists()).toBe(true);
+    }
+
+    w.unmount();
+  });
+
   it('shows failed import with recovery and places small video inside preparation', async () => {
     resetNotifications();
     const errorToast = vi.spyOn(notify, 'error');

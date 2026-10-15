@@ -142,248 +142,258 @@ function seek(us: number) {
 </script>
 
 <template>
-  <header class="page-heading project-heading compact-project-heading">
-    <el-tooltip content="Voltar para a biblioteca de projetos" placement="bottom">
-      <AppButton
-        class="icon-button project-back"
-        aria-label="Todos os projetos"
-        title="Todos os projetos"
-        @click="$emit('back')"
-        ><ArrowLeft :size="18"
-      /></AppButton>
-    </el-tooltip>
-    <h1 :title="project.title || project.name">{{ project.title || project.name }}</h1>
-    <div class="project-meta">
-      <span :title="project.source?.channel">{{ project.source?.channel || 'Vídeo local' }}</span>
-      <span>{{ project.duration_us ? time(project.duration_us) : 'Duração pendente' }}</span>
-      <el-tag
-        size="small"
-        :type="
-          project.status === 'completed'
-            ? 'success'
-            : project.status === 'failed'
-              ? 'danger'
-              : active(project.status)
-                ? 'primary'
-                : 'info'
-        "
-        effect="dark"
-        class="status-pill"
-        :data-status="project.status"
-      >
-        {{ labels[project.status] || project.status }}
-      </el-tag>
-    </div>
-    <el-tooltip content="Abrir pasta no Windows Explorer" placement="bottom">
-      <AppButton
-        class="icon-button project-folder"
-        title="Abrir pasta"
-        aria-label="Abrir pasta"
-        @click="$emit('folder')"
-        ><FolderOpen :size="18"
-      /></AppButton>
-    </el-tooltip>
-  </header>
-
-  <div class="project-tabs" role="tablist" aria-label="Áreas do projeto" @keydown="tabKey">
-    <AppButton
-      role="tab"
-      id="tab-overview"
-      aria-controls="project-panel"
-      :tabindex="tab === 'overview' ? 0 : -1"
-      :aria-selected="tab === 'overview'"
-      :class="{ selected: tab === 'overview' }"
-      @click="tab = 'overview'"
-      ><Play :size="16" />Preparação</AppButton
-    >
-    <AppButton
-      role="tab"
-      id="tab-transcript"
-      aria-controls="project-panel"
-      :tabindex="tab === 'transcript' ? 0 : -1"
-      :aria-selected="tab === 'transcript'"
-      :class="{ selected: tab === 'transcript' }"
-      @click="tab = 'transcript'"
-      ><FileText :size="16" />Transcrição<span v-if="project.has_transcript">{{
-        project.word_count.toLocaleString('pt-BR')
-      }}</span></AppButton
-    >
-    <AppButton
-      role="tab"
-      id="tab-analysis"
-      aria-controls="project-panel"
-      :tabindex="tab === 'analysis' ? 0 : -1"
-      :aria-selected="tab === 'analysis'"
-      :class="{ selected: tab === 'analysis' }"
-      @click="tab = 'analysis'"
-      ><FileText :size="16" />Análise<span>{{ analysis?.proposals.length || 0 }}</span></AppButton
-    >
-    <AppButton
-      role="tab"
-      id="tab-cuts"
-      aria-controls="project-panel"
-      :tabindex="tab === 'cuts' ? 0 : -1"
-      :aria-selected="tab === 'cuts'"
-      :class="{ selected: tab === 'cuts' }"
-      @click="tab = 'cuts'"
-      ><Scissors :size="16" />Cortes<span>{{ revisions.length }}</span></AppButton
-    >
-  </div>
-
-  <div
-    ref="workArea"
-    class="workspace-body"
-    :style="{ '--work-area-height': areaHeight + 'px' }"
-    :class="{ 'cuts-workspace': tab === 'cuts' }"
-  >
-    <div id="project-panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
-      <!-- ABA 1: VISÃO GERAL / PREPARAÇÃO -->
-      <div v-if="tab === 'overview'" class="workspace-overview">
-        <PipelinePanel
-          :source-url="sourceUrl"
-          :selected-count="selection?.candidate_ids.length || 0"
-          :project="project"
-          :jobs="jobs"
-          :busy="busy"
-          :has-cuts="revisions.length > 0"
-          :revisions="revisions"
-          :analysis="analysis"
-          @replace-source="$emit('replaceSource', $event)"
-          @generate="
-            selection?.analysis_hash &&
-            $emit('render', {
-              analysis_hash: selection.analysis_hash,
-              candidate_ids: selection.candidate_ids,
-            })
+  <div class="project-workspace">
+    <header class="page-heading project-heading compact-project-heading">
+      <el-tooltip content="Voltar para a biblioteca de projetos" placement="bottom">
+        <AppButton
+          class="icon-button project-back"
+          aria-label="Todos os projetos"
+          title="Todos os projetos"
+          @click="$emit('back')"
+          ><ArrowLeft :size="18"
+        /></AppButton>
+      </el-tooltip>
+      <h1 :title="project.title || project.name">{{ project.title || project.name }}</h1>
+      <div class="project-meta">
+        <span :title="project.source?.channel">{{ project.source?.channel || 'Vídeo local' }}</span>
+        <span>{{ project.duration_us ? time(project.duration_us) : 'Duração pendente' }}</span>
+        <el-tag
+          size="small"
+          :type="
+            project.status === 'completed'
+              ? 'success'
+              : project.status === 'failed'
+                ? 'danger'
+                : active(project.status)
+                  ? 'primary'
+                  : 'info'
           "
-          @export="$emit('export')"
-          @transcribe="$emit('transcribe')"
-          @analyze="$emit('analyze')"
-          @render="tab = 'analysis'"
-          @analysis="tab = 'analysis'"
-          @review="tab = 'cuts'"
-          @cancel="$emit('cancel', $event)"
-          @resume="$emit('resume', $event)"
-        />
+          effect="dark"
+          class="status-pill"
+          :data-status="project.status"
+        >
+          {{ labels[project.status] || project.status }}
+        </el-tag>
       </div>
+      <el-tooltip content="Abrir pasta no Windows Explorer" placement="bottom">
+        <AppButton
+          class="icon-button project-folder"
+          title="Abrir pasta"
+          aria-label="Abrir pasta"
+          @click="$emit('folder')"
+          ><FolderOpen :size="18"
+        /></AppButton>
+      </el-tooltip>
+    </header>
 
-      <!-- ABA 2: TRANSCRIÇÃO (SPLIT-SCREEN DESKTOP) -->
-      <section v-else-if="tab === 'transcript'" class="transcript-layout">
-        <div class="transcript-header">
-          <div class="transcript-header-info">
-            <h2>Transcrição original</h2>
-            <p>
-              {{ project.word_count.toLocaleString('pt-BR') }} palavras · Português · Timestamps
-              sincronizados
-            </p>
-          </div>
-          <div class="transcript-search-wrap">
-            <Search :size="15" />
-            <input type="search" v-model="transcriptQuery" placeholder="Buscar termos na fala..." />
-            <span v-if="transcriptQuery" class="search-match-count"
-              >{{ filteredSegments.length }} trecho(s)</span
-            >
-          </div>
+    <div class="project-tabs" role="tablist" aria-label="Áreas do projeto" @keydown="tabKey">
+      <AppButton
+        role="tab"
+        id="tab-overview"
+        aria-controls="project-panel"
+        :tabindex="tab === 'overview' ? 0 : -1"
+        :aria-selected="tab === 'overview'"
+        :class="{ selected: tab === 'overview' }"
+        @click="tab = 'overview'"
+        ><Play :size="16" />Preparação</AppButton
+      >
+      <AppButton
+        role="tab"
+        id="tab-transcript"
+        aria-controls="project-panel"
+        :tabindex="tab === 'transcript' ? 0 : -1"
+        :aria-selected="tab === 'transcript'"
+        :class="{ selected: tab === 'transcript' }"
+        @click="tab = 'transcript'"
+        ><FileText :size="16" />Transcrição<span v-if="project.has_transcript">{{
+          project.word_count.toLocaleString('pt-BR')
+        }}</span></AppButton
+      >
+      <AppButton
+        role="tab"
+        id="tab-analysis"
+        aria-controls="project-panel"
+        :tabindex="tab === 'analysis' ? 0 : -1"
+        :aria-selected="tab === 'analysis'"
+        :class="{ selected: tab === 'analysis' }"
+        @click="tab = 'analysis'"
+        ><FileText :size="16" />Análise<span>{{ analysis?.proposals.length || 0 }}</span></AppButton
+      >
+      <AppButton
+        role="tab"
+        id="tab-cuts"
+        aria-controls="project-panel"
+        :tabindex="tab === 'cuts' ? 0 : -1"
+        :aria-selected="tab === 'cuts'"
+        :class="{ selected: tab === 'cuts' }"
+        @click="tab = 'cuts'"
+        ><Scissors :size="16" />Cortes<span>{{ revisions.length }}</span></AppButton
+      >
+    </div>
+
+    <div
+      ref="workArea"
+      class="workspace-body"
+      :style="{ '--work-area-height': areaHeight + 'px' }"
+      :class="{
+        'cuts-workspace': tab === 'cuts',
+        'transcript-workspace': tab === 'transcript',
+        'editor-workspace': tab !== 'overview',
+      }"
+    >
+      <div id="project-panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
+        <!-- ABA 1: VISÃO GERAL / PREPARAÇÃO -->
+        <div v-if="tab === 'overview'" class="workspace-overview">
+          <PipelinePanel
+            :source-url="sourceUrl"
+            :selected-count="selection?.candidate_ids.length || 0"
+            :project="project"
+            :jobs="jobs"
+            :busy="busy"
+            :has-cuts="revisions.length > 0"
+            :revisions="revisions"
+            :analysis="analysis"
+            @replace-source="$emit('replaceSource', $event)"
+            @generate="
+              selection?.analysis_hash &&
+              $emit('render', {
+                analysis_hash: selection.analysis_hash,
+                candidate_ids: selection.candidate_ids,
+              })
+            "
+            @export="$emit('export')"
+            @transcribe="$emit('transcribe')"
+            @analyze="$emit('analyze')"
+            @render="tab = 'analysis'"
+            @analysis="tab = 'analysis'"
+            @review="tab = 'cuts'"
+            @cancel="$emit('cancel', $event)"
+            @resume="$emit('resume', $event)"
+          />
         </div>
 
-        <el-splitter v-if="transcript" class="transcript-body split-transcript-body">
-          <el-splitter-panel :size="380" :min="260" :max="600" class="transcript-player-column">
-            <div class="panel-inner-container">
-              <div class="sticky-player-wrapper">
-                <video
-                  v-if="sourceUrl"
-                  ref="player"
-                  :src="sourceUrl"
-                  controls
-                  preload="metadata"
-                ></video>
-                <div class="player-playback-meta" v-if="sourceUrl">
-                  <Clock :size="13" />
-                  <span>Clique em qualquer parágrafo para saltar no vídeo</span>
+        <!-- ABA 2: TRANSCRIÇÃO (SPLIT-SCREEN DESKTOP) -->
+        <section v-else-if="tab === 'transcript'" class="transcript-layout">
+          <div class="transcript-header">
+            <div class="transcript-header-info">
+              <h2>Transcrição original</h2>
+              <p>
+                {{ project.word_count.toLocaleString('pt-BR') }} palavras · Português · Timestamps
+                sincronizados
+              </p>
+            </div>
+            <div class="transcript-search-wrap">
+              <Search :size="15" />
+              <input
+                type="search"
+                v-model="transcriptQuery"
+                placeholder="Buscar termos na fala..."
+              />
+              <span v-if="transcriptQuery" class="search-match-count"
+                >{{ filteredSegments.length }} trecho(s)</span
+              >
+            </div>
+          </div>
+
+          <el-splitter v-if="transcript" class="transcript-body split-transcript-body">
+            <el-splitter-panel :size="380" :min="260" :max="600" class="transcript-player-column">
+              <div class="panel-inner-container">
+                <div class="sticky-player-wrapper">
+                  <video
+                    v-if="sourceUrl"
+                    ref="player"
+                    :src="sourceUrl"
+                    controls
+                    preload="metadata"
+                  ></video>
+                  <div class="player-playback-meta" v-if="sourceUrl">
+                    <Clock :size="13" />
+                    <span>Clique em qualquer parágrafo para saltar no vídeo</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </el-splitter-panel>
-          <el-splitter-panel :min="320" class="transcript-segments-column">
-            <div class="panel-inner-container">
-              <el-scrollbar
-                max-height="calc(var(--work-area-height, 480px) - 30px)"
-                class="transcript-segments"
-                tabindex="0"
-                role="region"
-                aria-label="Segmentos da transcrição"
-              >
-                <div
-                  v-for="segment in filteredSegments"
-                  :key="segment.id"
-                  role="button"
-                  tabindex="-1"
-                  class="transcript-segment-row"
-                  :class="{
-                    highlighted:
-                      transcriptQuery &&
-                      segment.text.toLowerCase().includes(transcriptQuery.toLowerCase()),
-                  }"
-                  @click="seek(segment.start_us)"
+            </el-splitter-panel>
+            <el-splitter-panel :min="320" class="transcript-segments-column">
+              <div class="panel-inner-container">
+                <el-scrollbar
+                  height="100%"
+                  class="transcript-segments"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Segmentos da transcrição"
                 >
-                  <time>{{ time(segment.start_us) }}</time>
-                  <span>{{ segment.text }}</span>
-                </div>
-                <div v-if="filteredSegments.length === 0" class="transcript-no-matches">
-                  Nenhum segmento encontrado para "{{ transcriptQuery }}".
-                </div>
-              </el-scrollbar>
-            </div>
-          </el-splitter-panel>
-        </el-splitter>
-        <div v-else class="empty-state">
-          <el-empty description="Ainda sem transcrição">
-            <template #image>
-              <FileText :size="32" />
-            </template>
-            <template #default>
-              <p>Inicie a etapa de transcrição na visão geral.</p>
-            </template>
-          </el-empty>
-        </div>
-      </section>
+                  <div
+                    v-for="segment in filteredSegments"
+                    :key="segment.id"
+                    role="button"
+                    tabindex="-1"
+                    class="transcript-segment-row"
+                    :class="{
+                      highlighted:
+                        transcriptQuery &&
+                        segment.text.toLowerCase().includes(transcriptQuery.toLowerCase()),
+                    }"
+                    @click="seek(segment.start_us)"
+                  >
+                    <time>{{ time(segment.start_us) }}</time>
+                    <span>{{ segment.text }}</span>
+                  </div>
+                  <div v-if="filteredSegments.length === 0" class="transcript-no-matches">
+                    Nenhum segmento encontrado para "{{ transcriptQuery }}".
+                  </div>
+                </el-scrollbar>
+              </div>
+            </el-splitter-panel>
+          </el-splitter>
+          <div v-else class="empty-state">
+            <el-empty description="Ainda sem transcrição">
+              <template #image>
+                <FileText :size="32" />
+              </template>
+              <template #default>
+                <p>Inicie a etapa de transcrição na visão geral.</p>
+              </template>
+            </el-empty>
+          </div>
+        </section>
 
-      <!-- ABA 3: CURADORIA EDITORIAL DE ANÁLISE -->
-      <AnalysisPanel
-        v-else-if="tab === 'analysis'"
-        :analysis="analysis || null"
-        :selection="selection || null"
-        :jobs="jobs"
-        :source-url="sourceUrl"
-        :busy="busy"
-        @generate="$emit('render', $event)"
-        @selection="$emit('selection', $event)"
-        @resume="$emit('resumeAnalysis')"
-      />
-
-      <!-- ABA 4: REVISÃO DOS CORTES -->
-      <section v-else>
-        <ReviewPanel
-          @bulk-delete="$emit('bulkDelete', $event)"
-          @bulk-export="$emit('bulkExport', $event)"
+        <!-- ABA 3: CURADORIA EDITORIAL DE ANÁLISE -->
+        <AnalysisPanel
+          v-else-if="tab === 'analysis'"
+          :analysis="analysis || null"
+          :selection="selection || null"
           :jobs="jobs"
-          @resume="$emit('resume', $event)"
-          :revisions="revisions"
-          :manual="project.is_manual"
-          :media-url="previewUrl"
-          :selected-revision="selectedRevision"
-          :media-loading="mediaLoading"
           :source-url="sourceUrl"
           :busy="busy"
-          :processing="processing"
-          @select="$emit('select', $event)"
-          @decision="$emit('decision', $event)"
-          @export="$emit('export')"
-          @delete="$emit('delete', $event)"
-          @deleted="$emit('deleted')"
-          @retry="$emit('retry', $event)"
+          @generate="$emit('render', $event)"
+          @selection="$emit('selection', $event)"
+          @resume="$emit('resumeAnalysis')"
         />
-      </section>
+
+        <!-- ABA 4: REVISÃO DOS CORTES -->
+        <section v-else>
+          <ReviewPanel
+            @bulk-delete="$emit('bulkDelete', $event)"
+            @bulk-export="$emit('bulkExport', $event)"
+            :jobs="jobs"
+            @resume="$emit('resume', $event)"
+            :revisions="revisions"
+            :manual="project.is_manual"
+            :media-url="previewUrl"
+            :selected-revision="selectedRevision"
+            :media-loading="mediaLoading"
+            :source-url="sourceUrl"
+            :busy="busy"
+            :processing="processing"
+            @select="$emit('select', $event)"
+            @decision="$emit('decision', $event)"
+            @export="$emit('export')"
+            @delete="$emit('delete', $event)"
+            @deleted="$emit('deleted')"
+            @retry="$emit('retry', $event)"
+          />
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -428,8 +438,10 @@ function seek(us: number) {
 }
 
 .split-transcript-body {
-  height: 520px;
-  min-height: 450px;
+  display: flex;
+  flex: 1;
+  height: auto;
+  min-height: 0;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
@@ -457,12 +469,26 @@ function seek(us: number) {
 
 .panel-inner-container {
   height: 100%;
+  min-height: 0;
   width: 100%;
   padding: 14px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.transcript-player-column .panel-inner-container {
+  overflow: auto;
+}
+
+.transcript-segments-column .panel-inner-container {
+  overflow: hidden;
+}
+
+.transcript-segments {
+  flex: 1;
+  min-height: 0;
 }
 
 .transcript-player-column,
