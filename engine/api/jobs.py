@@ -7,6 +7,7 @@ from .store import now
 from .projects import read_json
 from .settings import Settings
 from engine.pipeline.artifacts import object_hash,file_hash
+from .job_logs import IncrementalJobLogs
 
 ACTIVE=('running','pending','cancelling')
 
@@ -28,6 +29,7 @@ class JobManager:
     def __init__(self,store,workspace,spawn=subprocess.Popen):
         self.store=store;self.workspace=Path(workspace).resolve();self.spawn=spawn;self.processes={};self.lock=threading.RLock();self.draining=False;self.max_workers=2;self._stop=threading.Event()
         self.root=self.workspace/'.autoclip/jobs';self.root.mkdir(parents=True,exist_ok=True)
+        self.logs=IncrementalJobLogs()
         for job in self.store.jobs():self.status(job['id'])
         self._scheduler=threading.Thread(target=self._monitor,daemon=True);self._scheduler.start()
 
@@ -60,16 +62,12 @@ class JobManager:
         policy=read_json(folder/'request-policy.json')
         if policy:job.update(policy)
         request_log=folder/'stdout.log'
-        if request_log.exists():
-            # Never return raw process output or provider content to the UI.
-            try:
-                lines=request_log.read_text(encoding='utf-8',errors='replace').splitlines()
-                if job.get('error',{}).get('code')=='SOURCE_UNAVAILABLE' and job.get('operation') in ('import','prepare'):
-                    from engine.media.source_errors import source_error
-                    job['error']=source_error('\n'.join(lines[-100:])).as_dict()
-                stages=[line[7:] for line in lines if line.startswith('Stage: ')]
-                if stages:job['stage']=stages[-1]
-            except OSError:pass
+        stage,lines=self.logs.read(request_log)
+        # Never return raw process output or provider content to the UI.
+        if (job.get('error') or {}).get('code')=='SOURCE_UNAVAILABLE' and job.get('operation') in ('import','prepare'):
+            from engine.media.source_errors import source_error
+            job['error']=source_error('\n'.join(lines)).as_dict()
+        if stage:job['stage']=stage
         budget=folder/'budget.sqlite'
         if budget.exists():
             import sqlite3
