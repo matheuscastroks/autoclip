@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vRecoverMedia } from '../directives/recoverMedia';
 import AppButton from './AppButton.vue';
 import { computed, ref, watch, toRef } from 'vue';
 import {
@@ -100,7 +101,7 @@ const visibleRevisions = computed(() => {
   return props.revisions.filter(
     r =>
       filter.value === 'all' ||
-      (filter.value === 'approved' && r.technical_pass) ||
+      (filter.value === 'approved' && r.technical_pass && r.review_status === 'approved') ||
       (filter.value === 'review' && r.review_status === 'needs_review') ||
       (filter.value === 'exported' && r.exported)
   );
@@ -141,6 +142,30 @@ const current = computed(
       r => r.revision_id === (props.selectedRevision || selected.value)
     ) || visibleRevisions.value[0]
 );
+const editorialCriteria: { key: keyof Checks; label: string }[] = [
+  { key: 'completeness', label: 'O pensamento está completo' },
+  { key: 'context', label: 'O trecho funciona fora do vídeo original' },
+  { key: 'qualifications', label: 'Negações, números e ressalvas foram preservados' },
+  { key: 'words_and_boundaries', label: 'Nenhuma palavra ou argumento foi cortado' },
+  { key: 'audiovisual', label: 'Áudio, quadro e legendas foram revisados' },
+];
+function emptyEditorialChecks(): Checks {
+  return {
+    completeness: false,
+    context: false,
+    qualifications: false,
+    words_and_boundaries: false,
+    audiovisual: false,
+  };
+}
+const editorialChecks = ref<Checks>(emptyEditorialChecks());
+const editorialConfirmed = computed(() =>
+  editorialCriteria.every(({ key }) => editorialChecks.value[key])
+);
+watch(
+  () => current.value?.revision_id,
+  () => (editorialChecks.value = emptyEditorialChecks())
+);
 watch(
   visibleRevisions,
   rows => {
@@ -173,16 +198,12 @@ function choose(id: string) {
 
 function makeDecision(decision: 'approved' | 'rejected') {
   if (!current.value) return;
+  if (decision === 'approved' && (!current.value.technical_pass || !editorialConfirmed.value))
+    return;
   emit('decision', {
     revision_id: current.value.revision_id,
     decision,
-    checks: {
-      completeness: true,
-      context: true,
-      qualifications: true,
-      words_and_boundaries: true,
-      audiovisual: true,
-    },
+    checks: { ...editorialChecks.value },
     notes: '',
     content_hash: current.value.content_hash || '',
   });
@@ -214,6 +235,7 @@ function copyDescription() {
     </div>
     <video
       v-if="mediaUrl"
+      v-recover-media="mediaUrl"
       class="manual-player"
       :src="mediaUrl"
       controls
@@ -248,7 +270,7 @@ function copyDescription() {
                 ['all', 'Todos'],
                 ['generation', 'Em geração'],
                 ['review', 'Para revisar'],
-                ['approved', 'Prontos'],
+                ['approved', 'Aprovados'],
                 ['exported', 'Exportados'],
               ]"
               :key="id"
@@ -300,10 +322,14 @@ function copyDescription() {
                 </div>
                 <AppButton
                   class="button small secondary"
-                  :disabled="busy || processing || !revisions.some(r => r.technical_pass)"
+                  :disabled="
+                    busy ||
+                    processing ||
+                    !revisions.some(r => r.technical_pass && r.review_status === 'approved')
+                  "
                   @click="$emit('export')"
                 >
-                  <Download :size="14" />Exportar prontos
+                  <Download :size="14" />Exportar aprovados
                 </AppButton>
               </header>
 
@@ -549,6 +575,17 @@ function copyDescription() {
                 </el-tag>
               </div>
 
+              <fieldset
+                class="editorial-checklist"
+                v-if="current && !manual && current.technical_pass"
+              >
+                <legend>Confirme após assistir ao original com contexto e ao corte completo</legend>
+                <label v-for="criterion in editorialCriteria" :key="criterion.key">
+                  <input type="checkbox" v-model="editorialChecks[criterion.key]" />
+                  {{ criterion.label }}
+                </label>
+              </fieldset>
+
               <!-- Controle de Decisão Editorial (Aprovar / Descartar) -->
               <div class="cut-decision-controls" v-if="current && !manual">
                 <span class="decision-heading">Decisão:</span>
@@ -556,6 +593,7 @@ function copyDescription() {
                   <AppButton
                     type="button"
                     class="button small decision-btn approve-btn"
+                    :disabled="busy || processing || !current.technical_pass || !editorialConfirmed"
                     :class="{ active: current.review_status === 'approved' }"
                     data-action="editorial-approve"
                     :title="
@@ -575,6 +613,7 @@ function copyDescription() {
                   <AppButton
                     type="button"
                     class="button small decision-btn reject-btn"
+                    :disabled="busy || processing"
                     :class="{ active: current.review_status === 'rejected' }"
                     data-action="editorial-reject"
                     :title="
@@ -646,7 +685,14 @@ function copyDescription() {
           aria-label="Prévia do corte selecionado"
         >
           <div class="clip-preview">
-            <video v-if="mediaUrl" :src="mediaUrl" controls preload="metadata" playsinline></video>
+            <video
+              v-if="mediaUrl"
+              v-recover-media="mediaUrl"
+              :src="mediaUrl"
+              controls
+              preload="metadata"
+              playsinline
+            ></video>
             <div v-else class="video-unavailable">Prévia indisponível</div>
           </div>
           <div class="player-subcaption" v-if="current">
@@ -882,6 +928,27 @@ function copyDescription() {
   background: transparent;
   border: none;
   margin-top: 2px;
+}
+
+.editorial-checklist {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0 4px;
+  font-size: 0.78rem;
+}
+
+.editorial-checklist legend {
+  padding: 0 4px;
+  color: var(--color-text-secondary, var(--muted));
+}
+
+.editorial-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .decision-heading {

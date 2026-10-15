@@ -64,7 +64,9 @@ const importRecovery = computed(
     !props.project.source &&
     ['prepare', 'import'].includes(job.value?.operation || '')
 );
-const approved = computed(() => props.revisions?.some(r => r.technical_pass));
+const approved = computed(() =>
+  props.revisions?.some(r => r.technical_pass && r.review_status === 'approved')
+);
 const processing = computed(() => props.jobs.some(j => active(j.status)));
 
 watch(
@@ -354,7 +356,10 @@ function triggerErrorDetails() {
           <template v-else-if="!project.has_analysis">
             <div class="hero-body-text">
               <h3>Análise pendente</h3>
-              <p>Analise o conteúdo transcrito ({{ project.word_count.toLocaleString('pt-BR') }} palavras) para descobrir os melhores cortes.</p>
+              <p>
+                Analise o conteúdo transcrito ({{ project.word_count.toLocaleString('pt-BR') }}
+                palavras) para descobrir os melhores cortes.
+              </p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -371,7 +376,10 @@ function triggerErrorDetails() {
           <template v-else-if="!hasCuts && (!selectedCount || selectedCount === 0)">
             <div class="hero-body-text">
               <h3>Curadoria de cortes disponível</h3>
-              <p>{{ analysis?.proposals.length || 0 }} propostas e {{ analysis?.topic_groups.length || 0 }} temas identificados.</p>
+              <p>
+                {{ analysis?.proposals.length || 0 }} propostas e
+                {{ analysis?.topic_groups.length || 0 }} temas identificados.
+              </p>
             </div>
             <div class="hero-action-buttons">
               <AppButton
@@ -420,7 +428,7 @@ function triggerErrorDetails() {
                 :disabled="busy"
                 @click="$emit('export')"
               >
-                <Download :size="15" />Exportar prontos
+                <Download :size="15" />Exportar aprovados
               </AppButton>
             </div>
           </template>
@@ -599,7 +607,7 @@ function triggerErrorDetails() {
                   class="button small primary"
                   :disabled="busy"
                   @click="$emit('export')"
-                  >Exportar prontos</AppButton
+                  >Exportar aprovados</AppButton
                 >
               </div>
             </div>

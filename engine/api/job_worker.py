@@ -94,7 +94,7 @@ def main(folder:Path):
             source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
         elif operation=='export':
             packages=export_approved(root)
-            if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid clips available.')
+            if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid and editorially approved clips available.')
             stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now(),'exports':packages});return 0
         else:
             source=Source.model_validate_json((root/'source.json').read_bytes())

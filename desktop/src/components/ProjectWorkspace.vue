@@ -16,6 +16,7 @@ import { notify } from '../notifications';
 import ReviewPanel from './ReviewPanel.vue';
 import PipelinePanel from './PipelinePanel.vue';
 import AnalysisPanel from './AnalysisPanel.vue';
+import { vRecoverMedia } from '../directives/recoverMedia';
 
 const props = defineProps<{
   project: Project;
@@ -273,6 +274,7 @@ function seek(us: number) {
                 <div class="sticky-player-wrapper">
                   <video
                     v-if="sourceUrl"
+                    v-recover-media="sourceUrl"
                     ref="player"
                     :src="sourceUrl"
                     controls

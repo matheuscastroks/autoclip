@@ -14,7 +14,7 @@ from engine.render.ffmpeg import FFmpegRenderer
 from engine.render.opening import opening_for
 from engine.media.face_tracking import track_faces,model_path as face_model_path
 from engine.render.verify import verify_render
-from engine.editorial.review import review_fingerprint
+from engine.editorial.review import review_fingerprint,current_review
 from engine.pipeline.fingerprints import stage_dependencies,tool_fingerprint,font_fingerprint,resolve_font
 from engine.adapters.openshorts.transcriber import model_fingerprint
 
@@ -166,12 +166,20 @@ def export_approved(project_root:Path,revision_ids=None):
         if revision_ids is not None and revision['revision_id'] not in revision_ids:continue
         folder=root/'revisions'/revision['revision_id']
         if (folder/'deleted.json').is_file():continue
-        decision=None
         edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
         caps=CaptionArtifact.model_validate_json((folder/'captions.json').read_bytes())
         rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
         qa=ExportValidation.model_validate_json((folder/'qa.json').read_bytes())
-        if rendered.revision_id!=edl.revision_id or caps.edl_revision_id!=edl.revision_id or not qa.technical_pass or file_hash(rendered.path)!=rendered.sha256:
+        if not qa.technical_pass:
+            if revision_ids is not None:
+                raise PipelineError('EXPORT_INVALID','export','Render is invalid for this revision.')
+            continue
+        status,decision=current_review(folder,edl.revision_id,review_fingerprint(root,edl.revision_id),qa.technical_pass)
+        if status!='approved':
+            if revision_ids is not None:
+                raise PipelineError('REVIEW_REQUIRED','export','The requested revision needs current editorial approval.')
+            continue
+        if rendered.revision_id!=edl.revision_id or caps.edl_revision_id!=edl.revision_id or file_hash(rendered.path)!=rendered.sha256:
             raise PipelineError('EXPORT_INVALID','export','Render is invalid for this revision.')
         package_hash=object_hash({'review':decision,'edl':edl,'caption':caps,'render':rendered})
         target=root/'exports'/revision['revision_id']/package_hash[:16];target.mkdir(parents=True,exist_ok=True)
@@ -188,5 +196,5 @@ def export_approved(project_root:Path,revision_ids=None):
         atomic_json(target/'metadata.json',{'publication':publication,'schema_version':'1.0','source':state.source,'review':decision,'candidate':json.loads((folder/'candidate.json').read_text(encoding='utf-8')),'opening':{'text':caps.opening_text,'duration_us':caps.opening_duration_us},'caption_revision_id':str(caps.revision_id),'transcript_id':str(edl.transcript_id),'render':rendered,'qa':qa})
         atomic_json(target/'manifest.json',{'schema_version':'1.0','revision_id':revision['revision_id'],'package_hash':package_hash,'files':{p.name:{'sha256':file_hash(p),'bytes':p.stat().st_size} for p in target.iterdir() if p.is_file() and p.name!='manifest.json'}})
         exported.append(str(target))
-    if not exported: raise PipelineError('NO_READY_CLIPS','export','No technically valid clips available.')
+    if not exported: raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid and editorially approved clips available.')
     return exported

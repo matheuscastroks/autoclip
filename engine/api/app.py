@@ -222,16 +222,19 @@ def create_app(workspace:Path,token:str)->FastAPI:
             if permanent:
                 path=Path(row['path'])
                 if path.is_dir() and (workspace/'.autoclip/projects') in path.parents:
-                    shutil.rmtree(path,ignore_errors=True)
+                    try:
+                        shutil.rmtree(path)
+                    except OSError as exc:
+                        raise HTTPException(500,'Não foi possível remover os arquivos do projeto. O projeto permanece na biblioteca.') from exc
+                    if path.exists():
+                        raise HTTPException(500,'Os arquivos do projeto não foram removidos. O projeto permanece na biblioteca.')
                 store.hard_delete(pid)
             else:
                 store.set_deleted(pid,True)
         return {'deleted':True}
     @app.post('/api/v1/jobs/clear-history')
     def clear_job_history():
-        with jobs.lock:
-            count=store.clear_terminal_jobs()
-            return {'cleared':count}
+        return jobs.clear_history()
 
     @app.get('/api/v1/trash')
     def trash():return store.trash()
@@ -346,8 +349,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
         with jobs.lock:
             editable(pid)
             root=Path(store.get(pid)['path']);ids=set(value.revision_ids)
-            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['technical_pass']}
-            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam passar pela validação técnica.')
+            approved={r['revision_id'] for r in reviews.list_revisions(root) if r['technical_pass'] and r['review_status']=='approved'}
+            if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam de aprovação editorial válida.')
             from engine.pipeline.runner import export_approved
             return {'paths':export_approved(root,ids)}
     @app.get('/api/v1/projects/{pid}/revisions')

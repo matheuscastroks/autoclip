@@ -155,6 +155,15 @@ function timeAgo(value: number) {
             <List :size="16" />
           </button>
         </div>
+        <AppButton
+          type="button"
+          class="button small secondary"
+          data-action="open-project-trash"
+          :disabled="busy"
+          @click="$emit('trash')"
+        >
+          <Trash2 :size="15" />Lixeira
+        </AppButton>
       </div>
     </section>
 
@@ -243,7 +252,11 @@ function timeAgo(value: number) {
             <span class="project-metrics-inline">
               {{ project.summary?.proposed ?? '—' }} propostas
               <template v-if="project.summary?.selected || project.summary?.generated">
-                · <span class="highlight-count">{{ project.summary?.selected ?? 0 }} selecionados</span> · {{ project.summary?.generated ?? 0 }} prontos
+                ·
+                <span class="highlight-count"
+                  >{{ project.summary?.selected ?? 0 }} selecionados</span
+                >
+                · {{ project.summary?.generated ?? 0 }} prontos
               </template>
             </span>
           </div>
@@ -261,12 +274,12 @@ function timeAgo(value: number) {
           </span>
 
           <div class="card-actions-group">
-            <el-tooltip content="Excluir projeto permanentemente" placement="top">
+            <el-tooltip content="Mover projeto para a lixeira" placement="top">
               <AppButton
                 type="button"
                 class="icon-button delete-btn"
                 data-action="delete-project"
-                title="Excluir projeto permanentemente"
+                title="Mover projeto para a lixeira"
                 :disabled="busy || activeProjects?.includes(project.id)"
                 @click.stop="$emit('delete', project.id)"
               >
@@ -364,7 +377,7 @@ function timeAgo(value: number) {
           type="button"
           class="icon-button"
           data-action="delete-project"
-          title="Excluir projeto permanentemente"
+          title="Mover projeto para a lixeira"
           :disabled="busy || activeProjects?.includes(project.id)"
           @click.stop="$emit('delete', project.id)"
         >

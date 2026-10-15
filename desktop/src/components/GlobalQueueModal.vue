@@ -96,10 +96,10 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
             <AppButton
               v-if="filter === 'all' && recentJobs.length > 0"
               class="queue-tab queue-clear-action"
-              title="Limpar tarefas concluídas ou falhadas"
+              title="Remover tarefas concluídas e seus arquivos temporários; preservar tarefas que podem ser retomadas"
               :disabled="busy"
               @click="$emit('clearHistory')"
-              ><Trash2 :size="14" style="margin-right: 4px" />Limpar histórico</AppButton
+              ><Trash2 :size="14" style="margin-right: 4px" />Limpar concluídas</AppButton
             >
           </div>
           <AppButton

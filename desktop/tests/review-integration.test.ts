@@ -89,6 +89,26 @@ async function open() {
   return w;
 }
 describe('review identity across refresh and failures', () => {
+  it('sends library deletion to the trash', async () => {
+    setup();
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(api, 'deleteProject').mockResolvedValue({ deleted: true });
+    const w = mount(App);
+    await flushPromises();
+    await w.get('[data-action=delete-project]').trigger('click');
+    expect(w.text()).toContain('Mover projeto para a lixeira?');
+    await w.get('.delete-confirm-action').trigger('click');
+    await flushPromises();
+    expect(api.deleteProject).toHaveBeenCalledWith('p');
+    w.unmount();
+  });
   it('keeps engine session and refresh in the top navigation disclosure', async () => {
     setup();
     const w = mount(App);

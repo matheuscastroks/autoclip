@@ -92,7 +92,24 @@ def test_permanent_delete_removes_managed_folder_and_sqlite_record(client,tmp_pa
     assert get_res.status_code==404
 
 
-def test_clear_job_history_removes_only_terminal_jobs(client):
+def test_failed_permanent_delete_preserves_project_record(client,tmp_path,monkeypatch):
+    import shutil
+    managed=tmp_path/'.autoclip'/'projects'/'managed';managed.mkdir(parents=True)
+    row=client.app.state.store.create(managed,'Managed fixture')
+
+    def fail_delete(path,**kwargs):
+        if kwargs.get('ignore_errors'):
+            return
+        raise OSError('fixture: directory is locked')
+
+    monkeypatch.setattr(shutil,'rmtree',fail_delete)
+    response=client.delete(f"/api/v1/projects/{row['id']}?permanent=true")
+    assert response.status_code==500
+    assert managed.is_dir()
+    assert client.app.state.store.get(row['id'])['path']==str(managed.resolve())
+
+
+def test_clear_job_history_removes_only_disposable_jobs(client):
     from engine.api.store import now
     store=client.app.state.store
     # Inserir jobs em vários estados
@@ -102,12 +119,13 @@ def test_clear_job_history_removes_only_terminal_jobs(client):
 
     res=client.post('/api/v1/jobs/clear-history')
     assert res.status_code==200
-    assert res.json()['cleared']>=2
+    assert res.json()['cleared']==1
+    assert res.json()['preserved']==1
 
     # Job em execução deve permanecer
     assert client.get('/api/v1/jobs').status_code in (200, 404, 405) # ou verificar via store
     remaining_ids=[j['id'] for j in store.jobs()]
     assert 'job-run' in remaining_ids
     assert 'job-comp' not in remaining_ids
-    assert 'job-fail' not in remaining_ids
+    assert 'job-fail' in remaining_ids
 

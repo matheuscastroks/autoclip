@@ -29,6 +29,13 @@ export interface Project {
   updated_at: number;
   source: Source | null;
   error: { code: string; message: string } | null;
+  artifacts?: Record<
+    string,
+    {
+      state: 'available' | 'not_generated' | 'invalid' | 'unavailable' | 'stale';
+      message: string | null;
+    }
+  >;
 }
 export interface Config {
   asr_model_path: string;
@@ -147,6 +154,9 @@ export interface Checks {
   words_and_boundaries: boolean;
   audiovisual: boolean;
 }
+export type RevisionReviewStatus =
+  'invalid' | 'needs_review' | 'stale_review' | 'approved' | 'rejected';
+
 export interface Revision {
   opening_text?: string;
   opening_duration_us?: number;
@@ -157,7 +167,7 @@ export interface Revision {
   title: string;
   rationale?: string;
   technical_pass: boolean;
-  review_status: string;
+  review_status: RevisionReviewStatus;
   duration_us?: number;
   start_us?: number;
   end_us?: number;
@@ -193,6 +203,7 @@ export interface Proposal {
 export interface AnalysisView {
   schema_version: string;
   state: string;
+  diagnostic?: string | null;
   job_id: string | null;
   analysis_hash: string | null;
   model: string | null;

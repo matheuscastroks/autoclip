@@ -14,7 +14,7 @@ describe('cut deletion during processing', () => {
               title: id,
               technical_pass: true,
               warnings: [],
-              review_status: 'ready',
+              review_status: 'approved',
             }) as unknown as Revision
         ),
         manual: false,

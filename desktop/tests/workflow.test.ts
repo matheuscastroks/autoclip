@@ -49,6 +49,12 @@ describe('workflow visibility', () => {
     w.unmount();
   });
 
+  it('offers access to the project trash from the library', async () => {
+    const w = mount(ProjectLibrary, { props: { projects: [project], busy: false } });
+    await w.get('[data-action=open-project-trash]').trigger('click');
+    expect(w.emitted('trash')).toHaveLength(1);
+    w.unmount();
+  });
   it('shows failed import with recovery and places small video inside preparation', async () => {
     resetNotifications();
     const errorToast = vi.spyOn(notify, 'error');
@@ -102,7 +108,7 @@ describe('workflow visibility', () => {
     expect(w.get('[data-stage=transcribe]').text()).toContain('Na fila');
     w.unmount();
   });
-  it('omits review and permits export of technically valid previews', () => {
+  it('offers final export only when an editorially approved preview exists', () => {
     const revisions = [
       {
         revision_id: 'a',
@@ -131,7 +137,7 @@ describe('workflow visibility', () => {
       },
     });
     expect(w.find('[data-stage=review]').exists()).toBe(false);
-    expect(w.get('[data-stage=export]').text()).toContain('Exportar prontos');
+    expect(w.get('[data-stage=export]').text()).toContain('Exportar aprovados');
     w.unmount();
   });
   it.each(['running', 'completed'])(
