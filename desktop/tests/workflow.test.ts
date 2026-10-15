@@ -22,6 +22,12 @@ const project = {
   error: null,
 };
 describe('workflow visibility', () => {
+  it('offers access to the project trash from the library', async () => {
+    const w = mount(ProjectLibrary, { props: { projects: [project], busy: false } });
+    await w.get('[data-action=open-project-trash]').trigger('click');
+    expect(w.emitted('trash')).toHaveLength(1);
+    w.unmount();
+  });
   it('shows failed import with recovery and places small video inside preparation', async () => {
     resetNotifications();
     const errorToast = vi.spyOn(notify, 'error');

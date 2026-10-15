@@ -92,6 +92,23 @@ def test_permanent_delete_removes_managed_folder_and_sqlite_record(client,tmp_pa
     assert get_res.status_code==404
 
 
+def test_failed_permanent_delete_preserves_project_record(client,tmp_path,monkeypatch):
+    import shutil
+    managed=tmp_path/'.autoclip'/'projects'/'managed';managed.mkdir(parents=True)
+    row=client.app.state.store.create(managed,'Managed fixture')
+
+    def fail_delete(path,**kwargs):
+        if kwargs.get('ignore_errors'):
+            return
+        raise OSError('fixture: directory is locked')
+
+    monkeypatch.setattr(shutil,'rmtree',fail_delete)
+    response=client.delete(f"/api/v1/projects/{row['id']}?permanent=true")
+    assert response.status_code==500
+    assert managed.is_dir()
+    assert client.app.state.store.get(row['id'])['path']==str(managed.resolve())
+
+
 def test_clear_job_history_removes_only_terminal_jobs(client):
     from engine.api.store import now
     store=client.app.state.store

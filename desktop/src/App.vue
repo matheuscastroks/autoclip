@@ -121,13 +121,15 @@ async function loadCover(row: Project) {
     coverPending.delete(row.id);
   }
 }
-const projectToDelete = ref<Project | null>(null);
+const projectToDelete = ref<{ id: string; name: string; title?: string } | null>(null);
+const deleteMode = ref<'trash' | 'permanent'>('trash');
 const deleteConfirmDialog = ref<HTMLDialogElement>();
 
 async function deleteProject(id: string) {
   const row = projects.value.find(p => p.id === id);
   if (!row) return;
   projectToDelete.value = row;
+  deleteMode.value = 'trash';
   if (deleteConfirmDialog.value?.showModal) {
     deleteConfirmDialog.value.showModal();
   } else {
@@ -135,21 +137,32 @@ async function deleteProject(id: string) {
   }
 }
 
+function deleteFromTrash(row: { id: string; name: string }) {
+  projectToDelete.value = row;
+  deleteMode.value = 'permanent';
+  deleteConfirmDialog.value?.showModal();
+}
+
 async function confirmDeleteProject() {
   if (!projectToDelete.value) return;
   const id = projectToDelete.value.id;
+  const permanent = deleteMode.value === 'permanent';
   try {
     deleteConfirmDialog.value?.close();
   } catch {}
   await action(async () => {
-    await api.deletePermanent(id);
+    if (permanent) await api.deletePermanent(id);
+    else await api.deleteProject(id);
     if (project.value?.id === id) {
       project.value = null;
       ++generation;
     }
     delete covers.value[id];
+    if (permanent) trashRows.value = trashRows.value.filter(row => row.id !== id);
     await refresh();
-    notify.success('Projeto excluído com sucesso.');
+    notify.success(
+      permanent ? 'Projeto excluído permanentemente.' : 'Projeto movido para a lixeira.'
+    );
   });
   projectToDelete.value = null;
 }
@@ -830,10 +843,7 @@ onUnmounted(() => {
                 required
               />
             </div>
-            <small
-              v-if="!isYouTubeUrl"
-              style="color: var(--color-warning-text); font-weight: 500"
-            >
+            <small v-if="!isYouTubeUrl" style="color: var(--color-warning-text); font-weight: 500">
               Informe um link válido do YouTube.
             </small>
           </label>
@@ -887,42 +897,54 @@ onUnmounted(() => {
         </footer>
       </form>
     </dialog>
- 
-     <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO PERMANENTE -->
-     <dialog ref="deleteConfirmDialog" class="modal delete-confirm-modal">
-       <div class="delete-confirm-content">
-         <header>
-           <h2>Excluir projeto permanentemente?</h2>
-           <AppButton
-             type="button"
-             class="icon-button"
-             title="Fechar"
-             @click="deleteConfirmDialog?.close()"
-           >
-             <X :size="19" />
-           </AppButton>
-         </header>
-         <p class="delete-warning-text">
-           O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> e todos os seus arquivos de vídeo, transcrições e cortes serão removidos do computador. Esta ação não pode ser desfeita.
-         </p>
-         <div class="delete-actions">
-           <AppButton type="button" class="button secondary" @click="deleteConfirmDialog?.close()">
-             Cancelar
-           </AppButton>
-           <AppButton
-             type="button"
-             class="button danger delete-confirm-action"
-             :disabled="busy"
-             @click="confirmDeleteProject"
-           >
-             Excluir permanentemente
-           </AppButton>
-         </div>
-       </div>
-     </dialog>
- 
-     <!-- LIXEIRA -->
-     <dialog ref="trashDialog" class="modal">
+
+    <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
+    <dialog ref="deleteConfirmDialog" class="modal delete-confirm-modal">
+      <div class="delete-confirm-content">
+        <header>
+          <h2>
+            {{
+              deleteMode === 'permanent'
+                ? 'Excluir projeto permanentemente?'
+                : 'Mover projeto para a lixeira?'
+            }}
+          </h2>
+          <AppButton
+            type="button"
+            class="icon-button"
+            title="Fechar"
+            @click="deleteConfirmDialog?.close()"
+          >
+            <X :size="19" />
+          </AppButton>
+        </header>
+        <p class="delete-warning-text" v-if="deleteMode === 'permanent'">
+          O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> será
+          removido da biblioteca. Arquivos de projetos gerenciados pelo AutoClip serão apagados do
+          computador. Esta ação não pode ser desfeita.
+        </p>
+        <p class="delete-warning-text" v-else>
+          O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> sairá da
+          biblioteca. Seus arquivos serão preservados e você poderá restaurá-lo pela lixeira.
+        </p>
+        <div class="delete-actions">
+          <AppButton type="button" class="button secondary" @click="deleteConfirmDialog?.close()">
+            Cancelar
+          </AppButton>
+          <AppButton
+            type="button"
+            class="button danger delete-confirm-action"
+            :disabled="busy"
+            @click="confirmDeleteProject"
+          >
+            {{ deleteMode === 'permanent' ? 'Excluir permanentemente' : 'Mover para a lixeira' }}
+          </AppButton>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- LIXEIRA -->
+    <dialog ref="trashDialog" class="modal">
       <div class="trash-content">
         <header>
           <h2>{{ trashKind === 'projects' ? 'Lixeira de projetos' : 'Lixeira de cortes' }}</h2>
@@ -939,6 +961,13 @@ onUnmounted(() => {
             :disabled="busy || running"
             @click="restore(row.id)"
             >Restaurar</AppButton
+          >
+          <AppButton
+            v-if="trashKind === 'projects'"
+            class="button small danger"
+            :disabled="busy || running"
+            @click="deleteFromTrash(row)"
+            >Excluir permanentemente</AppButton
           >
         </div>
       </div>
@@ -1010,7 +1039,10 @@ onUnmounted(() => {
           <AppButton
             type="button"
             class="button small secondary"
-            @click="analysisDialog?.close(); navigate('settings')"
+            @click="
+              analysisDialog?.close();
+              navigate('settings');
+            "
           >
             Configurações
           </AppButton>

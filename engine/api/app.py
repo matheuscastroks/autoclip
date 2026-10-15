@@ -222,7 +222,12 @@ def create_app(workspace:Path,token:str)->FastAPI:
             if permanent:
                 path=Path(row['path'])
                 if path.is_dir() and (workspace/'.autoclip/projects') in path.parents:
-                    shutil.rmtree(path,ignore_errors=True)
+                    try:
+                        shutil.rmtree(path)
+                    except OSError as exc:
+                        raise HTTPException(500,'Não foi possível remover os arquivos do projeto. O projeto permanece na biblioteca.') from exc
+                    if path.exists():
+                        raise HTTPException(500,'Os arquivos do projeto não foram removidos. O projeto permanece na biblioteca.')
                 store.hard_delete(pid)
             else:
                 store.set_deleted(pid,True)

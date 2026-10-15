@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiError, setSessionToken, getSessionToken, request, post, put, del } from '../src/api/client';
+import {
+  ApiError,
+  setSessionToken,
+  getSessionToken,
+  request,
+  post,
+  put,
+  del,
+} from '../src/api/client';
 import { usePolling } from '../src/composables/usePolling';
 
 describe('api/client', () => {
@@ -34,23 +42,29 @@ describe('api/client', () => {
 
   it('faz requisição com sucesso retornando JSON tipado', async () => {
     const mockResponse = { id: 'p1', name: 'Projeto Teste' };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => mockResponse,
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => mockResponse,
+      })
+    );
 
     const result = await request<typeof mockResponse>('/projects/p1');
     expect(result).toEqual(mockResponse);
   });
 
   it('lança ApiError com mensagem do backend quando status !ok', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ detail: 'Parâmetro inválido' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ detail: 'Parâmetro inválido' }),
+      })
+    );
 
     await expect(request('/bad-request')).rejects.toThrow('Parâmetro inválido');
   });
@@ -68,7 +82,22 @@ describe('api/client', () => {
     expect(res).toEqual({ deleted: true });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/projects/proj-123?permanent=true'),
-      expect.objectContaining({ method: 'DELETE' }),
+      expect.objectContaining({ method: 'DELETE' })
+    );
+  });
+
+  it('envia a exclusão comum de projeto para a lixeira', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ deleted: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { projectsApi } = await import('../src/api/projects');
+    await projectsApi.delete('proj-123');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/projects/proj-123?permanent=false'),
+      expect.objectContaining({ method: 'DELETE' })
     );
   });
 
@@ -85,7 +114,7 @@ describe('api/client', () => {
     expect(res).toEqual({ cleared: 5 });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/jobs/clear-history'),
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({ method: 'POST' })
     );
   });
 });
