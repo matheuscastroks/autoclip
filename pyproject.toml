@@ -25,6 +25,7 @@ engine = ["prompts/*.txt", "contracts/schemas/*.json", "assets/fonts/*","assets/
 "vendor.openshorts" = ["LICENSE", "UPSTREAM.json"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "--basetemp=.pytest_temp"
 markers = ["real_media: opt-in real corpus test"]
