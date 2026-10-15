@@ -197,7 +197,7 @@ describe('review identity across refresh and failures', () => {
     );
     w.unmount();
   });
-  it('loads original as soon as automatic import finishes while the job is still running', async () => {
+  it('makes the original available on demand when import finishes while the job is running', async () => {
     setup();
     const pending = {
       ...project,
@@ -228,6 +228,9 @@ describe('review identity across refresh and failures', () => {
     vi.mocked(api.project).mockResolvedValue(imported);
     await w.get('[title="Atualizar projetos"]').trigger('click');
     await flushPromises();
+    const details = w.get('.pipeline-panel details');
+    details.element.open = true;
+    await details.trigger('toggle');
     expect(w.get('video').attributes('src')).toBe('/media/source');
     w.unmount();
   });
@@ -281,6 +284,9 @@ describe('review identity across refresh and failures', () => {
     setup();
     vi.mocked(api.revisions).mockRejectedValue(new Error('Preview damaged'));
     const w = await open();
+    const details = w.get('.pipeline-panel details');
+    details.element.open = true;
+    await details.trigger('toggle');
     expect(w.find('video').attributes('src')).toBe('/media/source');
     await w.get('[role=tablist] button:nth-child(2)').trigger('click');
     await flushPromises();

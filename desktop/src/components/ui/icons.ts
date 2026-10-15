@@ -20,6 +20,9 @@ import Scissors from '~icons/fluent/cut-24-regular';
 import Back from '~icons/fluent/arrow-left-24-regular';
 import Transcript from '~icons/fluent/document-text-24-regular';
 import Link from '~icons/fluent/link-24-regular';
+import Check from '~icons/fluent/checkmark-24-regular';
+import Warning from '~icons/fluent/warning-24-regular';
+import Clock from '~icons/fluent/clock-24-regular';
 import type { Component } from 'vue';
 
 interface IconDefinition {
@@ -49,6 +52,9 @@ export const icons = {
   back: { regular: Back, label: 'Voltar' },
   transcript: { regular: Transcript, label: 'Transcrição' },
   link: { regular: Link, label: 'Link' },
+  check: { regular: Check, label: 'Concluído' },
+  warning: { regular: Warning, label: 'Atenção' },
+  clock: { regular: Clock, label: 'Aguardando' },
 } satisfies Record<string, IconDefinition>;
 
 export type IconName = keyof typeof icons;

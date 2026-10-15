@@ -18,7 +18,6 @@ declare module 'vue' {
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
     ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
-    ElProgress: typeof import('element-plus/es')['ElProgress']
     ElScrollbar: typeof import('element-plus/es')['ElScrollbar']
     ElSplitter: typeof import('element-plus/es')['ElSplitter']
     ElSplitterPanel: typeof import('element-plus/es')['ElSplitterPanel']
@@ -31,6 +30,8 @@ declare module 'vue' {
     NewProjectDialog: typeof import('./src/components/dialogs/NewProjectDialog.vue')['default']
     OnboardingModal: typeof import('./src/components/OnboardingModal.vue')['default']
     PipelinePanel: typeof import('./src/components/PipelinePanel.vue')['default']
+    PipelineStatusHero: typeof import('./src/components/pipeline/PipelineStatusHero.vue')['default']
+    PipelineStepList: typeof import('./src/components/pipeline/PipelineStepList.vue')['default']
     ProjectLibrary: typeof import('./src/components/ProjectLibrary.vue')['default']
     ProjectListItem: typeof import('./src/components/library/ProjectListItem.vue')['default']
     ProjectQueue: typeof import('./src/components/ProjectQueue.vue')['default']
@@ -40,6 +41,7 @@ declare module 'vue' {
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
+    TechnicalDetails: typeof import('./src/components/ui/TechnicalDetails.vue')['default']
     WorkspaceHeader: typeof import('./src/components/layout/WorkspaceHeader.vue')['default']
   }
 }

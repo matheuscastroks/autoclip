@@ -46,7 +46,9 @@ describe('workflow visibility', () => {
       },
     });
     expect(w.text()).toContain('Cortes gerados');
-    expect(w.get('.analysis-metric-item .metric-label').text()).toBe('Análise ainda não iniciada');
+    expect(w.get('.pipeline-diagnostics .analysis-state').text()).toBe(
+      'Análise ainda não iniciada'
+    );
     expect(w.text()).not.toContain('Revisão editorial pendente');
     w.unmount();
   });
@@ -334,7 +336,7 @@ describe('workflow visibility', () => {
     expect(w.get('[data-stage=render]').text()).toContain('Na fila');
     w.unmount();
   });
-  it('renders linear progression stepper track with step states', () => {
+  it('shows three preparation milestones and keeps engine stages in collapsed details', () => {
     const imported = {
       ...project,
       has_transcript: true,
@@ -357,13 +359,13 @@ describe('workflow visibility', () => {
         busy: false,
       },
     });
-    expect(w.find('.stepper-track-wrap').exists()).toBe(true);
-    expect(w.text()).toContain('Esteira de Processamento');
-    const nodes = w.findAll('.stepper-node');
-    expect(nodes.length).toBe(6);
+    const nodes = w.findAll('[aria-label="Etapas de preparação"] [data-milestone]');
+    expect(nodes.length).toBe(3);
     expect(nodes[0].attributes('data-state')).toBe('completed');
     expect(nodes[1].attributes('data-state')).toBe('completed');
     expect(nodes[2].attributes('data-state')).toBe('pending');
+    expect(w.get('details').attributes('open')).toBeUndefined();
+    expect(w.findAll('details [data-stage]')).toHaveLength(11);
     w.unmount();
   });
 });
