@@ -117,6 +117,7 @@ async function loadCover(row: Project) {
   try {
     covers.value[row.id] = await api.media(row.id, 'thumbnail');
   } catch {
+    // A thumbnail is optional; leave its cover empty when loading fails.
   } finally {
     coverPending.delete(row.id);
   }
@@ -140,7 +141,9 @@ async function confirmDeleteProject() {
   const id = projectToDelete.value.id;
   try {
     deleteConfirmDialog.value?.close();
-  } catch {}
+  } catch {
+    // The dialog may already be closed.
+  }
   await action(async () => {
     await api.deletePermanent(id);
     if (project.value?.id === id) {

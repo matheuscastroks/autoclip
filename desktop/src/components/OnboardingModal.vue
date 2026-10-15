@@ -132,7 +132,9 @@ async function cancelProvision() {
     await api.cancelProvision();
     stopPolling();
     step.value = 'diagnosis';
-  } catch {}
+  } catch {
+    // Keep the current step when cancellation fails.
+  }
 }
 
 async function handleSaveKey() {
