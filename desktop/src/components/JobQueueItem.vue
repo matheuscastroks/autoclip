@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AppButton from './AppButton.vue';
 import StatusTag from './StatusTag.vue';
+import ProcessProgress from './ui/ProcessProgress.vue';
 import type { Job } from '../types';
 import { stages } from '../format';
 
@@ -22,7 +23,9 @@ defineEmits<{
   open: [projectId: string];
 }>();
 
-const stageLabel = computed(() => stages[props.job.stage || props.job.operation] || props.job.operation);
+const stageLabel = computed(
+  () => stages[props.job.stage || props.job.operation] || props.job.operation
+);
 
 const cancelLabel = computed(() =>
   props.job.status === 'pending' ? 'Remover da fila' : 'Cancelar tarefa'
@@ -50,6 +53,13 @@ const cancelLabel = computed(() =>
       <small v-else-if="job.progress?.total_items" class="job-subtle-info">
         {{ job.progress.completed_items || 0 }}/{{ job.progress.total_items }} prévias prontas
       </small>
+      <ProcessProgress
+        v-if="['running', 'cancelling'].includes(job.status)"
+        :progress="job.progress"
+        :status="job.status"
+        :started-at="job.started_at"
+        :finished-at="job.finished_at"
+      />
     </div>
 
     <div class="job-actions">

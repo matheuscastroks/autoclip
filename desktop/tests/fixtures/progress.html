@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AutoClip — Progresso (fixture)</title></head>
+  <body>
+    <main id="app"></main>
+    <script type="module">
+      import { createApp, h } from 'vue';
+      import ProcessProgress from '../../src/components/ui/ProcessProgress.vue';
+      import '../../src/tokens.css';
+      const states = [
+        ['Transcrição local', { phase: 'transcribe', stage_percent: 37, overall_percent: 29, stage_eta_seconds: 140, eta_seconds: 190, elapsed_seconds: 80 }],
+        ['Análise editorial', { phase: 'analyze', stage_percent: 50, completed_units: 2, total_units: 4, unit: 'items', warning: 'no_advance', elapsed_seconds: 230 }],
+        ['Download com tamanho desconhecido', { phase: 'download', stage_percent: null, completed_units: 23400000, unit: 'bytes' }],
+        ['Inicialização sem confirmação', { warning: 'startup_slow', stage_percent: null, elapsed_seconds: 45 }],
+        ['Render final — validação pendente', { phase: 'verify', stage_percent: 42, overall_percent: 95, elapsed_seconds: 110 }],
+      ];
+      createApp({ render: () => h('div', { class: 'fixture' }, [
+        h('h1', 'Progresso do processamento'),
+        h('p', 'Dados sintéticos — não inicia tarefas nem acessa provedores.'),
+        ...states.map(([title, progress]) => h('section', [h('h2', title), h(ProcessProgress, { progress: { stage: '', steps: {}, ...progress }, status: 'running' })])),
+      ]) }).mount('#app');
+    </script>
+    <style>
+      body { margin: 0; background: var(--color-canvas); color: var(--color-text-primary); font: 14px 'Segoe UI', system-ui, sans-serif; }
+      .fixture { max-width: 760px; margin: auto; padding: 24px; }
+      h1 { font-size: 22px; } h2 { font-size: 16px; margin: 0 0 12px; }
+      section { padding: 20px 0; border-bottom: 1px solid var(--color-border-subtle); }
+      p { color: var(--color-text-secondary); }
+    </style>
+  </body>
+</html>

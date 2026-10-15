@@ -2,6 +2,7 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { ElDrawer } from 'element-plus';
 import AppButton from './AppButton.vue';
+import ProcessProgress from './ui/ProcessProgress.vue';
 import { vRecoverMedia } from '../directives/recoverMedia';
 import { active, labels, time } from '../format';
 import type { Revision, Job, Decision, Checks } from '../types';
@@ -310,10 +311,12 @@ onBeforeUnmount(() => {
                   ? 'Versão final na fila'
                   : 'Renderizando versão final'
             }}</strong>
-            <progress
-              v-if="finalItem?.total_us"
-              :value="finalItem.processed_us"
-              :max="finalItem.total_us"
+            <ProcessProgress
+              v-if="finalJob"
+              :progress="finalJob.progress"
+              :status="finalJob.status"
+              :started-at="finalJob.started_at"
+              :finished-at="finalJob.finished_at"
             />
             <p>A prévia continua disponível. A aprovação será liberada após a validação final.</p>
           </div>

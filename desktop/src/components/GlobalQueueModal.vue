@@ -2,7 +2,8 @@
 import { computed, ref, toRef } from 'vue';
 import AppButton from './AppButton.vue';
 import AppIcon from './ui/AppIcon.vue';
-import { ElScrollbar, ElTag, ElProgress, ElEmpty, ElCard } from 'element-plus';
+import ProcessProgress from './ui/ProcessProgress.vue';
+import { ElScrollbar, ElTag, ElEmpty, ElCard } from 'element-plus';
 import type { Job, Project } from '../types';
 import { active, labels, stages } from '../format';
 import { useJobQueue } from '../composables/useJobQueue';
@@ -171,20 +172,15 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                 <small>{{ job.queue_reason || 'Aguardando liberação de worker…' }}</small>
               </div>
 
-              <div v-else-if="job.status === 'running'" class="job-progress-info">
-                <el-progress
-                  :percentage="
-                    job.progress?.total_items
-                      ? Math.round(
-                          ((job.progress.completed_items || 0) / job.progress.total_items) * 100
-                        )
-                      : 100
-                  "
-                  :indeterminate="!job.progress?.total_items"
-                  :color="'var(--color-action-primary)'"
-                  :stroke-width="4"
-                  :show-text="false"
-                  style="margin-bottom: 6px"
+              <div
+                v-else-if="['running', 'cancelling'].includes(job.status)"
+                class="job-progress-info"
+              >
+                <ProcessProgress
+                  :progress="job.progress"
+                  :status="job.status"
+                  :started-at="job.started_at"
+                  :finished-at="job.finished_at"
                 />
                 <small v-if="job.progress?.total_items"
                   >{{ job.progress.completed_items || 0 }} de {{ job.progress.total_items }} itens

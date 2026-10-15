@@ -7,6 +7,7 @@ export type {
   Revision,
   Proposal,
   AnalysisView,
+  ProvisionStatus,
 } from './generated/api';
 export type RevisionReviewStatus = import('./generated/api').Revision['review_status'];
 
@@ -82,20 +83,6 @@ export interface HardwareProfile {
   recommended_model_id: string;
   tier_title: string;
   tier_description: string;
-}
-export interface ProvisionStatus {
-  status:
-    'idle' | 'downloading' | 'extracting' | 'extracting_ffmpeg' | 'ready' | 'failed' | 'cancelled';
-  stage: string;
-  item: string;
-  downloaded_bytes: number;
-  total_bytes: number;
-  speed_bps: number;
-  percent: number;
-  error: string | null;
-  model_path?: string | null;
-  ffmpeg_path?: string | null;
-  ffprobe_path?: string | null;
 }
 export interface ProvisionRequest {
   model_id: string;

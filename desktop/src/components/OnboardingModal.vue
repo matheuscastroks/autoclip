@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import AppIcon from './ui/AppIcon.vue';
+import ProcessProgress from './ui/ProcessProgress.vue';
 import { ref, computed, onUnmounted, watch } from 'vue';
-import { ElSteps, ElStep, ElProgress, ElTag, ElAlert } from 'element-plus';
+import { ElSteps, ElStep, ElTag, ElAlert } from 'element-plus';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
 import { usePolling } from '../composables/usePolling';
@@ -94,7 +95,7 @@ const provisionStatus = ref<ProvisionStatus>({
   downloaded_bytes: 0,
   total_bytes: 0,
   speed_bps: 0,
-  percent: 0,
+  percent: null,
   error: null,
 });
 
@@ -125,7 +126,7 @@ async function startProvision() {
   error.value = null;
   step.value = 'downloading';
   try {
-    await api.provision({
+    provisionStatus.value = await api.provision({
       model_id: selectedModelId.value,
       install_ffmpeg: installFfmpeg.value,
     });
@@ -325,15 +326,31 @@ onUnmounted(() => {
               <AppIcon name="spinner" size="md" class="animate-spin" />
               <strong>Baixando e configurando dependências...</strong>
             </div>
-            <span class="percent-badge">{{ provisionStatus.percent }}%</span>
+            <span class="percent-badge">{{
+              provisionStatus.percent === null
+                ? 'Calculando tamanho'
+                : `${provisionStatus.percent}% do arquivo`
+            }}</span>
           </div>
 
           <div class="progress-bar-wrap" style="margin: 12px 0">
-            <el-progress
-              :percentage="provisionStatus.percent"
-              :color="'#ECEEF0'"
-              :stroke-width="10"
-              :show-text="false"
+            <ProcessProgress
+              :progress="{
+                stage: provisionStatus.stage,
+                steps: {},
+                stage_percent: provisionStatus.percent,
+                completed_units:
+                  provisionStatus.completed_units ?? provisionStatus.downloaded_bytes,
+                total_units: provisionStatus.total_units,
+                unit: 'bytes',
+                stage_eta_seconds: provisionStatus.eta_seconds,
+                heartbeat_at: provisionStatus.heartbeat_at,
+              }"
+              :status="
+                ['downloading', 'extracting', 'extracting_ffmpeg'].includes(provisionStatus.status)
+                  ? 'running'
+                  : provisionStatus.status
+              "
             />
           </div>
 

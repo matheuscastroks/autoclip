@@ -63,6 +63,16 @@ export const labels: Record<string, string> = {
   invalid: 'Indisponível',
 };
 export const stages: Record<string, string> = {
+  initializing: 'Iniciando tarefa',
+  model_load: 'Carregando modelo local',
+  integrity: 'Verificando integridade',
+  download: 'Baixando arquivos',
+  copy: 'Copiando arquivos',
+  ffmpeg: 'Baixando ferramentas',
+  whisper: 'Baixando modelo local',
+  extracting_ffmpeg: 'Extraindo ferramentas',
+  starting: 'Iniciando instalação',
+  done: 'Concluído',
   import: 'Importando vídeo',
   audio: 'Preparando áudio',
   transcribe: 'Transcrevendo',

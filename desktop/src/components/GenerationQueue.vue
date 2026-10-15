@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import ProcessProgress from './ui/ProcessProgress.vue';
+import { computed } from 'vue';
 import type { Job, Revision, GenerationItem } from '../types';
 import { latestJob, active } from '../format';
 const props = defineProps<{ jobs: Job[]; revisions?: Revision[] }>();
@@ -28,20 +29,6 @@ const orderedItems = computed(() => {
   }
   return items.sort((a, b) => (statePriority[a.state] ?? 2) - (statePriority[b.state] ?? 2));
 });
-const now = ref(Date.now());
-let timer: ReturnType<typeof setInterval> | undefined;
-onMounted(() => {
-  timer = setInterval(() => (now.value = Date.now()), 1000);
-});
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
-});
-const elapsed = computed(() => {
-  const start = Date.parse(job.value?.created_at || '');
-  if (!Number.isFinite(start)) return '';
-  const seconds = Math.max(0, Math.floor((now.value - start) / 1000));
-  return `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
-});
 const phases: Record<string, string> = {
   waiting: 'Na fila',
   edit_plan: 'Preparando edição',
@@ -63,9 +50,13 @@ const phases: Record<string, string> = {
     <p v-if="job?.progress?.phase === 'pauses'" class="subtle">
       Verificando pausas no áudio antes de gerar as prévias
     </p>
-    <p v-if="elapsed && job && active(job.status)" class="subtle">
-      Em andamento há {{ elapsed }} · Sem estimativa de conclusão
-    </p>
+    <ProcessProgress
+      v-if="job && active(job.status) && job.progress?.stage_percent !== undefined"
+      :progress="job.progress"
+      :status="job.status"
+      :started-at="job.started_at"
+      :finished-at="job.finished_at"
+    />
     <ol>
       <li v-for="item in orderedItems" :key="item.candidate_id" :data-state="item.state">
         <div>

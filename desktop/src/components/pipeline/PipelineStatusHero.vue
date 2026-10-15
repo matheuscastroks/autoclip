@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from '../AppButton.vue';
+import ProcessProgress from '../ui/ProcessProgress.vue';
 import type { PipelineHero, PipelineAction } from '../../composables/usePipelinePresentation';
 defineProps<{ status: PipelineHero }>();
 defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
@@ -15,7 +16,19 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
     <h2 id="pipeline-current-state">{{ status.title }}</h2>
     <p class="hero-description">{{ status.description }}</p>
     <p v-if="status.notice" class="hero-notice">{{ status.notice }}</p>
-    <div v-if="status.progress" class="pipeline-progress">
+    <ProcessProgress
+      v-if="
+        status.job &&
+        status.job.status !== 'pending' &&
+        status.job.progress &&
+        'stage_percent' in status.job.progress
+      "
+      :progress="status.job.progress"
+      :status="status.job.status"
+      :started-at="status.job.started_at"
+      :finished-at="status.job.finished_at"
+    />
+    <div v-else-if="status.progress" class="pipeline-progress">
       <progress
         role="progressbar"
         :aria-label="status.progress.label"

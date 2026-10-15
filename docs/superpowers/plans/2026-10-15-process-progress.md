@@ -63,3 +63,5 @@ supported by observations, and explicit initialization/inactivity feedback.
 - Initial frozen smoke: import succeeded at 100%; silence exercised audio, model
   loading and transcription, then failed at 0% rather than reporting success.
   No remote calls. Rebuild final assets before publishing the final runtime result.
+- Final frontend after review fixes: 248 passed / 40 files; type-check and build
+  passed; lint 0 errors / 19 inherited warnings; same six untouched format failures.

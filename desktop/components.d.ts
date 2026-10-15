@@ -29,6 +29,7 @@ declare module 'vue' {
     PipelinePanel: typeof import('./src/components/PipelinePanel.vue')['default']
     PipelineStatusHero: typeof import('./src/components/pipeline/PipelineStatusHero.vue')['default']
     PipelineStepList: typeof import('./src/components/pipeline/PipelineStepList.vue')['default']
+    ProcessProgress: typeof import('./src/components/ui/ProcessProgress.vue')['default']
     ProjectLibrary: typeof import('./src/components/ProjectLibrary.vue')['default']
     ProjectListItem: typeof import('./src/components/library/ProjectListItem.vue')['default']
     ProjectQueue: typeof import('./src/components/ProjectQueue.vue')['default']

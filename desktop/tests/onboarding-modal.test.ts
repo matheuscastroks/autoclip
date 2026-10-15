@@ -5,6 +5,33 @@ import { api } from '../src/api';
 import type { ProvisionStatus } from '../src/types';
 
 describe('OnboardingModal', () => {
+  it('shows measured download ETA while provisioning is active', async () => {
+    const downloading = {
+      status: 'downloading',
+      stage: 'whisper',
+      item: 'Synthetic model',
+      downloaded_bytes: 5,
+      total_bytes: 10,
+      speed_bps: 1,
+      percent: 50,
+      eta_seconds: 30,
+      error: null,
+    } as ProvisionStatus;
+    const start = vi.spyOn(api, 'provision').mockResolvedValue(downloading);
+    const poll = vi.spyOn(api, 'provisionStatus').mockResolvedValue(downloading);
+    const wrapper = mount(OnboardingModal, {
+      props: { profile: null, toolsMissing: true, asrMissing: true, saveKey: vi.fn() },
+    });
+    try {
+      await wrapper.get('[data-action=start-provision]').trigger('click');
+      await flushPromises();
+      expect(wrapper.text()).toContain('~30 s restante nesta etapa');
+    } finally {
+      wrapper.unmount();
+      start.mockRestore();
+      poll.mockRestore();
+    }
+  });
   it('saves the chosen provider once and clears credential text only after success', async () => {
     const ready = {
       status: 'ready',

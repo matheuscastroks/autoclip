@@ -31,6 +31,7 @@ export interface PipelineAction {
   jobId?: string;
 }
 export interface PipelineHero {
+  job?: Job;
   state: 'ready' | 'processing' | 'attention';
   title: string;
   description: string;
@@ -185,6 +186,7 @@ export function usePipelinePresentation(props: Readonly<PipelineInput>) {
         progress.completed_items >= 0 &&
         progress.completed_items <= progress.total_items;
       return {
+        job: current,
         state: 'processing',
         title,
         description:

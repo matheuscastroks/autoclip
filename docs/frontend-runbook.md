@@ -1,5 +1,9 @@
 # Abrir e administrar o AutoClip
 
+Percentuais medidos, estimativas e avisos de inatividade estão descritos em
+[Progresso do processamento](process-progress.md). A nova interface depende de
+carregar o motor e os assets atualizados; não reinicie uma tarefa ativa para isso.
+
 ## No notebook atual
 
 Abra **AutoClip.lnk** ou **Abrir AutoClip.vbs**, na pasta do repositório, com duplo clique. O launcher inicia o serviço local em segundo plano e abre o navegador. Não é necessário usar terminal para administrar projetos. Um segundo clique reutiliza a instância do mesmo aplicativo.

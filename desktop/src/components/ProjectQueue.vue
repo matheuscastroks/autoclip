@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toRef } from 'vue';
 import AppButton from './AppButton.vue';
+import ProcessProgress from './ui/ProcessProgress.vue';
 import type { Job } from '../types';
 import { labels, stages } from '../format';
 import { useJobQueue } from '../composables/useJobQueue';
@@ -41,6 +42,13 @@ const { activeJobs: queue, runningCount, pendingCount } = useJobQueue(toRef(prop
             prontas</small
           >
         </div>
+        <ProcessProgress
+          v-if="job.status !== 'pending'"
+          :progress="job.progress"
+          :status="job.status"
+          :started-at="job.started_at"
+          :finished-at="job.finished_at"
+        />
         <AppButton
           class="button small secondary"
           :disabled="busy || job.status === 'cancelling'"
