@@ -208,9 +208,9 @@ function timeAgo(value: number) {
           <!-- Status do projeto -->
           <el-tag
             :type="
-              project.status === 'ready' || project.status === 'completed'
+              project.status === 'completed'
                 ? 'success'
-                : project.status === 'processing' || project.status === 'running'
+                : project.status === 'processing'
                   ? 'warning'
                   : project.status === 'failed'
                     ? 'danger'

@@ -3,6 +3,7 @@ from typing import Literal
 from pathlib import Path
 import json
 from engine.contracts import ReviewDecision,EditorialChecks
+from engine.contracts.api import RevisionReviewStatus
 from engine.pipeline.artifacts import file_hash,object_hash
 
 def review_fingerprint(project_root:Path,revision_id:UUID) -> str:
@@ -19,7 +20,7 @@ def record_review(revision_id:UUID,decision:Literal['approved','rejected'],check
     return ReviewDecision(revision_id=revision_id,decision=decision,checks=checks,notes=notes,content_hash=content_hash)
 
 
-def current_review(folder:Path,revision_id:UUID,content_hash:str,technical_pass:bool):
+def current_review(folder:Path,revision_id:UUID,content_hash:str,technical_pass:bool) -> tuple[RevisionReviewStatus,ReviewDecision|None]:
     if not technical_pass:
         return 'invalid',None
     review_path=Path(folder)/'review.json'

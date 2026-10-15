@@ -10,8 +10,8 @@ export function latestJob(jobs: Job[]) {
     ordered[0]
   );
 }
-export function time(us = 0) {
-  const s = Math.floor(us / 1e6);
+export function time(us: number | null | undefined = 0) {
+  const s = Math.floor((us ?? 0) / 1e6);
   const hours = Math.floor(s / 3600);
   const minutes = Math.floor((s % 3600) / 60);
   const seconds = s % 60;

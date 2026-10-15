@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel,ConfigDict,Field,SecretStr,model_validator
 from typing import Literal
 from engine.contracts import PipelineError,EditorialChecks
+from engine.contracts.api import Project as ProjectResponse,Job as JobResponse,Revision as RevisionResponse,AnalysisView,CreatedProject
 from .store import ProjectStore
 from .projects import discover,project_detail
 from .settings import Settings
@@ -69,7 +70,7 @@ class Picker(Input):
 class BulkCuts(Input):
     revision_ids:list[str]=Field(min_length=1,max_length=1000)
 class Decision(Input):
-    decision:str
+    decision:Literal['approved','rejected']
     checks:EditorialChecks
     notes:str=Field(default='',max_length=10000)
     content_hash:str=Field(pattern=r'^[a-f0-9]{64}$')
@@ -194,9 +195,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.post('/api/v1/system/provision/cancel')
     def system_provision_cancel():
         provisioner.cancel();return {'cancelled':True}
-    @app.get('/api/v1/projects')
+    @app.get('/api/v1/projects',response_model=list[ProjectResponse])
     def projects():return [describe(row) for row in store.list_projects()]
-    @app.post('/api/v1/projects')
+    @app.post('/api/v1/projects',response_model=CreatedProject)
     def new_project(value:NewProject):
         import uuid
         cfg=settings.get()
@@ -238,14 +239,14 @@ def create_app(workspace:Path,token:str)->FastAPI:
 
     @app.get('/api/v1/trash')
     def trash():return store.trash()
-    @app.post('/api/v1/trash/{pid}/restore')
+    @app.post('/api/v1/trash/{pid}/restore',response_model=ProjectResponse)
     def restore_project(pid:str):
         with jobs.lock:
             editable(pid);store.set_deleted(pid,False)
         return project_detail(store.get(pid))
-    @app.post('/api/v1/projects/import')
+    @app.post('/api/v1/projects/import',response_model=ProjectResponse)
     def register(value:ImportProject):return project_detail(store.register(Path(value.path),value.name))
-    @app.get('/api/v1/projects/{pid}')
+    @app.get('/api/v1/projects/{pid}',response_model=ProjectResponse)
     def detail(pid:str):return describe(store.get(pid))
     @app.get('/api/v1/projects/{pid}/transcript')
     def transcript(pid:str):
@@ -253,7 +254,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
         path=Path(store.get(pid)['path'])/'transcript.json'
         if not path.is_file():raise HTTPException(404,'Transcrição ainda não disponível.')
         return TranscriptArtifact.model_validate_json(path.read_bytes()).model_dump(mode='json')
-    @app.get('/api/v1/projects/{pid}/analysis')
+    @app.get('/api/v1/projects/{pid}/analysis',response_model=AnalysisView)
     def analysis(pid:str):
         from .analysis_view import analysis_view
         root=Path(store.get(pid)['path']);rows=[j for j in store.jobs() if j['project_id']==pid and j['operation'] in ('analyze','prepare')]
@@ -311,17 +312,17 @@ def create_app(workspace:Path,token:str)->FastAPI:
             return FileResponse(path,media_type='video/mp4',filename='corte-'+asset+'.mp4')
         return FileResponse(asset_path(root,asset),media_type='video/mp4')
 
-    @app.get('/api/v1/jobs')
+    @app.get('/api/v1/jobs',response_model=list[JobResponse])
     def list_jobs():return [jobs.status(j['id']) for j in store.jobs()]
-    @app.get('/api/v1/jobs/{jid}')
+    @app.get('/api/v1/jobs/{jid}',response_model=JobResponse)
     def job_status(jid:str):return jobs.status(jid)
-    @app.post('/api/v1/projects/{pid}/jobs')
+    @app.post('/api/v1/projects/{pid}/jobs',response_model=JobResponse)
     def start_job(pid:str,value:StartJob):
         try:return jobs.start(pid,value.operation,value.options.model_dump(exclude_none=True))
         except RuntimeError as exc:raise HTTPException(409,str(exc))
-    @app.post('/api/v1/jobs/{jid}/cancel')
+    @app.post('/api/v1/jobs/{jid}/cancel',response_model=JobResponse)
     def cancel_job(jid:str):return jobs.cancel(jid)
-    @app.post('/api/v1/jobs/{jid}/resume')
+    @app.post('/api/v1/jobs/{jid}/resume',response_model=JobResponse)
     def resume_job(jid:str,value:RetryJob|None=None):
         try:return jobs.resume(jid,value.source_input if value else None,candidate_id=value.candidate_id if value else None)
         except RuntimeError as exc:raise HTTPException(409,str(exc))
@@ -353,7 +354,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
             if not ids<=approved:raise HTTPException(409,'Todos os cortes selecionados precisam de aprovação editorial válida.')
             from engine.pipeline.runner import export_approved
             return {'paths':export_approved(root,ids)}
-    @app.get('/api/v1/projects/{pid}/revisions')
+    @app.get('/api/v1/projects/{pid}/revisions',response_model=list[RevisionResponse])
     def revisions(pid:str):return reviews.list_revisions(Path(store.get(pid)['path']))
     @app.get('/api/v1/projects/{pid}/deleted-revisions')
     def deleted_revisions(pid:str):return reviews.list_deleted(Path(store.get(pid)['path']))

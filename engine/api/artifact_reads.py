@@ -1,12 +1,12 @@
 """Read persisted contracts without treating corruption as an absent artifact."""
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
+from engine.contracts.api import ArtifactState
 
 T = TypeVar('T', bound=BaseModel)
-ArtifactState = Literal['available', 'not_generated', 'invalid', 'unavailable', 'stale']
 
 
 @dataclass(frozen=True)

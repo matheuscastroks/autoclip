@@ -1,42 +1,15 @@
-export interface Source {
-  local_path: string;
-  original_title: string;
-  channel: string;
-  original_url?: string;
-  attribution: string;
-  sha256: string;
-}
-export interface Project {
-  summary?: {
-    proposed: number | null;
-    selected: number | null;
-    generated: number;
-    stage: string | null;
-  };
-  id: string;
-  name: string;
-  title: string;
-  path: string;
-  status: string;
-  duration_us: number;
-  has_transcript: boolean;
-  has_analysis: boolean;
-  word_count: number;
-  is_manual: boolean;
-  revisions: Record<string, string>[];
-  warnings: string[];
-  created_at: string;
-  updated_at: number;
-  source: Source | null;
-  error: { code: string; message: string } | null;
-  artifacts?: Record<
-    string,
-    {
-      state: 'available' | 'not_generated' | 'invalid' | 'unavailable' | 'stale';
-      message: string | null;
-    }
-  >;
-}
+export type {
+  Source,
+  Project,
+  AnalysisEvent,
+  GenerationItem,
+  Job,
+  Revision,
+  Proposal,
+  AnalysisView,
+} from './generated/api';
+export type RevisionReviewStatus = import('./generated/api').Revision['review_status'];
+
 export interface Config {
   asr_model_path: string;
   gemini_model: string;
@@ -56,31 +29,6 @@ export interface Config {
   openrouter_model?: string;
   openrouter_key_configured?: boolean;
 }
-export interface AnalysisEvent {
-  id: string;
-  at: string;
-  kind: string;
-  message: string;
-  window_id?: string;
-  window_index?: number;
-  windows?: number;
-  attempt?: number;
-  model?: string;
-  source_start_us?: number;
-  source_end_us?: number;
-  topics?: { id: string; label: string; summary: string; evidence_word_ids: string[] }[];
-  candidates?: {
-    id: string;
-    title_suggestion: string;
-    rationale: string;
-    start_us?: number;
-    end_us?: number;
-    start_word_id: string;
-    end_word_id: string;
-    editorial?: Record<string, string>;
-  }[];
-  usage?: { thoughts_token_count?: number; candidates_token_count?: number };
-}
 export interface GeminiModel {
   id: string;
   name: string;
@@ -92,50 +40,6 @@ export interface GeminiConnection {
   checked_at: string | null;
   message: string;
   models: GeminiModel[];
-}
-export interface GenerationItem {
-  candidate_id: string;
-  title: string;
-  state: string;
-  phase: string;
-  processed_us: number;
-  total_us: number | null;
-  revision_id?: string;
-  error_code?: string;
-  error_message?: string;
-  error_stage?: string;
-  error_type?: string;
-  reused?: boolean;
-}
-export interface Job {
-  id: string;
-  project_id: string;
-  operation: string;
-  status: string;
-  created_at: string;
-  queue_position?: number | null;
-  queue_reason?: string | null;
-  ignored_ready?: number;
-  ignored_queued?: number;
-  enqueued_items?: number;
-  requests_used: number;
-  request_limit: number | null;
-  request_mode?: 'automatic' | 'manual';
-  stage?: string;
-  progress?: {
-    stage: string;
-    steps: Record<string, string>;
-    phase?: string;
-    items?: GenerationItem[];
-    completed_items?: number;
-    total_items?: number;
-    processed_us?: number;
-    total_us?: number | null;
-    activity_at?: string;
-  } | null;
-  error?: { code: string; message: string };
-  events: AnalysisEvent[];
-  exports?: string[];
 }
 export interface Word {
   id: string;
@@ -153,70 +57,6 @@ export interface Checks {
   qualifications: boolean;
   words_and_boundaries: boolean;
   audiovisual: boolean;
-}
-export type RevisionReviewStatus =
-  'invalid' | 'needs_review' | 'stale_review' | 'approved' | 'rejected';
-
-export interface Revision {
-  opening_text?: string;
-  opening_duration_us?: number;
-  description?: string;
-  revision_id: string;
-  candidate_id?: string;
-  exported?: boolean;
-  title: string;
-  rationale?: string;
-  technical_pass: boolean;
-  review_status: RevisionReviewStatus;
-  duration_us?: number;
-  start_us?: number;
-  end_us?: number;
-  caption_words?: { display_text: string; start_us: number; end_us: number }[];
-  warnings: string[];
-  content_hash?: string;
-  notes?: string;
-  removed_silence_us?: number;
-  pause_removals?: { source_start_us: number; source_end_us: number; reason: string }[];
-}
-export interface Proposal {
-  opening_text?: string;
-  description?: string;
-  candidate_id: string;
-  topic_ids: string[];
-  group_id: string;
-  title: string;
-  rationale: string;
-  start_us: number;
-  end_us: number;
-  duration_us: number;
-  start_word_id: string;
-  end_word_id: string;
-  evidence_word_ids: string[];
-  editorial: Record<string, string>;
-  warnings: string[];
-  eligible: boolean;
-  reasons: string[];
-  text: string;
-  context_before: string;
-  context_after: string;
-}
-export interface AnalysisView {
-  schema_version: string;
-  state: string;
-  diagnostic?: string | null;
-  job_id: string | null;
-  analysis_hash: string | null;
-  model: string | null;
-  completed_windows: number;
-  total_windows: number;
-  topic_groups: {
-    id: string;
-    label: string;
-    topic_ids: string[];
-    summaries: string[];
-    evidence_word_ids: string[];
-  }[];
-  proposals: Proposal[];
 }
 export interface AnalysisSelection {
   schema_version: string;
