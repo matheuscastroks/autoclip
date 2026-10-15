@@ -466,9 +466,7 @@ input[type='checkbox'] {
 .pipeline-panel,
 .settings-main,
 .topic-list,
-.proposal-column,
 .proposal-detail,
-.transcript-layout,
 .generation-queue,
 .readiness-panel {
   background: var(--panel);
@@ -820,46 +818,6 @@ time {
   color: var(--color-text-secondary);
   font-size: 11px;
 }
-.transcript-layout {
-  padding: 20px;
-}
-.transcript-header h2 {
-  font-size: 18px;
-}
-.transcript-header p {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-.transcript-body > video {
-  border-radius: 10px;
-  background: #000;
-  border: 1px solid var(--line);
-}
-.transcript-segments button,
-.transcript-segments .transcript-segment-row {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: flex-start;
-  gap: 15px;
-  padding: 12px 16px;
-  line-height: 1.65;
-  width: 100%;
-}
-.transcript-segments button:hover,
-.transcript-segments .transcript-segment-row:hover {
-  background: var(--soft);
-}
-.transcript-segments time {
-  color: var(--accent-light);
-  font-size: 11px;
-  font-weight: 600;
-}
 [data-slot='app-toaster'] [data-close-button],
 .app-toast button {
   min-width: 24px !important;
@@ -871,10 +829,6 @@ time {
 .analysis-heading p {
   color: var(--color-text-secondary);
   font-size: 12px;
-}
-.analysis-layout {
-  grid-template-columns: 190px minmax(280px, 1fr) minmax(320px, 1.1fr);
-  gap: 16px;
 }
 .topic-list {
   padding: 12px;
@@ -915,37 +869,6 @@ time {
   padding: 12px 8px;
   border-top: 1px solid var(--line);
 }
-.proposal-column {
-  padding: 14px;
-}
-.proposal-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: none;
-  margin-bottom: 10px;
-  padding: 12px;
-  transition: all 0.15s;
-}
-.proposal-card:hover {
-  border-color: var(--line-strong);
-}
-.proposal-card.selected {
-  background: var(--color-surface-hover);
-  border-color: var(--accent);
-  padding: 12px;
-}
-.proposal-card h3 {
-  font-size: 13px;
-}
-.proposal-card p {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-.proposal-card .proposal-meta {
-  color: var(--color-text-secondary);
-  font-size: 11px;
-}
 .proposal-detail {
   padding: 18px;
 }
@@ -974,17 +897,6 @@ time {
 .opening-copy small {
   color: var(--accent-light);
   font-weight: 600;
-}
-.analysis-explanation {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 12px;
-}
-.analysis-explanation > summary {
-  font-weight: 500;
-  cursor: pointer;
 }
 .thought-scroll {
   color: var(--color-text-secondary);
@@ -1212,14 +1124,8 @@ time {
   opacity: 0;
 }
 @media (max-width: 1200px) {
-  .analysis-layout {
-    grid-template-columns: 160px minmax(220px, 1fr) minmax(260px, 1fr);
-  }
 }
 @media (max-width: 1000px) {
-  .analysis-layout {
-    grid-template-columns: 150px minmax(0, 1fr);
-  }
   .proposal-detail {
     grid-column: 2;
   }
@@ -1252,10 +1158,6 @@ time {
   }
   .project-tabs {
     flex-wrap: wrap;
-  }
-  .analysis-layout {
-    display: flex;
-    flex-direction: column;
   }
   .topic-list {
     display: flex;
@@ -1342,31 +1244,10 @@ time {
   color: var(--ink);
   font-weight: 500;
 }
-.proposal-transcript {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  font-size: 13px;
-}
-.proposal-transcript > summary {
-  cursor: pointer;
-  font-size: 12px;
-}
 .context-text {
   color: var(--color-text-secondary);
   font-size: 12px;
 }
-.analysis-overview {
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
-  margin-top: 16px;
-}
-.analysis-overview strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.analysis-overview p,
 .pipeline-activity {
   font-size: 12px;
   color: var(--color-text-secondary);

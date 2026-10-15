@@ -444,39 +444,6 @@ svg {
   margin-top: 5px;
   overflow-wrap: anywhere;
 }
-.transcript-header {
-  margin-bottom: 18px;
-}
-.transcript-header p {
-  margin-top: 6px;
-}
-.transcript-body {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) minmax(260px, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-.transcript-body video {
-  width: 100%;
-  position: sticky;
-  top: 20px;
-}
-.transcript-segments {
-  max-height: 520px;
-  overflow: auto;
-}
-.transcript-segments button {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: 15px;
-  padding: 14px 17px;
-  text-align: left;
-  line-height: 1.65;
-}
-.transcript-segments time {
-  padding-top: 2px;
-}
 .settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 295px;
@@ -809,16 +776,6 @@ svg {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
-  }
-  .transcript-body {
-    grid-template-columns: 1fr;
-  }
-  .transcript-body video {
-    position: static;
-    max-height: 260px;
-  }
-  .transcript-segments {
-    max-height: 380px;
   }
 }
 @media (max-width: 680px) {
@@ -1273,13 +1230,6 @@ svg {
 .stage-progress {
   height: 5px;
 }
-.analysis-overview {
-  padding-top: 16px;
-  margin-top: 16px;
-}
-.analysis-overview p {
-  margin: 6px 0 12px;
-}
 .section-icon {
   width: 42px;
   height: 42px;
@@ -1287,8 +1237,7 @@ svg {
 .modal form {
   padding: 26px;
 }
-.check-row input,
-.proposal-checkbox input {
+.check-row input {
   accent-color: var(--ink);
   width: 18px;
   height: 18px;
@@ -1314,12 +1263,6 @@ svg {
 .analysis-heading p {
   margin-top: 8px;
 }
-.analysis-layout {
-  display: grid;
-  grid-template-columns: 190px minmax(240px, 1fr) minmax(260px, 1fr);
-  gap: 20px;
-  align-items: start;
-}
 .topic-list {
   min-width: 0;
 }
@@ -1344,34 +1287,12 @@ svg {
 .topic-summary p + p {
   margin-top: 10px;
 }
-.proposal-column {
-  min-width: 0;
-}
 .proposal-list {
   margin-top: 14px;
   max-height: 650px;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 0 4px 4px 0;
-}
-.proposal-card {
-  padding: 16px;
-  margin-bottom: 12px;
-}
-.proposal-card.selected {
-  padding: 15px;
-}
-.proposal-top {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-.proposal-checkbox {
-  padding-top: 3px;
-  flex-shrink: 0;
-}
-.proposal-checkbox input {
-  margin: 0;
 }
 .proposal-open {
   padding: 0;
@@ -1386,10 +1307,6 @@ svg {
 .proposal-open small {
   display: block;
   margin-top: 8px;
-}
-.proposal-card > p {
-  line-height: 1.7;
-  margin: 12px 0;
 }
 .proposal-detail {
   padding: 20px;
@@ -1428,35 +1345,11 @@ svg {
 .editorial-flags b {
   white-space: nowrap;
 }
-.proposal-transcript {
-  line-height: 1.8;
-  margin: 18px 0;
-}
-.proposal-transcript summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  margin-bottom: 10px;
-}
-.proposal-transcript p {
-  margin: 10px 0;
-}
 .context-text {
   padding-left: 10px;
 }
 .empty-proposals {
   padding: 30px 0;
-}
-.analysis-explanation {
-  margin-top: 25px;
-  padding: 16px 20px;
-}
-.analysis-explanation > summary {
-  cursor: pointer;
-}
-.analysis-explanation .thought-scroll {
-  max-height: 360px;
 }
 .generation-queue {
   padding: 16px;
@@ -1517,10 +1410,6 @@ svg {
   .page-content {
     padding: 26px;
   }
-  .analysis-layout {
-    grid-template-columns: 160px minmax(220px, 1fr) minmax(240px, 1fr);
-    gap: 14px;
-  }
   .review-grid {
     grid-template-columns: 160px minmax(200px, 1fr) 230px;
     gap: 14px;
@@ -1529,9 +1418,6 @@ svg {
 @media (max-width: 1000px) {
   .workspace-overview {
     grid-template-columns: 1fr;
-  }
-  .analysis-layout {
-    grid-template-columns: 180px 1fr;
   }
   .proposal-detail {
     grid-column: 2;
@@ -1581,12 +1467,7 @@ svg {
     margin-top: 18px;
     width: 100%;
   }
-  .analysis-layout {
-    display: flex;
-    flex-direction: column;
-  }
   .topic-list,
-  .proposal-column,
   .proposal-detail {
     width: 100%;
   }
@@ -1782,14 +1663,6 @@ svg {
   gap: 10px;
   margin-top: 4px;
 }
-.pipeline-panel .analysis-overview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px;
-  margin-top: 24px;
-}
 .pipeline-panel .pipeline-note {
   line-height: 1.6;
   margin-top: 24px;
@@ -1829,10 +1702,6 @@ svg {
   .step-heading {
     flex-wrap: wrap;
     gap: 4px;
-  }
-  .pipeline-panel .analysis-overview {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 @media (max-width: 450px) {
@@ -2077,9 +1946,6 @@ svg {
 .clip-item {
   margin-bottom: 8px;
 }
-.proposal-card {
-  margin-bottom: 16px;
-}
 .proposal-play,
 .step-actions {
   gap: 12px;
@@ -2115,9 +1981,6 @@ svg {
   .project-row {
     grid-template-columns: minmax(200px, 1fr) 65px 140px 150px 85px 32px;
     gap: 12px;
-  }
-  .analysis-layout {
-    grid-template-columns: 170px minmax(220px, 1fr);
   }
   .proposal-detail {
     grid-column: 2;
@@ -2420,35 +2283,6 @@ svg {
 .pipeline-panel .pipeline-note {
   margin-top: 16px;
 }
-.transcript-layout {
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.transcript-header {
-  flex: none;
-  margin-bottom: 16px;
-}
-.transcript-body {
-  min-height: 0;
-  flex: 1;
-}
-.transcript-body > video {
-  width: 100%;
-  height: auto;
-  max-height: 220px;
-  aspect-ratio: 16/9;
-}
-.transcript-segments {
-  height: 100%;
-  max-height: none;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.transcript-segments button {
-  padding: 12px 16px;
-}
 .selection-step {
   display: block;
   margin-bottom: 12px;
@@ -2459,24 +2293,13 @@ svg {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.analysis-layout {
-  grid-template-columns: 200px minmax(240px, 1fr) minmax(260px, 1fr);
-  gap: 16px;
-  min-height: 0;
-  align-items: stretch;
-}
 .topic-list,
-.proposal-column,
 .proposal-detail {
   min-height: 0;
 }
 .topic-list {
   overflow: auto;
   padding-right: 5px;
-}
-.proposal-column {
-  display: flex;
-  flex-direction: column;
 }
 .proposal-list {
   max-height: none;
@@ -2500,12 +2323,6 @@ svg {
 }
 .proposal-rationale {
   margin: 12px 0;
-}
-.proposal-card {
-  padding: 12px;
-}
-.proposal-card.selected {
-  padding: 11px;
 }
 .analysis-heading {
   margin-bottom: 16px;
@@ -2598,30 +2415,14 @@ svg {
     max-height: none;
     overflow: auto;
   }
-  .transcript-layout {
-    height: 100%;
-    min-height: 0;
-  }
   .analysis-workspace {
     min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .analysis-heading,
-  .analysis-explanation {
+  .analysis-heading {
     flex: none;
-  }
-  .analysis-workspace > .analysis-layout {
-    height: auto;
-    min-height: 0;
-  }
-  .analysis-explanation {
-    margin-top: 12px;
-  }
-  .analysis-explanation[open] {
-    max-height: 160px;
-    overflow: auto;
   }
   .preparation-group .pipeline-step {
     min-height: 104px;
@@ -2638,9 +2439,6 @@ svg {
   .preparation-group .pipeline-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .analysis-layout {
-    grid-template-columns: 160px minmax(200px, 1fr) minmax(240px, 1fr);
-  }
   .review-grid {
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 16px;
@@ -2653,10 +2451,6 @@ svg {
   .generation-sidebar {
     height: auto;
     max-height: min(40dvh, 400px);
-  }
-  .analysis-layout {
-    height: auto;
-    grid-template-columns: 170px minmax(0, 1fr);
   }
   .proposal-detail {
     grid-column: 2;
@@ -2684,21 +2478,8 @@ svg {
   .local-resource-row .field-pair {
     grid-template-columns: 1fr;
   }
-  .transcript-layout {
-    height: 100%;
-    min-width: 580px;
-  }
   .workspace-body.transcript-workspace #project-panel {
     overflow-x: auto;
-  }
-  .transcript-body {
-    grid-template-columns: 1fr;
-  }
-  .transcript-segments {
-    max-height: 450px;
-  }
-  .analysis-layout {
-    grid-template-columns: 1fr;
   }
   .proposal-detail {
     grid-column: 1;
