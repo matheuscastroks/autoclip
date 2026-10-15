@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
-import { X } from '@lucide/vue';
 
 const props = withDefaults(
   defineProps<{
@@ -50,12 +50,7 @@ onUnmounted(() => {
     @keydown="handleKeydown"
     @click.self="$emit('close')"
   >
-    <div
-      ref="modalRef"
-      class="base-modal-container"
-      :style="{ maxWidth }"
-      tabindex="0"
-    >
+    <div ref="modalRef" class="base-modal-container" :style="{ maxWidth }" tabindex="0">
       <header v-if="title || $slots.header" class="base-modal-header">
         <slot name="header">
           <h2 class="base-modal-title">{{ title }}</h2>
@@ -66,7 +61,7 @@ onUnmounted(() => {
           aria-label="Fechar modal"
           @click="$emit('close')"
         >
-          <X :size="18" />
+          <AppIcon name="close" size="md" />
         </button>
       </header>
 
@@ -86,7 +81,6 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex;
   align-items: center;

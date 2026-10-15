@@ -3,10 +3,12 @@ import { computed, ref, toRef } from 'vue';
 import AppButton from './AppButton.vue';
 import AppIcon from './ui/AppIcon.vue';
 import { ElScrollbar, ElTag, ElProgress, ElEmpty, ElCard } from 'element-plus';
-import { ArrowUpRight, Square, CheckCircle2, AlertCircle, LoaderCircle, Trash2 } from '@lucide/vue';
 import type { Job, Project } from '../types';
 import { active, labels, stages } from '../format';
 import { useJobQueue } from '../composables/useJobQueue';
+import { useModalFocus } from '../composables/useModalFocus';
+const modalRoot = ref<HTMLElement>();
+useModalFocus(modalRoot);
 
 const props = defineProps<{
   jobs: Job[];
@@ -65,7 +67,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
     @keydown="handleKey"
     @click.self="$emit('close')"
   >
-    <div class="global-queue-container">
+    <div ref="modalRoot" class="global-queue-container" tabindex="-1">
       <header class="queue-modal-header">
         <div class="queue-title-area">
           <span class="queue-icon-wrapper"><AppIcon name="queue" /></span>
@@ -77,16 +79,18 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
           </div>
         </div>
         <div class="queue-header-actions">
-          <div class="queue-tabs" role="tablist">
+          <div class="queue-tabs" role="group" aria-label="Filtrar tarefas">
             <AppButton
               class="queue-tab"
               :class="{ selected: filter === 'active' }"
+              :aria-pressed="filter === 'active'"
               @click="filter = 'active'"
               >Ativas ({{ activeJobs.length }})</AppButton
             >
             <AppButton
               class="queue-tab"
               :class="{ selected: filter === 'all' }"
+              :aria-pressed="filter === 'all'"
               @click="filter = 'all'"
               >Histórico recente</AppButton
             >
@@ -96,7 +100,8 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
               title="Remover tarefas concluídas e seus arquivos temporários; preservar tarefas que podem ser retomadas"
               :disabled="busy"
               @click="$emit('clearHistory')"
-              ><Trash2 :size="14" style="margin-right: 4px" />Limpar concluídas</AppButton
+              ><AppIcon name="trash" size="sm" style="margin-right: 4px" />Limpar
+              concluídas</AppButton
             >
           </div>
           <AppButton
@@ -125,7 +130,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                   @click="$emit('open', job.project_id)"
                 >
                   <strong>{{ projectName(job.project_id) }}</strong>
-                  <ArrowUpRight :size="14" />
+                  <AppIcon name="open-external" size="sm" />
                 </AppButton>
               </div>
               <div class="job-status-tags">
@@ -136,11 +141,12 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                   class="status-pill"
                   :data-status="job.status"
                 >
-                  <LoaderCircle v-if="job.status === 'running'" class="spin" :size="12" />
-                  <CheckCircle2 v-else-if="job.status === 'completed'" :size="12" />
-                  <AlertCircle
+                  <AppIcon v-if="job.status === 'running'" name="spinner" size="sm" class="spin" />
+                  <AppIcon v-else-if="job.status === 'completed'" name="check-circle" size="sm" />
+                  <AppIcon
                     v-else-if="['failed', 'interrupted'].includes(job.status)"
-                    :size="12"
+                    name="warning"
+                    size="sm"
                   />
                   {{ labels[job.status] || job.status }}
                 </el-tag>
@@ -175,7 +181,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                       : 100
                   "
                   :indeterminate="!job.progress?.total_items"
-                  :color="'#ECEEF0'"
+                  :color="'var(--color-action-primary)'"
                   :stroke-width="4"
                   :show-text="false"
                   style="margin-bottom: 6px"
@@ -200,7 +206,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                 :disabled="pendingJobIds?.includes(job.id) || job.status === 'cancelling'"
                 @click="$emit('cancel', job.id)"
               >
-                <Square :size="12" />{{
+                <AppIcon name="stop" size="sm" />{{
                   job.status === 'pending' ? 'Remover da fila' : 'Cancelar tarefa'
                 }}
               </AppButton>
@@ -240,7 +246,6 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
   position: fixed;
   inset: 0;
   background: rgba(14, 16, 19, 0.75);
-  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,18 +253,20 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
   padding: 20px;
 }
 .global-queue-container {
+  outline: none;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
   width: 100%;
   max-width: 680px;
-  max-height: 85vh;
+  max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .queue-modal-header {
+  flex-wrap: wrap;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-subtle, var(--line));
   display: flex;
@@ -344,7 +351,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 }
 .queue-clear-action {
   margin-left: 8px;
-  color: #ef4444 !important;
+  color: var(--color-danger);
 }
 .job-card-top {
   display: flex;

@@ -2,6 +2,44 @@ import { mount } from '@vue/test-utils';
 import { it, expect } from 'vitest';
 import GlobalQueueModal from '../src/components/GlobalQueueModal.vue';
 import type { Job, Project } from '../src/types';
+it('exposes active/history filters as pressed commands rather than incomplete tabs', async () => {
+  const w = mount(GlobalQueueModal, { props: { jobs: [], projects: [], busy: false } });
+  try {
+    const filters = w.get('[role=group][aria-label="Filtrar tarefas"]');
+    const commands = filters.findAll('button');
+    expect(commands[0].attributes('aria-pressed')).toBe('true');
+    await commands[1].trigger('click');
+    expect(commands[1].attributes('aria-pressed')).toBe('true');
+    expect(commands[0].attributes('aria-pressed')).toBe('false');
+  } finally {
+    w.unmount();
+  }
+});
+
+it('keeps keyboard focus inside the queue and restores its opener on close', async () => {
+  const opener = document.createElement('button');
+  document.body.append(opener);
+  opener.focus();
+  const w = mount(GlobalQueueModal, {
+    attachTo: document.body,
+    props: { jobs: [], projects: [], busy: false },
+  });
+  try {
+    const buttons = w.findAll('button');
+    expect(w.element.contains(document.activeElement)).toBe(true);
+    (buttons.at(-1)!.element as HTMLButtonElement).focus();
+    await buttons.at(-1)!.trigger('keydown', { key: 'Tab' });
+    expect(document.activeElement).toBe(buttons[0].element);
+    await buttons[0].trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(buttons.at(-1)!.element);
+    await buttons.at(-1)!.trigger('keydown', { key: 'Escape' });
+    expect(w.emitted('close')).toHaveLength(1);
+  } finally {
+    w.unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  }
+});
 
 const dummyProject: Project = {
   id: 'proj-1',

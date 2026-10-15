@@ -32,18 +32,19 @@ defineEmits<{
       <ElTooltip content="Fila global de tarefas" placement="right">
         <button
           class="rail-command"
-          aria-label="Fila global de tarefas"
+          :aria-label="
+            activeJobsCount > 0
+              ? `Fila global de tarefas · ${activeJobsCount} tarefas ativas`
+              : 'Fila global de tarefas'
+          "
           title="Fila global de tarefas"
           type="button"
           @click="$emit('openQueue')"
         >
           <AppIcon name="queue" />
-          <span
-            v-if="activeJobsCount > 0"
-            class="rail-count"
-            :aria-label="`${activeJobsCount} tarefas ativas`"
-            >{{ activeJobsCount }}</span
-          >
+          <span v-if="activeJobsCount > 0" class="rail-count" aria-hidden="true">{{
+            activeJobsCount
+          }}</span>
         </button>
       </ElTooltip>
     </nav>

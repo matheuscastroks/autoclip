@@ -41,8 +41,10 @@ describe('OnboardingModal', () => {
       },
     });
     const tier2Btn = wrapper.find('[data-tier="2"]');
+    expect(tier2Btn.attributes('aria-pressed')).toBe('false');
     await tier2Btn.trigger('click');
     expect(wrapper.find('[data-tier="2"]').classes()).toContain('selected');
+    expect(tier2Btn.attributes('aria-pressed')).toBe('true');
   });
 
   it('defaults ffmpeg checkbox based on toolsMissing prop', () => {

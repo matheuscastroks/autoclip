@@ -1,21 +1,13 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ElSteps, ElStep, ElProgress, ElTag, ElAlert } from 'element-plus';
-import {
-  Cpu,
-  HardDrive,
-  Sparkles,
-  Check,
-  CheckCircle2,
-  AlertTriangle,
-  LoaderCircle,
-  Download,
-  X,
-  KeyRound,
-} from '@lucide/vue';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
 import { usePolling } from '../composables/usePolling';
+import { useModalFocus } from '../composables/useModalFocus';
+const modalRoot = ref<HTMLElement>();
+useModalFocus(modalRoot);
 
 const props = defineProps<{
   profile: HardwareProfile | null;
@@ -53,21 +45,21 @@ const tiers = [
     id: 'Systran/faster-whisper-base',
     title: 'Tier 1 (Leve)',
     desc: 'Whisper Base · ~140 MB · Baixo consumo de RAM e CPU',
-    speed: 'Ultrarrápido',
+    speed: 'Menor consumo',
   },
   {
     tier: 2,
     id: 'Systran/faster-whisper-small',
     title: 'Tier 2 (Equilibrado)',
-    desc: 'Whisper Small · ~460 MB · Equilíbrio ideal de precisão e velocidade',
+    desc: 'Whisper Small · ~460 MB · Modelo intermediário para uso geral',
     speed: 'Padrão',
   },
   {
     tier: 3,
     id: 'Systran/faster-whisper-large-v3-turbo',
     title: 'Tier 3 (Alta Performance)',
-    desc: 'Whisper Large v3 Turbo · ~800 MB · Fidelidade máxima em português',
-    speed: 'Máxima Precisão',
+    desc: 'Whisper Large v3 Turbo · ~800 MB · Modelo de maior porte; requer mais memória',
+    speed: 'Maior capacidade',
   },
 ];
 
@@ -171,17 +163,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="onboarding-overlay" role="dialog" aria-modal="true">
-    <div class="onboarding-container">
+  <div
+    class="onboarding-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="onboarding-title"
+  >
+    <div ref="modalRoot" class="onboarding-container" tabindex="-1">
       <header class="onboarding-header">
         <div class="header-badge">
-          <Sparkles :size="18" />
-          <span>Instalação Zero-Config</span>
+          <AppIcon name="sparkle" size="md" />
+          <span>Configuração local</span>
         </div>
-        <h2>Configuração Inicial do AutoClip</h2>
+        <h2 id="onboarding-title">Preparar o AutoClip</h2>
         <p class="header-subtitle">
-          Configuramos as ferramentas multimídia e o modelo Whisper diretamente no seu computador
-          para garantir edição de cortes 100% offline.
+          Transcrição e renderização são locais. A análise editorial utiliza o provedor de IA
+          configurado e envia somente texto. Instale os recursos necessários para começar.
         </p>
         <button
           v-if="step !== 'downloading'"
@@ -197,7 +194,7 @@ onUnmounted(() => {
       <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px">
         <el-steps :active="stepIndex" finish-status="success" align-center>
           <el-step title="Diagnóstico" description="Hardware e Modelo" />
-          <el-step title="Instalação" description="Download Offline" />
+          <el-step title="Instalação" description="Baixar recursos" />
           <el-step title="Curadoria IA" description="Chave de API" />
         </el-steps>
       </div>
@@ -206,7 +203,7 @@ onUnmounted(() => {
       <section v-if="step === 'diagnosis'" class="onboarding-step">
         <div v-if="profile" class="hardware-diagnosis-card">
           <div class="diagnosis-header">
-            <Cpu :size="17" />
+            <AppIcon name="cpu" size="md" />
             <strong>Diagnóstico de Hardware</strong>
           </div>
           <div class="diagnosis-grid">
@@ -253,6 +250,7 @@ onUnmounted(() => {
               type="button"
               class="tier-card"
               :data-tier="item.tier"
+              :aria-pressed="selectedTier === item.tier"
               :class="{
                 selected: selectedTier === item.tier,
                 recommended: profile && profile.recommended_tier === item.tier,
@@ -262,7 +260,7 @@ onUnmounted(() => {
               <div class="tier-top">
                 <span class="tier-title">{{ item.title }}</span>
                 <span v-if="profile && profile.recommended_tier === item.tier" class="rec-pill">
-                  ⭐ Recomendado
+                  Recomendado
                 </span>
               </div>
               <p class="tier-desc">{{ item.desc }}</p>
@@ -275,7 +273,7 @@ onUnmounted(() => {
 
         <div class="ffmpeg-option-card">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="installFfmpeg" data-action="toggle-ffmpeg" />
+            <input v-model="installFfmpeg" type="checkbox" data-action="toggle-ffmpeg" />
             <div class="checkbox-info">
               <strong>Instalar ferramentas multimídia FFmpeg & ffprobe</strong>
               <span
@@ -287,7 +285,7 @@ onUnmounted(() => {
         </div>
 
         <div v-if="error" class="onboarding-error-banner">
-          <AlertTriangle :size="16" />
+          <AppIcon name="warning" size="sm" />
           <span>{{ error }}</span>
         </div>
 
@@ -299,7 +297,7 @@ onUnmounted(() => {
             :disabled="busy"
             @click="startProvision"
           >
-            <Download :size="17" />
+            <AppIcon name="download" size="md" />
             <span>Instalar Dependências Automaticamente</span>
           </button>
         </div>
@@ -310,7 +308,7 @@ onUnmounted(() => {
         <div class="download-progress-card">
           <div class="progress-header">
             <div class="spinner-item">
-              <LoaderCircle class="animate-spin" :size="20" />
+              <AppIcon name="spinner" size="md" class="animate-spin" />
               <strong>Baixando e configurando dependências...</strong>
             </div>
             <span class="percent-badge">{{ provisionStatus.percent }}%</span>
@@ -338,7 +336,7 @@ onUnmounted(() => {
         </div>
 
         <div v-if="error" class="onboarding-error-banner">
-          <AlertTriangle :size="16" />
+          <AppIcon name="warning" size="sm" />
           <span>{{ error }}</span>
         </div>
 
@@ -349,7 +347,7 @@ onUnmounted(() => {
             data-action="cancel-provision"
             @click="cancelProvision"
           >
-            <X :size="15" />
+            <AppIcon name="close" size="sm" />
             <span>Cancelar</span>
           </button>
         </div>
@@ -358,12 +356,12 @@ onUnmounted(() => {
       <!-- Step 3: Finished & API Key Handoff -->
       <section v-else-if="step === 'apikey'" class="onboarding-step">
         <div class="success-banner">
-          <CheckCircle2 :size="32" class="success-icon" />
-          <h3>Dependências instaladas com sucesso!</h3>
+          <AppIcon name="check-circle" size="lg" class="success-icon" />
+          <h3>Recursos locais preparados</h3>
           <p>
-            Seu computador agora possui o Whisper e o FFmpeg operando 100% offline. Para habilitar a
-            curadoria inteligente e seleção de momentos pelo AI Studio, configure sua chave de API
-            abaixo:
+            Configure o provedor de IA para analisar a transcrição. Essa etapa utiliza a internet,
+            envia somente texto e pode gerar custos. As chaves são armazenadas separadamente das
+            preferências do projeto.
           </p>
         </div>
 
@@ -397,8 +395,8 @@ onUnmounted(() => {
             </label>
             <div class="input-with-button">
               <input
-                type="password"
                 v-model="apiKeyInput"
+                type="password"
                 class="key-text-input"
                 autocomplete="new-password"
                 spellcheck="false"
@@ -413,14 +411,14 @@ onUnmounted(() => {
                 :disabled="busy || !apiKeyInput.trim()"
                 @click="handleSaveKey"
               >
-                <KeyRound :size="15" />
+                <AppIcon name="key" size="sm" />
                 <span>Salvar Chave</span>
               </button>
             </div>
           </div>
 
           <p v-if="keySaved" class="success-pill-msg">
-            <Check :size="14" /> Chave de API validada e configurada com sucesso!
+            <AppIcon name="check" size="sm" /> Chave de API validada e configurada com sucesso!
           </p>
         </div>
 
@@ -431,7 +429,7 @@ onUnmounted(() => {
             data-action="finish-onboarding"
             @click="finish"
           >
-            <Check :size="17" />
+            <AppIcon name="check" size="md" />
             <span>Abrir AutoClip e Começar</span>
           </button>
         </div>
@@ -445,26 +443,29 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 16px;
 }
 
 .onboarding-container {
-  background: #11141a;
+  outline: none;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  min-height: 0;
+  background: var(--color-surface);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border-radius: var(--radius-panel);
   width: 100%;
   max-width: 680px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
-  padding: 2rem;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  color: #e4e7eb;
+  color: var(--color-text-primary);
 }
 
 .onboarding-header {
@@ -477,26 +478,26 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-meta);
   font-weight: 600;
-  color: #79c0ff;
-  background: rgba(56, 139, 253, 0.12);
-  border: 1px solid rgba(56, 139, 253, 0.3);
+  color: var(--color-action-primary);
+  background: var(--color-surface-selected);
+  border: 1px solid var(--color-surface-selected);
   padding: 0.25rem 0.65rem;
   border-radius: 999px;
   width: fit-content;
 }
 
 .onboarding-header h2 {
-  font-size: 1.45rem;
+  font-size: var(--font-size-title);
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .header-subtitle {
   font-size: 0.88rem;
-  color: #8b949e;
+  color: var(--color-text-secondary);
   line-height: 1.45;
   margin: 0;
 }
@@ -521,7 +522,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #a5d6ff;
+  color: var(--color-action-primary);
   font-size: 0.88rem;
 }
 
@@ -538,8 +539,8 @@ onUnmounted(() => {
 }
 
 .diag-label {
-  font-size: 0.75rem;
-  color: #8b949e;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -547,7 +548,7 @@ onUnmounted(() => {
 .diag-val {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #c9d1d9;
+  color: var(--color-text-primary);
 }
 
 .tiers-selection-section {
@@ -564,8 +565,8 @@ onUnmounted(() => {
 }
 
 .section-heading .hint {
-  font-size: 0.78rem;
-  color: #8b949e;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
 }
 
 .tiers-grid {
@@ -594,17 +595,16 @@ onUnmounted(() => {
 }
 
 .tier-card.selected {
-  background: rgba(56, 139, 253, 0.08);
-  border-color: #388bfd;
-  box-shadow: 0 0 12px rgba(56, 139, 253, 0.2);
+  background: var(--color-surface-selected);
+  border-color: var(--color-action-primary);
 }
 
 .tier-card.recommended {
-  border-color: rgba(210, 153, 34, 0.5);
+  border-color: var(--color-warning-surface);
 }
 
 .tier-card.selected.recommended {
-  border-color: #388bfd;
+  border-color: var(--color-action-primary);
 }
 
 .tier-top {
@@ -616,29 +616,29 @@ onUnmounted(() => {
 .tier-title {
   font-weight: 600;
   font-size: 0.92rem;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .rec-pill {
-  font-size: 0.72rem;
+  font-size: var(--font-size-meta);
   font-weight: 600;
-  color: #d29922;
-  background: rgba(210, 153, 34, 0.12);
-  border: 1px solid rgba(210, 153, 34, 0.4);
+  color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+  border: 1px solid var(--color-warning-surface);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
 
 .tier-desc {
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--color-text-secondary);
   margin: 0;
   line-height: 1.35;
 }
 
 .speed-tag {
-  font-size: 0.72rem;
-  color: #7ee787;
+  font-size: var(--font-size-meta);
+  color: var(--color-success-text);
   font-weight: 500;
 }
 
@@ -658,7 +658,7 @@ onUnmounted(() => {
 
 .checkbox-label input[type='checkbox'] {
   margin-top: 0.2rem;
-  accent-color: #388bfd;
+  accent-color: var(--color-action-primary);
   cursor: pointer;
 }
 
@@ -670,12 +670,12 @@ onUnmounted(() => {
 
 .checkbox-info strong {
   font-size: 0.88rem;
-  color: #e6edf3;
+  color: var(--color-text-primary);
 }
 
 .checkbox-info span {
-  font-size: 0.78rem;
-  color: #8b949e;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
   line-height: 1.35;
 }
 
@@ -683,9 +683,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(248, 81, 73, 0.12);
-  border: 1px solid rgba(248, 81, 73, 0.4);
-  color: #f85149;
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-soft);
+  color: var(--color-error);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.82rem;
@@ -711,14 +711,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 0.95rem;
 }
 
 .percent-badge {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #388bfd;
+  color: var(--color-action-primary);
 }
 
 .progress-bar-track {
@@ -731,7 +731,7 @@ onUnmounted(() => {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #388bfd, #58a6ff);
+  background: var(--color-action-primary);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -741,7 +741,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--color-text-secondary);
 }
 
 .success-banner {
@@ -754,19 +754,19 @@ onUnmounted(() => {
 }
 
 .success-icon {
-  color: #2ea043;
+  color: var(--color-success-text);
 }
 
 .success-banner h3 {
   margin: 0;
   font-size: 1.25rem;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .success-banner p {
   margin: 0;
   font-size: 0.86rem;
-  color: #8b949e;
+  color: var(--color-text-secondary);
   max-width: 520px;
   line-height: 1.45;
 }
@@ -789,7 +789,7 @@ onUnmounted(() => {
 .pill-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #8b949e;
+  color: var(--color-text-secondary);
   padding: 0.35rem 0.85rem;
   border-radius: 6px;
   font-size: 0.82rem;
@@ -798,9 +798,9 @@ onUnmounted(() => {
 }
 
 .pill-btn.active {
-  background: rgba(56, 139, 253, 0.15);
-  border-color: #388bfd;
-  color: #ffffff;
+  background: var(--color-surface-selected);
+  border-color: var(--color-action-primary);
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
@@ -817,10 +817,10 @@ onUnmounted(() => {
 
 .key-text-input {
   flex: 1;
-  background: #0d1117;
+  background: var(--color-canvas);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--color-text-primary);
   padding: 0.5rem 0.85rem;
   font-size: 0.88rem;
   font-family: monospace;
@@ -828,7 +828,7 @@ onUnmounted(() => {
 
 .key-text-input:focus {
   outline: none;
-  border-color: #388bfd;
+  border-color: var(--color-action-primary);
 }
 
 .success-pill-msg {
@@ -836,7 +836,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.8rem;
-  color: #2ea043;
+  color: var(--color-success-text);
   margin: 0;
 }
 

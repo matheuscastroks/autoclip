@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import { computed } from 'vue';
-import { Sparkles, Globe } from '@lucide/vue';
 
 export type AiProvider = 'gemini' | 'openrouter';
 
@@ -29,11 +29,7 @@ function select(provider: AiProvider) {
 </script>
 
 <template>
-  <div
-    class="provider-selector"
-    role="radiogroup"
-    aria-label="Provedor de inteligência artificial"
-  >
+  <div class="provider-selector" role="radiogroup" aria-label="Provedor de inteligência artificial">
     <div
       class="provider-card"
       :class="{
@@ -49,7 +45,7 @@ function select(provider: AiProvider) {
       @keydown.enter.prevent="select('gemini')"
     >
       <div class="provider-icon">
-        <Sparkles :size="20" />
+        <AppIcon name="sparkle" size="md" />
       </div>
       <div class="provider-details">
         <div class="provider-title-row">
@@ -75,14 +71,16 @@ function select(provider: AiProvider) {
       @keydown.enter.prevent="select('openrouter')"
     >
       <div class="provider-icon">
-        <Globe :size="20" />
+        <AppIcon name="globe" size="md" />
       </div>
       <div class="provider-details">
         <div class="provider-title-row">
           <strong>OpenRouter</strong>
           <span v-if="openrouterConfigured" class="configured-badge">Ativo</span>
         </div>
-        <p class="provider-desc">Acesso flexível a múltiplos modelos e opções gratuitas/comunitárias.</p>
+        <p class="provider-desc">
+          Acesso flexível a múltiplos modelos e opções gratuitas/comunitárias.
+        </p>
       </div>
     </div>
   </div>

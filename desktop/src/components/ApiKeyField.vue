@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import { ref } from 'vue';
-import { KeyRound, Eye, EyeOff } from '@lucide/vue';
 import AppButton from './AppButton.vue';
 
 const props = withDefaults(
@@ -64,8 +64,8 @@ function handleKeydown(e: KeyboardEvent) {
           :aria-label="showPassword ? 'Ocultar chave' : 'Mostrar chave'"
           @click="showPassword = !showPassword"
         >
-          <EyeOff v-if="showPassword" :size="16" />
-          <Eye v-else :size="16" />
+          <AppIcon v-if="showPassword" name="eye-off" size="sm" />
+          <AppIcon v-else name="eye" size="sm" />
         </button>
       </div>
 
@@ -75,7 +75,7 @@ function handleKeydown(e: KeyboardEvent) {
         :disabled="busy || disabled || !modelValue.trim()"
         @click="$emit('save')"
       >
-        <KeyRound :size="15" />
+        <AppIcon name="key" size="sm" />
         <span>{{ buttonText }}</span>
       </AppButton>
     </div>

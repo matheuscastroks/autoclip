@@ -5,8 +5,7 @@ import AppRail from './components/layout/AppRail.vue';
 import WorkspaceHeader from './components/layout/WorkspaceHeader.vue';
 import type { ProjectTab } from './components/layout/ProjectTabs.vue';
 import AppIcon from './components/ui/AppIcon.vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { X, RefreshCw, LoaderCircle, Sparkles, Check, AlertTriangle } from '@lucide/vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { api } from './api';
 import type {
   Project,
@@ -40,10 +39,16 @@ const projects = ref<Project[]>([]),
 const showGlobalQueue = ref(false),
   hardwareProfile = ref<HardwareProfile | null>(null),
   onboardingDismissed = ref(false);
-const showOnboarding = computed(() => {
-  if (onboardingDismissed.value || !config.value) return false;
-  return !config.value.tools_available || !config.value.asr_available;
-});
+const onboardingStarted = ref(false);
+watch(
+  config,
+  value => {
+    if (value && !onboardingDismissed.value && (!value.tools_available || !value.asr_available))
+      onboardingStarted.value = true;
+  },
+  { immediate: true }
+);
+const showOnboarding = computed(() => onboardingStarted.value && !onboardingDismissed.value);
 async function onDependenciesConfigured() {
   config.value = await api.config();
 }
@@ -580,7 +585,7 @@ onUnmounted(() => {
                     :disabled="isPending('refresh')"
                     @click="action('refresh', refresh)"
                   >
-                    <RefreshCw :size="15" />
+                    <AppIcon name="refresh" size="sm" />
                   </AppButton>
                 </span>
               </div>
@@ -591,9 +596,9 @@ onUnmounted(() => {
               <p>Transcrição e renderização em CPU.<br />Seus arquivos ficam neste computador.</p>
               <AppButton
                 class="button small secondary"
-                @click="closeService"
                 :disabled="anyPending || running"
                 title="Disponível quando nenhuma tarefa estiver em execução"
+                @click="closeService"
               >
                 Encerrar serviço
               </AppButton>
@@ -605,7 +610,7 @@ onUnmounted(() => {
       <main class="main-content" :class="{ 'project-main': project && page === 'projects' }">
         <div class="page-content" :class="{ 'project-page': project && page === 'projects' }">
           <div v-if="initial" class="loading-state">
-            <LoaderCircle class="spin" :size="25" />
+            <AppIcon name="spinner" size="lg" class="spin" />
             <p>Abrindo seus projetos…</p>
           </div>
           <template v-else>
@@ -632,7 +637,7 @@ onUnmounted(() => {
             >
               <div class="readiness-info">
                 <span class="readiness-tag"
-                  ><Sparkles :size="13" />Configuração do Estúdio AutoClip</span
+                  ><AppIcon name="sparkle" size="sm" />Configuração do Estúdio AutoClip</span
                 >
                 <h2>Prepare seu espaço de edição</h2>
                 <p>
@@ -640,8 +645,8 @@ onUnmounted(() => {
                 </p>
                 <div class="readiness-items">
                   <span :class="{ ready: config?.asr_available }">
-                    <Check v-if="config?.asr_available" :size="13" />
-                    <AlertTriangle v-else :size="13" />
+                    <AppIcon v-if="config?.asr_available" name="check" size="sm" />
+                    <AppIcon v-else name="warning" size="sm" />
                     {{
                       config?.asr_available
                         ? 'Transcrição disponível (Whisper local)'
@@ -649,8 +654,8 @@ onUnmounted(() => {
                     }}
                   </span>
                   <span :class="{ ready: config?.tools_available }">
-                    <Check v-if="config?.tools_available" :size="13" />
-                    <AlertTriangle v-else :size="13" />
+                    <AppIcon v-if="config?.tools_available" name="check" size="sm" />
+                    <AppIcon v-else name="warning" size="sm" />
                     {{
                       config?.tools_available
                         ? 'Processamento de vídeo pronto (FFmpeg)'
@@ -658,8 +663,8 @@ onUnmounted(() => {
                     }}
                   </span>
                   <span :class="{ ready: keyConfigured }">
-                    <Check v-if="keyConfigured" :size="13" />
-                    <AlertTriangle v-else :size="13" />
+                    <AppIcon v-if="keyConfigured" name="check" size="sm" />
+                    <AppIcon v-else name="warning" size="sm" />
                     {{
                       keyConfigured
                         ? config?.ai_provider === 'openrouter'
@@ -800,15 +805,15 @@ onUnmounted(() => {
             title="Fechar"
             @click="deleteConfirmDialog?.close()"
           >
-            <X :size="19" />
+            <AppIcon name="close" size="md" />
           </AppButton>
         </header>
-        <p class="delete-warning-text" v-if="deleteMode === 'permanent'">
+        <p v-if="deleteMode === 'permanent'" class="delete-warning-text">
           O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> será
           removido da biblioteca. Arquivos de projetos gerenciados pelo AutoClip serão apagados do
           computador. Esta ação não pode ser desfeita.
         </p>
-        <p class="delete-warning-text" v-else>
+        <p v-else class="delete-warning-text">
           O projeto <strong>{{ projectToDelete?.title || projectToDelete?.name }}</strong> sairá da
           biblioteca. Seus arquivos serão preservados e você poderá restaurá-lo pela lixeira.
         </p>
@@ -834,7 +839,7 @@ onUnmounted(() => {
         <header>
           <h2>{{ trashKind === 'projects' ? 'Lixeira de projetos' : 'Lixeira de cortes' }}</h2>
           <AppButton class="icon-button" title="Fechar lixeira" @click="trashDialog?.close()"
-            ><X :size="19"
+            ><AppIcon name="close" size="md"
           /></AppButton>
         </header>
         <p class="subtle">Arquivos preservados. Restaure para voltar a usar.</p>
@@ -880,7 +885,7 @@ onUnmounted(() => {
             class="icon-button"
             title="Fechar"
             @click="analysisDialog?.close()"
-            ><X :size="19"
+            ><AppIcon name="close" size="md"
           /></AppButton>
         </header>
         <div class="analysis-summary">
@@ -902,7 +907,7 @@ onUnmounted(() => {
           <summary>Ajustes avançados</summary>
           <label class="field"
             >Janela em segundos
-            <input type="number" v-model.number="windowSeconds" min="60" max="1800" required />
+            <input v-model.number="windowSeconds" type="number" min="60" max="1800" required />
             <small
               >Quantidade de transcrição por solicitação. Pode manter o padrão; não define o tamanho
               dos cortes.</small

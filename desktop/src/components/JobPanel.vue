@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import AppButton from './AppButton.vue';
 import { watch } from 'vue';
 import { notifyJob } from '../notifications';
-import { LoaderCircle, RotateCcw, Square, CheckCircle2, AlertCircle } from '@lucide/vue';
 import type { Job } from '../types';
 import { labels, stages, active } from '../format';
 const props = defineProps<{ jobs: Job[] }>();
@@ -16,17 +16,18 @@ watch(
 );
 </script>
 <template>
-  <div class="job-list" v-if="jobs.length">
+  <div v-if="jobs.length" class="job-list">
     <article
       v-for="job in jobs.slice(0, 5)"
       :key="job.id"
       class="job"
       :class="{ 'job-failed': job.status === 'failed' }"
     >
-      <LoaderCircle v-if="active(job.status)" class="spin" :size="18" /><CheckCircle2
+      <AppIcon v-if="active(job.status)" name="spinner" size="md" class="spin" /><AppIcon
         v-else-if="job.status === 'completed'"
-        :size="18"
-      /><AlertCircle v-else :size="18" />
+        name="check-circle"
+        size="md"
+      /><AppIcon v-else name="warning" size="md" />
       <div class="job-copy">
         <strong>{{ stages[job.stage || job.operation] || job.operation }}</strong>
         <span>
@@ -66,7 +67,7 @@ watch(
         class="button small secondary"
         :disabled="job.status === 'cancelling'"
         @click="$emit('cancel', job.id)"
-        ><Square :size="12" />Cancelar</AppButton
+        ><AppIcon name="stop" size="sm" />Cancelar</AppButton
       >
       <AppButton
         v-else-if="
@@ -75,7 +76,7 @@ watch(
         class="button small secondary"
         data-action="resume"
         @click="$emit('resume', job.id)"
-        ><RotateCcw :size="14" />Retomar</AppButton
+        ><AppIcon name="refresh" size="sm" />Retomar</AppButton
       >
     </article>
   </div>
