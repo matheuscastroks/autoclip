@@ -32,6 +32,8 @@
 
 ## Delivery 0: isolated CI collection repair
 
+Result: `b05bd0e`; console-entry contract suite: 5 passed. Linux CI has not been run locally.
+
 **Files:** `pyproject.toml`, `tests/api/test_response_contracts.py` (existing regression).
 
 - [x] Reproduce failure through the pytest console entry point.
@@ -39,6 +41,8 @@
 - [ ] Run console-entry collection and contract tests, then commit `fix(ci): ...` separately.
 
 ## Delivery 1: profiles and renderer
+
+Result: `ada761a`; focused render/crop tests: 15 passed; synthetic profile parity: 1 passed; backend suite: 239 passed, 1 real-media deselected.
 
 **Files:** `engine/contracts/models.py`, `engine/render/ffmpeg.py`, `engine/render/verify.py`, `engine/media/face_tracking.py`, new `tests/unit/test_render_profiles.py`, synthetic integration tests.
 
@@ -50,6 +54,8 @@
 - [ ] Run focused tests and review/commit this delivery.
 
 ## Delivery 2: preparation and persistent outputs
+
+Result: preview/final persistence and cache integration: 4 passed; review/export and precomputed-analysis regressions: 8 passed. Encoder quality is excluded from presentation revision identity; old revisions remain indexed and untouched.
 
 **Files:** `engine/pipeline/runner.py`, new `engine/pipeline/outputs.py`, contracts and cache/integration tests.
 

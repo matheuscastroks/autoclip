@@ -6,6 +6,22 @@ from engine.media.probe import probe_json
 from engine.pipeline.artifacts import file_hash
 from engine.pipeline.cancellation import run_process
 
+def verify_preview(render,source,edl,ffprobe,profile,cancelled=lambda:False):
+    """Container/stream checks only; never substitutes for final technical QA."""
+    probe=probe_json(render.path,ffprobe,cancelled)
+    video=next((s for s in probe['streams'] if s['codec_type']=='video'),{})
+    audio=next((s for s in probe['streams'] if s['codec_type']=='audio'),{})
+    return {
+        'hash':file_hash(render.path)==render.sha256,
+        'size':render.path.stat().st_size==render.size_bytes,
+        'dimensions':(video.get('width'),video.get('height'))==(profile.width,profile.height),
+        'duration':abs(round(float(probe['format']['duration'])*1e6)-edl.duration_us)<=33_355,
+        'fps':Fraction(video.get('avg_frame_rate','0/1'))==profile.fps,
+        'video_codec':video.get('codec_name')=='h264',
+        'audio':audio.get('codec_name')=='aac' and audio.get('sample_rate')=='48000',
+        'revision_match':render.revision_id==edl.revision_id and source.id==edl.source_id,
+    }
+
 def verify_render(render:RenderArtifact,source:Source,edl:EDLArtifact,ffprobe:Path,ffmpeg:Path,cancelled=lambda:False) -> ExportValidation:
     probe=probe_json(render.path,ffprobe,cancelled)
     v=next((s for s in probe['streams'] if s['codec_type']=='video'),{})

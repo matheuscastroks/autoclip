@@ -397,6 +397,25 @@ FINAL_PROFILE = RenderProfile()
 PREVIEW_PROFILE = RenderProfile(name='preview', width=540, height=960, preset='veryfast', crf=30, audio_kbps=96)
 
 
+class PreparationArtifact(Contract):
+    revision_id: UUID
+    candidate_id: UUID
+    analysis_hash: str
+    source_hash: str
+    plan_hash: str
+    files: dict[str, str]
+    fingerprint: str
+
+
+class PreviewArtifact(Contract):
+    revision_id: UUID
+    prepared_hash: str
+    render: RenderArtifact
+    profile: RenderProfile = PREVIEW_PROFILE
+    duration_us: int = Field(gt=0)
+    checks: dict[str, bool]
+
+
 class ExportConfig(Contract):
     width: Literal[1080] = 1080
     height: Literal[1920] = 1920

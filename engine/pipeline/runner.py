@@ -35,7 +35,7 @@ def _asr_worker(audio,config,root,cancelled):
     return TranscriptArtifact.model_validate_json((folder/'transcript.json').read_bytes())
 
 def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=lambda:False,*,analyzer=None,transcriber=None,stop_after='render',precomputed_analysis:AnalysisArtifact|None=None,candidate_ids=None,analysis_hash=None,progress=None) -> ProjectRun:
-    if stop_after not in ('transcribe','analyze','render'):raise ValueError('Unknown stage boundary')
+    if stop_after not in ('transcribe','analyze','render','preview'):raise ValueError('Unknown stage boundary')
     root=Path(project_root).resolve();root.mkdir(parents=True,exist_ok=True)
     state_path=root/'project.json'
     previous=None
@@ -56,7 +56,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         if not progress:return
         from engine.pipeline.progress import activity_time
         if current:current['phase']=phase;current['state']='running';current['processed_us']=processed_us;current['total_us']=total_us
-        progress({'schema_version':'1.0','operation':'render','phase':phase,'current_candidate_id':current['candidate_id'] if current else None,'current_index':items.index(current)+1 if current else 0,'total_items':len(items),'completed_items':sum(i['state']=='ready' for i in items),'failed_items':sum(i['state']=='failed' for i in items),'processed_us':processed_us,'total_us':total_us,'activity_at':activity_time(),'items':[dict(i) for i in items]})
+        progress({'schema_version':'1.0','operation':'preview' if stop_after=='preview' else 'render','phase':phase,'current_candidate_id':current['candidate_id'] if current else None,'current_index':items.index(current)+1 if current else 0,'total_items':len(items),'completed_items':sum(i['state']=='ready' for i in items),'failed_items':sum(i['state']=='failed' for i in items),'processed_us':processed_us,'total_us':total_us,'activity_at':activity_time(),'items':[dict(i) for i in items]})
     def check():
         if cancelled(): raise PipelineError('CANCELLED','run','Cancellation requested.')
     def stage(name,inputs,produce,model):
@@ -76,7 +76,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
             state.status='transcribed';atomic_json(state_path,state);return state
         semantic={'clip_min_seconds':config.analysis.clip_min_seconds,'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars,'clip_preferred_seconds':config.analysis.clip_preferred_seconds,'clip_max_seconds':config.analysis.clip_max_seconds,'show_thought_summaries':config.analysis.show_thought_summaries}
         if precomputed_analysis is not None:
-            if stop_after!='render' or not precomputed_analysis.complete or precomputed_analysis.transcript_id!=transcript.transcript_id or set(precomputed_analysis.covered_word_ids)!={w.id for w in transcript.words}:
+            if stop_after not in ('render','preview') or not precomputed_analysis.complete or precomputed_analysis.transcript_id!=transcript.transcript_id or set(precomputed_analysis.covered_word_ids)!={w.id for w in transcript.words}:
                 raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Existing analysis must cover the complete current transcript for rendering.')
             # Rendering consumes original analysis provenance. It must never seed
             # a provider cache under the user's current/new analysis settings.
@@ -103,8 +103,11 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
             current=next(i for i in items if i['candidate_id']==str(candidate.id))
             try:
                 # A changed presentation creates a new revision, retaining the old render and its review.
-                recipe={'captions':config.captions,'export':config.export,'crop':config.reframe,'reframe_runtime':stage_dependencies('reframe'),'face_model':file_hash(face_model_path(config.reframe)) if face_model_path(config.reframe).is_file() else 'missing','render_runtime':stage_dependencies('render'),'caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
-                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan'),'presentation_recipe':object_hash(recipe)},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
+                recipe={'captions':config.captions,'crop':config.reframe,'reframe_runtime':stage_dependencies('reframe'),'face_model':file_hash(face_model_path(config.reframe)) if face_model_path(config.reframe).is_file() else 'missing','caption_runtime':stage_dependencies('captions'),'ffmpeg':ffmpeg_identity,'font':font_fingerprint(config.captions.font_path,config.captions.font_name)}
+                edl=stage('edit_plan',{'candidate':object_hash(candidate),'source':source.sha256,'transcript':object_hash(transcript),'selection':config.selection.model_dump(mode='json'),'pauses':config.pauses.model_dump(mode='json'),'verified_silences':object_hash(verified_silences) if verified_silences else None,'runtime':stage_dependencies('edit_plan')},lambda:plan_continuous_edit(candidate,transcript,source,selection=config.selection,pauses=config.pauses,verified_silences=verified_silences),EDLArtifact)
+                plan_hash=object_hash(edl)
+                # Presentation identity excludes encoder quality; both profiles share this revision.
+                edl=edl.model_copy(update={'revision_id':uuid.uuid5(edl.revision_id,object_hash(recipe))})
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
                 caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name),'opening_text':config.captions.opening_text or opening_for(candidate)})
@@ -113,6 +116,18 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 atomic_json(revision_dir/'captions.json',caps)
                 crop=stage('reframe',{'source':source.sha256,'edl':object_hash(edl),'config':config.reframe,'runtime':stage_dependencies('reframe'),'model':recipe['face_model'],'ffmpeg':ffmpeg_identity},lambda:track_faces(source,edl,config.reframe,config.ffmpeg,cancelled=cancelled,progress=lambda done,total:report('reframe',done,total)),CropArtifact)
                 atomic_json(revision_dir/'crop.json',crop)
+                from engine.pipeline.outputs import save_preparation,render_output
+                save_preparation(root,revision_dir,analysis_hash=object_hash(analysis),plan_hash=plan_hash)
+                if stop_after=='preview':
+                    def output_progress(done,total,phase='render'):
+                        report(phase,done,total)
+                    preview,reused_render=render_output(root,edl.revision_id,PREVIEW_PROFILE,config.ffmpeg,config.ffprobe,cancelled=cancelled,progress=output_progress if progress else None)
+                    row={'revision_id':str(edl.revision_id),'candidate_id':str(candidate.id),'preview_path':str(preview.render.path),'review_status':'needs_review'}
+                    if not any(r['revision_id']==row['revision_id'] for r in state.revisions):state.revisions.append(row)
+                    atomic_json(state_path,state)
+                    current.update(state='ready',phase='ready',revision_id=str(edl.revision_id),reused=reused_render)
+                    current=None;report('next')
+                    continue
                 profile=object_hash({'edl':edl,'caps':caps,'crop':crop,'profile':config.export,'font':font,'ffmpeg':ffmpeg_identity,'runtime':stage_dependencies('render')})
                 export_config=config.export.model_copy(update={'output_root':root/'previews'/profile})
                 def render():
@@ -158,6 +173,38 @@ def resume_project(project_root:Path,config:PipelineConfig|None=None) -> Project
     config=config or PipelineConfig.model_validate_json((root/'config.json').read_bytes())
     return run_project(source,config,root)
 
+def render_final(project_root, revision_ids, ffmpeg, ffprobe, *, cancelled=lambda:False, progress=None):
+    """Render requested prepared revisions, without transcription or AI."""
+    from engine.pipeline.outputs import render_output,load_preparation
+    root=Path(project_root).resolve()
+    if not revision_ids:raise PipelineError('INVALID_SELECTION','render_final','Choose a prepared clip.')
+    state=ProjectRun.model_validate_json((root/'project.json').read_bytes())
+    known={r['revision_id']:r for r in state.revisions}
+    if not set(revision_ids)<=known.keys():raise PipelineError('INVALID_SELECTION','render_final','Unknown prepared revision.')
+    items=[]
+    for rid in dict.fromkeys(revision_ids):
+        folder,prepared,*_=load_preparation(root,rid)
+        candidate=Candidate.model_validate_json((folder/'candidate.json').read_bytes())
+        items.append({'candidate_id':str(prepared.candidate_id),'revision_id':rid,'title':candidate.title_suggestion,'state':'pending','phase':'waiting'})
+    def report(item,done=0,total=None,phase='render_final'):
+        item.update(state='running',phase=phase,processed_us=done,total_us=total)
+        if progress:progress({'operation':'render_final','phase':phase,'items':[dict(i) for i in items],'completed_items':sum(i['state']=='ready' for i in items),'total_items':len(items)})
+    for item in items:
+        rid=item['revision_id'];report(item)
+        try:
+            rendered,reused=render_output(root,rid,FINAL_PROFILE,ffmpeg,ffprobe,cancelled=cancelled,progress=lambda done,total,phase='render_final':report(item,done,total,phase))
+        except (PipelineError,OSError,ValueError):
+            item.update(state='cancelled' if cancelled() else 'failed',phase='failed')
+            if progress:progress({'operation':'render_final','phase':'failed','items':[dict(i) for i in items],'total_items':len(items)})
+            raise
+        known[rid]['render_path']=str(rendered.path)
+        item.update(state='ready',phase='ready',reused=reused)
+        atomic_json(root/'project.json',state)
+        if progress:progress({'operation':'render_final','phase':'ready','items':[dict(i) for i in items],'completed_items':sum(i['state']=='ready' for i in items),'total_items':len(items)})
+    state.status='needs_review';atomic_json(root/'project.json',state)
+    return state
+
+
 def export_approved(project_root:Path,revision_ids=None):
     root=Path(project_root).resolve();state=ProjectRun.model_validate_json((root/'project.json').read_bytes())
     if file_hash(state.source.local_path)!=state.source.sha256: raise PipelineError('SOURCE_CHANGED','export','Source changed.')
@@ -166,6 +213,9 @@ def export_approved(project_root:Path,revision_ids=None):
         if revision_ids is not None and revision['revision_id'] not in revision_ids:continue
         folder=root/'revisions'/revision['revision_id']
         if (folder/'deleted.json').is_file():continue
+        if not (folder/'render.json').is_file() or not (folder/'qa.json').is_file():
+            if revision_ids is not None:raise PipelineError('FINAL_REQUIRED','export','Render the final version before editorial approval and export.')
+            continue
         edl=EDLArtifact.model_validate_json((folder/'edl.json').read_bytes())
         caps=CaptionArtifact.model_validate_json((folder/'captions.json').read_bytes())
         rendered=RenderArtifact.model_validate_json((folder/'render.json').read_bytes())
