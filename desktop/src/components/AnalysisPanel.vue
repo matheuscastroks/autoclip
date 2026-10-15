@@ -30,6 +30,11 @@ const topic = ref(''),
   search = ref(''),
   focused = ref(''),
   drawerOpen = ref(false);
+const workspace = ref<HTMLElement>();
+function restoreInspectionFocus() {
+  const target = workspace.value?.querySelector<HTMLElement>('.proposal-open, .proposal-items');
+  target?.focus();
+}
 const locallyEdited = ref(false);
 const { discarded, loadDiscarded, discardItem, restoreItem, discardMany, restoreMany } =
   useDiscardedProposals();
@@ -245,7 +250,8 @@ watch(
 watch(
   () => props.analysis?.job_id,
   (job, old) => {
-    if (old && job !== old) {
+    if (old && job && job !== old && !props.analysis?.analysis_hash) {
+      drawerOpen.value = false;
       focused.value = '';
       topic.value = '';
       selected.value = [];
@@ -314,7 +320,7 @@ watch(current, value => {
 </script>
 
 <template>
-  <section class="analysis-workspace editorial-analysis">
+  <section ref="workspace" class="analysis-workspace editorial-analysis">
     <header class="analysis-heading">
       <h2>Análise editorial</h2>
       <span>{{
@@ -414,6 +420,7 @@ watch(current, value => {
       :overlapping="!!current && overlapsWithSelected(current)"
       :busy="busy"
       :analysis-complete="complete"
+      @restore-focus="restoreInspectionFocus"
       @toggle-selection="current && toggle(current)"
       @discard="current && discard(current.candidate_id)"
       @restore="current && restore(current.candidate_id)"

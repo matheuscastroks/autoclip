@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { notify, resetNotifications } from '../src/notifications';
 import ProjectWorkspace from '../src/components/ProjectWorkspace.vue';
 import ProjectLibrary from '../src/components/ProjectLibrary.vue';
+import PipelinePanel from '../src/components/PipelinePanel.vue';
 const project = {
   id: 'p',
   name: 'Teste',
@@ -22,6 +23,45 @@ const project = {
   error: null,
 };
 describe('workflow visibility', () => {
+  it('ignores a selection from an earlier analysis and guards stale generation events', async () => {
+    const selection = { schema_version: '1.0', analysis_hash: 'old', candidate_ids: ['old-cut'] };
+    const w = mount(ProjectWorkspace, {
+      props: {
+        project: { ...project, status: 'completed', has_transcript: true, has_analysis: true },
+        transcript: null,
+        revisions: [],
+        jobs: [],
+        sourceUrl: '',
+        previewUrl: '',
+        busy: false,
+        selection,
+        analysis: {
+          schema_version: '1.0',
+          state: 'completed',
+          job_id: null,
+          analysis_hash: 'current',
+          model: 'fixture',
+          completed_windows: 1,
+          total_windows: 1,
+          topic_groups: [],
+          proposals: [],
+        },
+      },
+    });
+    try {
+      expect(w.getComponent(PipelinePanel).props('selectedCount')).toBe(0);
+      w.getComponent(PipelinePanel).vm.$emit('generate');
+      expect(w.emitted('render')).toBeUndefined();
+      await w.setProps({ selection: { ...selection, analysis_hash: 'current' } });
+      expect(w.getComponent(PipelinePanel).props('selectedCount')).toBe(1);
+      w.getComponent(PipelinePanel).vm.$emit('generate');
+      expect(w.emitted('render')?.[0]).toEqual([
+        { analysis_hash: 'current', candidate_ids: ['old-cut'] },
+      ]);
+    } finally {
+      w.unmount();
+    }
+  });
   it('distinguishes pipeline readiness from editorial decisions and an unstarted analysis', () => {
     const w = mount(ProjectWorkspace, {
       props: {

@@ -364,3 +364,31 @@ it('invalidates open inspection and local selection when a completed analysis ha
     w.unmount();
   }
 });
+
+it('retains hash-bound selection and discarded proposals when completed job history disappears', async () => {
+  localStorage.clear();
+  const w = mount(AnalysisPanel, {
+    props: {
+      analysis: { ...view, job_id: 'completed-job' },
+      selection: null,
+      jobs: [],
+      sourceUrl: '',
+      busy: false,
+    },
+  });
+  try {
+    await w.findAll('input[type=checkbox]')[0].setValue(true);
+    await w.findAll('[data-action=discard-proposal]')[1].trigger('click');
+    expect(w.text()).toContain('Descartadas (1)');
+    await w.setProps({ analysis: { ...view, job_id: null } });
+    expect((w.findAll('input[type=checkbox]')[0].element as HTMLInputElement).checked).toBe(true);
+    expect(w.text()).toContain('Descartadas (1)');
+    await w.get('[data-action=generate-selected]').trigger('click');
+    expect(w.emitted('generate')?.[0]).toEqual([
+      { analysis_hash: view.analysis_hash, candidate_ids: ['one'] },
+    ]);
+  } finally {
+    w.unmount();
+    localStorage.clear();
+  }
+});

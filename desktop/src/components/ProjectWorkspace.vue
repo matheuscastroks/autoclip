@@ -66,6 +66,13 @@ watch(
 );
 
 const processing = computed(() => props.jobs.some(j => active(j.status)));
+const currentSelection = computed(() =>
+  props.analysis?.state === 'completed' &&
+  props.analysis.analysis_hash &&
+  props.selection?.analysis_hash === props.analysis.analysis_hash
+    ? props.selection
+    : null
+);
 </script>
 
 <template>
@@ -118,8 +125,8 @@ const processing = computed(() => props.jobs.some(j => active(j.status)));
         <div v-if="tab === 'overview'" class="workspace-overview">
           <PipelinePanel
             :source-url="sourceUrl"
-            :selected-count="selection?.candidate_ids.length || 0"
-            :selected-candidate-ids="selection?.candidate_ids"
+            :selected-count="currentSelection?.candidate_ids.length || 0"
+            :selected-candidate-ids="currentSelection?.candidate_ids || []"
             :project="project"
             :jobs="jobs"
             :busy="busy"
@@ -128,10 +135,10 @@ const processing = computed(() => props.jobs.some(j => active(j.status)));
             :analysis="analysis"
             @replace-source="$emit('replaceSource', $event)"
             @generate="
-              selection?.analysis_hash &&
+              currentSelection?.candidate_ids.length &&
               $emit('render', {
-                analysis_hash: selection.analysis_hash,
-                candidate_ids: selection.candidate_ids,
+                analysis_hash: currentSelection.analysis_hash!,
+                candidate_ids: currentSelection.candidate_ids,
               })
             "
             @export="$emit('export')"
