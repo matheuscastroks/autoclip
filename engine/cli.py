@@ -1,5 +1,9 @@
 import argparse,getpass,json,sys,os
 from pathlib import Path
+from engine.system.job_startup import start_startup_monitor
+
+_worker_running = start_startup_monitor(sys.argv[2]) if len(sys.argv) == 3 and sys.argv[1] == 'job-worker' else None
+
 from engine.contracts import *
 from engine.media.importer import import_source
 from engine.media.probe import locate_tools
@@ -55,6 +59,7 @@ def main(argv=None):
             run_worker(a.audio,a.config,a.output);return 0
         if a.command=='job-worker':
             from engine.api.job_worker import main as jw_main
+            if _worker_running:_worker_running()
             return jw_main(a.folder)
         if a.command=='gemini-worker':
             from engine.adapters.gemini.request_worker import run_worker as gw_main
