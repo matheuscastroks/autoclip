@@ -21,6 +21,7 @@ def revision_path(root: Path, revision_id) -> Path:
 
 def preparation_files(root, folder):
     files = {name: file_hash(folder / name) for name in ('edl.json', 'candidate.json', 'captions.json', 'crop.json')}
+    files['source.json'] = file_hash(Path(root) / 'source.json')
     captions = CaptionArtifact.model_validate_json((folder / 'captions.json').read_bytes())
     for field in ('ass_path', 'srt_path'):
         path = getattr(captions, field).resolve()
@@ -44,7 +45,7 @@ def save_preparation(root, folder, *, analysis_hash, plan_hash):
     return prepared
 
 
-def load_preparation(root, revision_id):
+def load_preparation(root, revision_id, *, verify_source=True):
     root = Path(root).resolve()
     folder = revision_path(root, revision_id)
     try:
@@ -58,7 +59,7 @@ def load_preparation(root, revision_id):
         if preparation_files(root, folder) != prepared.files:
             raise ValueError('Shared artifacts changed')
         source = Source.model_validate_json((root / 'source.json').read_bytes())
-        if source.sha256 != prepared.source_hash or file_hash(source.local_path) != source.sha256:
+        if source.sha256 != prepared.source_hash or (verify_source and file_hash(source.local_path) != source.sha256):
             raise ValueError('Source changed')
         edl = EDLArtifact.model_validate_json((folder / 'edl.json').read_bytes())
         caps = CaptionArtifact.model_validate_json((folder / 'captions.json').read_bytes())
@@ -86,12 +87,28 @@ def render_output(root: Path, revision_id, profile: RenderProfile, ffmpeg: Path,
     output_key = object_hash(inputs)
     config = ExportConfig(output_root=root / 'outputs' / profile.name / output_key, profile=profile)
     cache = StageCache(root)
+    recovered = False
 
     def produce():
+        nonlocal recovered
         check()
         existing = config.output_root / f'{edl.revision_id}.mp4'
         if existing.exists():
-            existing.replace(existing.with_suffix('.corrupt-' + uuid4().hex))
+            # A missing checkpoint is not evidence that published bytes are corrupt.
+            try:
+                if profile.name == 'preview':
+                    published = PreviewArtifact.model_validate_json((folder / 'preview.json').read_bytes())
+                    if published.prepared_hash != prepared.fingerprint or published.profile != profile:
+                        raise ValueError('Different output recipe')
+                    artifact = published.render
+                else:
+                    artifact = RenderArtifact.model_validate_json((folder / 'render.json').read_bytes())
+                if artifact.revision_id == edl.revision_id and artifact.path.resolve() == existing.resolve() and file_hash(existing) == artifact.sha256 and existing.stat().st_size == artifact.size_bytes:
+                    recovered = True
+                    return artifact
+            except (OSError, ValueError):
+                pass
+            existing.replace(existing.with_name('corrupt-' + uuid4().hex[:8] + '.mp4'))
         return FFmpegRenderer(ffmpeg, run=lambda cmd, **kw: run_process(cmd, cancelled=cancelled, **kw),
                               progress=progress).render(source, edl, crop, caps, config)
 
@@ -119,4 +136,4 @@ def render_output(root: Path, revision_id, profile: RenderProfile, ffmpeg: Path,
         atomic_json(folder / 'render.json', rendered)
         atomic_json(folder / 'qa.json', qa)
         result = rendered
-    return result, ('output_' + profile.name) in cache.reused
+    return result, recovered or ('output_' + profile.name) in cache.reused

@@ -1,9 +1,11 @@
 from uuid import uuid4
+import pytest
 from test_projects import client,source_folder
 from engine.contracts import TranscriptArtifact,Word,AnalysisArtifact,Candidate,EditorialFlags,Topic
 from engine.pipeline.artifacts import atomic_json
 
-def test_analysis_selection_and_worker_snapshot(client,tmp_path):
+@pytest.mark.parametrize('operation', ['render', 'preview'])
+def test_analysis_selection_and_worker_snapshot(client,tmp_path,operation):
     root=source_folder(tmp_path)
     t=TranscriptArtifact.model_validate_json((root/'transcript.json').read_bytes())
     t.words=[Word(id='start',text='Primeira',start_us=0,end_us=1_000_000),Word(id='end',text='Conclusão',start_us=29_000_000,end_us=30_000_000)]
@@ -29,8 +31,9 @@ def test_analysis_selection_and_worker_snapshot(client,tmp_path):
         pid=0
         def poll(self):return None
     client.app.state.jobs.spawn=lambda *a,**kw:Process()
-    response=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':'render','options':choice})
+    response=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':operation,'options':choice})
     assert response.status_code==200
+    assert response.json()['operation']==operation
     import json
     request=json.loads((client.app.state.jobs.root/response.json()['id']/'request.json').read_bytes())
     assert request['selection']==choice

@@ -32,7 +32,15 @@ def asset_path(root:Path,asset:str)->Path:
             state=read_json(root/'project.json',{}) or {}
             item=next((i for i in state.get('revisions',[]) if i.get('revision_id')==asset),None)
             if not item:raise HTTPException(404,'Prévia indisponível.')
-            path=Path(item.get('render_path','')).resolve()
+            manifest=root/'revisions'/asset/'render.json'
+            if manifest.is_file():
+                from engine.contracts import RenderArtifact
+                try:
+                    rendered=RenderArtifact.model_validate_json(manifest.read_bytes())
+                    if str(rendered.revision_id)!=asset:raise ValueError('Wrong revision')
+                    path=rendered.path.resolve()
+                except (OSError,ValueError):raise HTTPException(404,'Versão final indisponível.')
+            else:path=Path(item.get('render_path','')).resolve()
         if not path.is_relative_to(root):raise HTTPException(404,'Arquivo fora do projeto.')
     if not path.is_file():raise HTTPException(404,'Arquivo de vídeo não encontrado.')
     return path

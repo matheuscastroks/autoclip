@@ -143,6 +143,18 @@ class JobManager:
                     prior=next(j for j in active_rows if j['status'] in ACTIVE and j['operation']==operation and set(read_json(self.root/j['id']/'request.json',{}).get('selection',{}).get('candidate_ids',[]))&set(wanted))
                     return {**prior,'ignored_ready':ignored_ready,'ignored_queued':ignored_queued,'enqueued_items':0}
             else:
+                if operation=='render_final':
+                    wanted=sorted(set(options['revision_ids']))
+                    final_jobs=[j for j in active_rows if j['operation']=='render_final' and j['status'] in ACTIVE]
+                    queued={rid:j for j in final_jobs for rid in read_json(self.root/j['id']/'request.json',{}).get('selection',{}).get('revision_ids',[])}
+                    from .reviews import list_revisions
+                    ready={r['revision_id']:r for r in list_revisions(Path(row['path'])) if r['technical_pass'] and r.get('final_state')=='available'}
+                    ignored_ready=sum(rid in ready for rid in wanted)
+                    ignored_queued=sum(rid in queued and rid not in ready for rid in wanted)
+                    ready_items=[{'candidate_id':ready[rid]['candidate_id'],'revision_id':rid,'title':ready[rid]['title'],'state':'ready','phase':'ready','reused':True} for rid in wanted if rid in ready]
+                    options={**options,'revision_ids':[rid for rid in wanted if rid not in ready and rid not in queued]}
+                    if not options['revision_ids'] and ignored_queued:
+                        return {**queued[next(rid for rid in wanted if rid in queued)],'ignored_ready':ignored_ready,'ignored_queued':ignored_queued,'enqueued_items':0}
                 for prior in active_rows:
                     old=read_json(self.root/prior['id']/'request.json',{}) or {}
                     if prior['status'] in ACTIVE and prior['operation']==operation and old.get('selection',{}).get('revision_ids')==options.get('revision_ids') and (operation=='render_final' or old.get('settings')==values and old.get('source_input')==options.get('source_input')):return prior
@@ -151,7 +163,7 @@ class JobManager:
             request={'job_id':jid,'project_id':project_id,'project_root':row['path'],'workspace':str(self.workspace),'operation':operation,'settings':values,'source_input':options.get('source_input')}
             request['selection']={k:options[k] for k in ('analysis_hash','candidate_ids','revision_ids') if options.get(k) is not None}
             if recipe:request['render_recipe']=recipe
-            job.update(ignored_ready=ignored_ready,ignored_queued=ignored_queued,enqueued_items=len(options.get('candidate_ids',[])))
+            job.update(ignored_ready=ignored_ready,ignored_queued=ignored_queued,enqueued_items=len(options.get('revision_ids',[]) if operation=='render_final' else options.get('candidate_ids',[])))
             atomic_json(folder/'request.json',request)
             if operation=='render_final':
                 final_items=[]
@@ -164,7 +176,7 @@ class JobManager:
                 analysis=read_json(Path(row['path'])/'analysis.json',{}) or {}
                 titles={c['id']:c.get('title_suggestion','Trecho') for c in analysis.get('candidates',[])}
                 atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'pending'},'phase':'waiting','items':[{'candidate_id':cid,'title':titles.get(cid,'Trecho'),'state':'pending','phase':'waiting','processed_us':0,'total_us':None} for cid in options['candidate_ids']]})
-            if operation in ('render','preview') and options.get('candidate_ids')==[]:
+            if (operation in ('render','preview') and options.get('candidate_ids')==[]) or (operation=='render_final' and options.get('revision_ids')==[]):
                 atomic_json(folder/'progress.json',{'stage':'render','steps':{'render':'completed'},'items':ready_items})
                 atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
                 job['status']='completed'
@@ -253,8 +265,13 @@ class JobManager:
         selection=request.get('selection',{})
         if candidate_id is not None:
             failed={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='failed'}
-            if job['operation'] not in ('render','preview','render_final') or candidate_id not in failed or candidate_id not in selection.get('candidate_ids',[]):raise ValueError('Este corte não está disponível para nova tentativa.')
-            selection={**selection,'candidate_ids':[candidate_id]}
+            if job['operation']=='render_final':
+                ids=[i['revision_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='failed' and i['candidate_id']==candidate_id and i.get('revision_id') in selection.get('revision_ids',[])]
+                if not ids:raise ValueError('Este corte final não está disponível para nova tentativa.')
+                selection={**selection,'revision_ids':ids}
+            else:
+                if job['operation'] not in ('render','preview') or candidate_id not in failed or candidate_id not in selection.get('candidate_ids',[]):raise ValueError('Este corte não está disponível para nova tentativa.')
+                selection={**selection,'candidate_ids':[candidate_id]}
         if job['operation'] in ('render','preview') and selection.get('candidate_ids'):
             ready={i['candidate_id'] for i in (job.get('progress') or {}).get('items',[]) if i['state']=='ready'}
             selection={**selection,'candidate_ids':[cid for cid in selection['candidate_ids'] if cid not in ready]}

@@ -16,15 +16,12 @@ def revision_folder(root,revision):
     return path
 
 def preview_version(root,folder,rid):
-    from engine.pipeline.outputs import load_preparation
     path=folder/'preview.json'
     if not path.exists():return {'state':'not_generated'}
     try:
         value=PreviewArtifact.model_validate_json(path.read_bytes())
-        _,prepared,*_=load_preparation(root,rid)
         from .media import asset_path
         asset_path(root,'preview-'+rid)
-        if value.prepared_hash!=prepared.fingerprint:raise ValueError('Stale preparation')
         return {'state':'available','asset':'preview-'+rid,'profile':value.profile,'sha256':value.render.sha256,'duration_us':value.duration_us}
     except (OSError,ValueError,PipelineError,HTTPException):
         return {'state':'invalid','message':'Prévia rápida inválida ou indisponível. Gere novamente.'}
@@ -36,6 +33,7 @@ def list_revisions(root:Path):
     if (root/'manual-check.json').exists():return []
     for row in state.get('revisions',[]):
         rid=row.get('revision_id','')
+        folder=None
         try:
             folder=revision_folder(root,rid)
             if (folder/'deleted.json').is_file():continue
@@ -46,7 +44,13 @@ def list_revisions(root:Path):
                 if not path.resolve().is_relative_to(root):raise ValueError('Caption outside project')
             preview=preview_version(root,folder,rid)
             prepared=read_json(folder/'prepared.json',{}) or {}
-            final_state='not_generated';technical=False;status='needs_review';decision=None;fingerprint=None;exported=False;warnings=list(edl.warnings)
+            can_render_final=False
+            try:
+                from engine.pipeline.outputs import load_preparation
+                load_preparation(root,rid,verify_source=False)
+                can_render_final=preview['state']=='available'
+            except (PipelineError,OSError,ValueError):pass
+            final_state='not_generated';technical=False;status='needs_review';decision=None;fingerprint=None;exported=False;warnings=list(edl.warnings)+list(candidate.warnings)
             if (folder/'render.json').exists() or (folder/'qa.json').exists():
                 final_state='invalid';status='invalid'
                 try:
@@ -69,9 +73,10 @@ def list_revisions(root:Path):
                 'warnings':warnings,'content_hash':fingerprint,'notes':decision.notes if decision else '',
                 'removed_silence_us':sum(r['source_end_us']-r['source_start_us'] for r in edl.removed),
                 'pause_removals':edl.removed,'preview':preview,'final_state':final_state,
-                'can_render_final':bool(prepared and preview['state']=='available'),'analysis_hash':prepared.get('analysis_hash'),'plan_hash':prepared.get('plan_hash')})
+                'can_render_final':can_render_final,'analysis_hash':prepared.get('analysis_hash'),'plan_hash':prepared.get('plan_hash')})
         except (OSError,ValueError,PipelineError,HTTPException):
-            result.append({'revision_id':rid,'title':'Corte indisponível','technical_pass':False,'review_status':'invalid','warnings':['Artefatos inválidos ou incompletos. Gere a prévia novamente.'],'final_state':'invalid'})
+            preview=preview_version(root,folder,rid) if folder else {'state':'invalid'}
+            result.append({'revision_id':rid,'title':'Corte com preparação indisponível','technical_pass':False,'review_status':'invalid','warnings':['A preparação está inválida ou incompleta. A prévia preservada pode ser reproduzida, mas não gerar ou aprovar um final.'],'final_state':'invalid','preview':preview,'can_render_final':False,'duration_us':preview.get('duration_us')})
     return result
 
 

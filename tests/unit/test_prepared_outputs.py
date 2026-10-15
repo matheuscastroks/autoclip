@@ -86,3 +86,30 @@ def test_final_entrypoint_never_invokes_editorial_pipeline(tmp_path, monkeypatch
     with pytest.raises(PipelineError) as error:
         runner.export_approved(root)
     assert error.value.code == 'NO_APPROVED_CLIPS'
+
+
+def test_source_timing_metadata_is_bound_to_preparation(tmp_path):
+    from engine.pipeline.outputs import load_preparation
+
+    root, folder, rid = prepared_project(tmp_path)
+    source=Source.model_validate_json((root/'source.json').read_bytes())
+    source.probe['video_origin_us']=10_000_000
+    atomic_json(root/'source.json',source)
+    with pytest.raises(PipelineError) as error:
+        load_preparation(root,rid)
+    assert error.value.code=='PREPARATION_CHANGED'
+
+
+def test_missing_cache_checkpoint_does_not_discard_published_preview(tmp_path,monkeypatch):
+    from engine.pipeline import outputs
+    from engine.contracts import PREVIEW_PROFILE
+    root,folder,rid=prepared_project(tmp_path)
+    monkeypatch.setattr(outputs.FFmpegRenderer,'render',fake_render)
+    monkeypatch.setattr(outputs,'tool_fingerprint',lambda _: {})
+    monkeypatch.setattr(outputs,'verify_preview',lambda *a: {'fixture':True})
+    preview,_=outputs.render_output(root,rid,PREVIEW_PROFILE,Path('f'),Path('p'))
+    for checkpoint in (root/'stages/output_preview').glob('*.json'):checkpoint.unlink()
+    monkeypatch.setattr(outputs.FFmpegRenderer,'render',lambda *a: pytest.fail('Published output must survive cache metadata loss'))
+    restored,reused=outputs.render_output(root,rid,PREVIEW_PROFILE,Path('f'),Path('p'))
+    assert reused and restored.render.path==preview.render.path
+    assert preview.render.path.read_bytes()==b'preview'
