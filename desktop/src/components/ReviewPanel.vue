@@ -383,6 +383,7 @@ function finalLabel(r: Revision) {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  margin-bottom: 12px;
 }
 .cuts-table-heading h2 {
   margin: 0;
@@ -432,6 +433,7 @@ function finalLabel(r: Revision) {
   flex: 1;
   overflow: auto;
   max-height: none;
+  overscroll-behavior: contain;
 }
 .cuts-table {
   width: 100%;
@@ -451,11 +453,13 @@ function finalLabel(r: Revision) {
   position: sticky;
   top: 0;
   background: var(--panel);
+  z-index: 1;
 }
 .cuts-table th,
 .cuts-table td {
   padding: 14px 12px;
   border-bottom: 1px solid var(--line);
+  vertical-align: middle;
 }
 .cuts-table th:first-child,
 .cuts-table td:first-child {
@@ -463,6 +467,9 @@ function finalLabel(r: Revision) {
   padding-left: 0;
 }
 .cuts-table tr.clip-item {
+  display: table-row;
+  width: auto;
+  text-align: left;
   cursor: pointer;
 }
 .cuts-table tr.clip-item:hover,

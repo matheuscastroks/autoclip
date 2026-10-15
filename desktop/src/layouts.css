@@ -2713,56 +2713,6 @@ svg {
   max-height: none;
   overflow: visible;
 }
-.cuts-table-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.cuts-table-heading h3 {
-  margin: 0;
-}
-.cuts-table-scroll {
-  max-height: 300px;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.cuts-table {
-  width: 100%;
-  text-align: left;
-}
-.cuts-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 12px 14px;
-  white-space: nowrap;
-}
-.cuts-table .clip-item {
-  display: table-row;
-  cursor: pointer;
-  width: auto;
-  text-align: left;
-}
-.cuts-table .clip-item td {
-  padding: 14px;
-  vertical-align: middle;
-}
-.cuts-table .clip-item td:first-child {
-  min-width: 180px;
-}
-.cuts-table .clip-item td:not(:first-child) {
-  white-space: nowrap;
-}
-.cuts-table .clip-item strong {
-  line-height: 1.5;
-  display: inline;
-}
-.cuts-table .clip-number {
-  display: inline;
-  margin-right: 10px;
-}
 .cuts-review-left .clip-information {
   width: 100%;
   padding: 0;
