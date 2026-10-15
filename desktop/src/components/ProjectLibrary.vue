@@ -2,11 +2,10 @@
 import AppButton from './AppButton.vue';
 import AppIcon from './ui/AppIcon.vue';
 import AppSelect from './AppSelect.vue';
-import { computed, ref } from 'vue';
-import { ElTag, ElTooltip } from 'element-plus';
-import { Clock } from '@lucide/vue';
+import { computed, ref, nextTick } from 'vue';
+import ProjectListItem from './library/ProjectListItem.vue';
 import type { Project } from '../types';
-import { time, projectLabel, stages } from '../format';
+import { projectLabel } from '../format';
 
 const props = defineProps<{
   projects: Project[];
@@ -27,7 +26,13 @@ const query = ref('');
 const filter = ref('all');
 const sort = ref('updated');
 const viewMode = ref<'grid' | 'list'>('list');
-const brokenCovers = ref<Record<string, string>>({});
+const viewControls = ref<HTMLElement>();
+function switchView(mode: 'list' | 'grid') {
+  viewMode.value = mode;
+  void nextTick(() =>
+    viewControls.value?.querySelector<HTMLButtonElement>('[aria-checked=true]')?.focus()
+  );
+}
 
 const stateOptions = computed(() => [
   { value: 'all', label: 'Todos os estados' },
@@ -52,26 +57,6 @@ const filtered = computed(() =>
         : b.updated_at - a.updated_at
     )
 );
-
-function updated(value: number) {
-  return value
-    ? new Date(value * 1000).toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—';
-}
-
-function timeAgo(value: number) {
-  if (!value) return 'Recente';
-  const diffSec = Math.floor(Date.now() / 1000 - value);
-  if (diffSec < 60) return 'Agora mesmo';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min atrás`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h atrás`;
-  return `${Math.floor(diffSec / 86400)} d atrás`;
-}
 </script>
 
 <template>
@@ -93,7 +78,7 @@ function timeAgo(value: number) {
           aria-label="Limpar busca"
           @click="query = ''"
         >
-          ✕
+          <AppIcon name="close" size="sm" />
         </button>
       </div>
 
@@ -115,7 +100,12 @@ function timeAgo(value: number) {
           />
         </label>
 
-        <div class="view-switcher" role="radiogroup" aria-label="Modo de visualização">
+        <div
+          ref="viewControls"
+          class="view-switcher"
+          role="radiogroup"
+          aria-label="Modo de visualização"
+        >
           <button
             type="button"
             class="view-btn"
@@ -126,7 +116,7 @@ function timeAgo(value: number) {
             title="Visualização em Grade de Mídia"
             aria-label="Grade de Mídia"
             @click="viewMode = 'grid'"
-            @keydown.right.prevent="viewMode = 'list'"
+            @keydown.right.prevent="switchView('list')"
           >
             <AppIcon name="grid" size="sm" />
           </button>
@@ -140,7 +130,7 @@ function timeAgo(value: number) {
             title="Visualização em Tabela Estruturada"
             aria-label="Tabela Estruturada"
             @click="viewMode = 'list'"
-            @keydown.left.prevent="viewMode = 'grid'"
+            @keydown.left.prevent="switchView('grid')"
           >
             <AppIcon name="list" size="sm" />
           </button>
@@ -157,223 +147,23 @@ function timeAgo(value: number) {
       </div>
     </section>
 
-    <!-- ESTADO 1: GRADE VISUAL DE MÍDIA (Modo Padrão de Estúdio) -->
     <section
-      v-if="filtered.length && viewMode === 'grid'"
-      class="projects-media-grid"
-      aria-label="Projetos em grade"
+      v-if="filtered.length"
+      class="project-collection"
+      :class="{ 'project-collection--grid': viewMode === 'grid' }"
+      :aria-label="viewMode === 'grid' ? 'Projetos em grade' : 'Projetos locais'"
     >
-      <article
+      <ProjectListItem
         v-for="project in filtered"
         :key="project.id"
-        class="media-project-card"
-        :data-project-id="project.id"
-        tabindex="0"
-        role="button"
-        :aria-label="'Abrir projeto: ' + (project.title || project.name)"
-        @click="$emit('open', project.id)"
-        @keydown.enter.prevent="$emit('open', project.id)"
-        @keydown.space.prevent="$emit('open', project.id)"
-      >
-        <!-- Thumbnail 16:9 com Badges Flutuantes -->
-        <div class="card-thumbnail-wrap">
-          <img
-            v-if="covers?.[project.id] && brokenCovers[project.id] !== covers[project.id]"
-            :src="covers[project.id]"
-            alt=""
-            loading="lazy"
-            class="thumbnail-img"
-            @error="brokenCovers[project.id] = covers?.[project.id] || ''"
-          />
-          <div v-else class="thumbnail-fallback">
-            <AppIcon name="video" size="lg" />
-          </div>
-
-          <!-- Duração do vídeo -->
-          <span class="video-duration-tag">
-            <Clock :size="11" />
-            {{ project.duration_us ? time(project.duration_us) : '—' }}
-          </span>
-
-          <!-- Status do projeto -->
-          <el-tag
-            :type="
-              project.status === 'completed'
-                ? 'success'
-                : project.status === 'processing'
-                  ? 'warning'
-                  : project.status === 'failed'
-                    ? 'danger'
-                    : 'info'
-            "
-            effect="dark"
-            size="small"
-            class="status-pill card-status-pill"
-            :data-status="project.status"
-          >
-            {{
-              project.summary?.stage
-                ? stages[project.summary.stage] || project.summary.stage
-                : projectLabel(project.status)
-            }}
-          </el-tag>
-        </div>
-
-        <!-- Conteúdo do Card -->
-        <div class="card-body">
-          <div class="card-header-row">
-            <AppButton class="project-title-link" @click.stop="$emit('open', project.id)">
-              <h2 class="project-card-title">{{ project.title || project.name }}</h2>
-            </AppButton>
-          </div>
-
-          <p class="project-source-info">
-            {{
-              project.is_manual
-                ? 'Teste técnico de renderização'
-                : project.has_transcript
-                  ? `${project.word_count.toLocaleString('pt-BR')} palavras transcritas`
-                  : project.name
-            }}
-          </p>
-
-          <!-- Métricas inline limpas (sem cardception/chips) -->
-          <div class="project-metrics-row">
-            <span class="project-metrics-inline">
-              {{ project.summary?.proposed ?? '—' }} propostas
-              <template v-if="project.summary?.selected || project.summary?.generated">
-                ·
-                <span class="highlight-count"
-                  >{{ project.summary?.selected ?? 0 }} selecionados</span
-                >
-                · {{ project.summary?.generated ?? 0 }} prontos
-              </template>
-            </span>
-          </div>
-        </div>
-
-        <!-- Rodapé do Card com Ações Rápidas -->
-        <div class="card-footer">
-          <span
-            class="updated-time"
-            :title="
-              project.updated_at ? new Date(project.updated_at * 1000).toLocaleString('pt-BR') : ''
-            "
-          >
-            {{ timeAgo(project.updated_at) }}
-          </span>
-
-          <div class="card-actions-group">
-            <el-tooltip content="Mover projeto para a lixeira" placement="top">
-              <AppButton
-                type="button"
-                class="icon-button delete-btn"
-                data-action="delete-project"
-                title="Mover projeto para a lixeira"
-                :disabled="busy || activeProjects?.includes(project.id)"
-                @click.stop="$emit('delete', project.id)"
-              >
-                <AppIcon name="trash" size="sm" />
-              </AppButton>
-            </el-tooltip>
-            <span class="open-card-indicator">Abrir →</span>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <!-- ESTADO 2: TABELA ESTRUTURADA (Modo Denso com todas as classes mantidas) -->
-    <section
-      v-else-if="filtered.length && viewMode === 'list'"
-      class="project-table"
-      aria-label="Projetos locais"
-    >
-      <div class="table-head">
-        <span>Projeto</span>
-        <span>Duração</span>
-        <span>Etapa / estado</span>
-        <span>Cortes</span>
-        <span>Atualizado</span>
-        <span>Ações</span>
-      </div>
-      <div
-        v-for="project in filtered"
-        :key="project.id"
-        class="project-row"
-        :data-project-id="project.id"
-        tabindex="0"
-        role="button"
-        :aria-label="'Abrir projeto: ' + (project.title || project.name)"
-        @click="$emit('open', project.id)"
-        @keydown.enter.prevent="$emit('open', project.id)"
-        @keydown.space.prevent="$emit('open', project.id)"
-      >
-        <div class="project-name">
-          <span class="video-thumb" :class="{ manual: project.is_manual }">
-            <img
-              v-if="covers?.[project.id] && brokenCovers[project.id] !== covers[project.id]"
-              :src="covers[project.id]"
-              alt=""
-              loading="lazy"
-              @error="brokenCovers[project.id] = covers?.[project.id] || ''"
-            />
-            <AppIcon v-else name="video" size="lg" />
-          </span>
-          <div>
-            <AppButton class="project-title-link" @click.stop="$emit('open', project.id)">
-              <strong>{{ project.title || project.name }}</strong>
-            </AppButton>
-            <span>{{
-              project.is_manual
-                ? 'Teste de renderização'
-                : project.has_transcript
-                  ? `${project.word_count.toLocaleString('pt-BR')} palavras transcritas`
-                  : project.name
-            }}</span>
-          </div>
-        </div>
-
-        <span class="table-duration">{{
-          project.duration_us ? time(project.duration_us) : '—'
-        }}</span>
-        <span class="status-pill" :data-status="project.status">
-          <i></i
-          >{{
-            project.summary?.stage
-              ? stages[project.summary.stage] || project.summary.stage
-              : projectLabel(project.status)
-          }}
-        </span>
-        <span class="project-counts">
-          <span>{{
-            project.summary?.proposed == null ? '—' : project.summary.proposed + ' propostas'
-          }}</span>
-          <small
-            >{{
-              project.summary?.selected == null ? '—' : project.summary.selected + ' selecionados'
-            }}
-            · {{ project.summary?.generated ?? '—' }} gerados</small
-          >
-        </span>
-        <time
-          class="project-updated"
-          :title="
-            project.updated_at ? new Date(project.updated_at * 1000).toLocaleString('pt-BR') : ''
-          "
-        >
-          {{ updated(project.updated_at) }}
-        </time>
-        <AppButton
-          type="button"
-          class="icon-button"
-          data-action="delete-project"
-          title="Mover projeto para a lixeira"
-          :disabled="busy || activeProjects?.includes(project.id)"
-          @click.stop="$emit('delete', project.id)"
-        >
-          <AppIcon name="trash" size="sm" />
-        </AppButton>
-      </div>
+        :project="project"
+        :view="viewMode"
+        :thumbnail-url="covers?.[project.id]"
+        :busy="busy"
+        :is-active="activeProjects?.includes(project.id)"
+        @open="$emit('open', project.id)"
+        @delete="$emit('delete', project.id)"
+      />
     </section>
 
     <!-- ESTADO 3: ESTADO VAZIO -->
@@ -393,6 +183,7 @@ function timeAgo(value: number) {
       <AppButton
         v-if="!projects.length"
         class="button primary start-first-btn"
+        :disabled="busy"
         @click="$emit('create')"
       >
         <AppIcon name="add" size="sm" />
@@ -406,263 +197,120 @@ function timeAgo(value: number) {
 .library-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  min-width: 0;
 }
-
-/* Barra de Ferramentas */
 .library-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 12px;
-  padding: 10px 14px;
 }
 .search-box {
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1;
-  min-width: 260px;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 .search-icon {
   position: absolute;
   left: 12px;
-  color: var(--color-text-muted, #9aa4b2);
+  color: var(--color-text-muted);
   pointer-events: none;
 }
 .search-box input {
   width: 100%;
-  min-height: 38px;
-  padding: 8px 34px 8px 36px;
-  background: var(--color-canvas, #0e1013);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 8px;
-  color: var(--color-text-primary, #f2f4f7);
-  font-size: 0.88rem;
-  transition: border-color 0.15s ease;
-}
-.search-box input:focus {
-  outline: none;
-  border-color: var(--color-border-strong);
+  min-height: var(--control-height);
+  padding: 7px 36px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
 }
 .clear-search {
   position: absolute;
-  right: 12px;
-  color: var(--color-text-muted, #9aa4b2);
-  cursor: pointer;
-  font-size: 0.75rem;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
 }
 .toolbar-controls {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .control-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
-  color: var(--color-text-muted, #9aa4b2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-control);
+}
+.control-label :deep(.el-select) {
+  width: 156px;
 }
 .view-switcher {
   display: flex;
   align-items: center;
-  background: var(--color-canvas, #0e1013);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 8px;
-  padding: 2px;
   gap: 2px;
 }
 .view-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   background: transparent;
-  border: none;
-  color: var(--color-text-muted, #9aa4b2);
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
+  color: var(--color-text-secondary);
+}
+.view-btn:hover {
+  background: var(--color-surface-hover);
 }
 .view-btn.active {
-  background: var(--color-surface-raised, #1e232b);
+  background: var(--color-surface-selected);
   color: var(--color-text-primary);
 }
-
-/* GRADE DE MÍDIA */
-.projects-media-grid {
+.project-collection {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+}
+.project-collection--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+  overflow: visible;
+  border: 0;
 }
-.media-project-card {
-  background: var(--color-surface, #16191f);
-  border: 1px solid var(--color-border-subtle, #2a303c);
-  border-radius: 14px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.media-project-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-border-strong);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-}
-.card-thumbnail-wrap {
-  position: relative;
-  aspect-ratio: 16/9;
-  background: var(--color-canvas, #0e1013);
-  overflow: hidden;
-}
-.thumbnail-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.thumbnail-fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted, #9aa4b2);
-}
-.video-duration-tag {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(14, 16, 19, 0.85);
-  backdrop-filter: blur(4px);
-  color: var(--color-text-primary, #f2f4f7);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-variant-numeric: tabular-nums;
-}
-.card-status-pill {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  backdrop-filter: blur(4px);
-}
-.card-body {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
-.project-title-link {
-  padding: 0;
-  text-align: left;
-  border: none;
-  background: transparent;
-  color: var(--color-text-primary, #f2f4f7);
-}
-.project-card-title {
-  font-size: 0.98rem;
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.project-source-info {
-  font-size: 0.78rem;
-  color: var(--color-text-muted, #9aa4b2);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.project-metrics-row {
-  display: flex;
-  margin-top: 4px;
-}
-.project-metrics-inline {
-  font-size: 0.78rem;
-  color: var(--color-text-muted, #9aa4b2);
-  font-variant-numeric: tabular-nums;
-}
-.project-metrics-inline .highlight-count {
-  color: var(--color-text-secondary);
-  font-weight: 500;
-}
-.card-footer {
-  padding: 10px 16px;
-  border-top: 1px solid var(--color-border-subtle, #2a303c);
-  background: rgba(14, 16, 19, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.updated-time {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #9aa4b2);
-}
-.card-actions-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.open-card-indicator {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-/* Estado Vazio */
 .studio-empty-state {
-  background: var(--color-surface, #121518);
-  border: 1px dashed var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  border-radius: 12px;
   padding: 48px 24px;
-  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  text-align: center;
 }
 .empty-icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: var(--color-surface-raised, #181b20);
-  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  color: var(--color-text-muted, #9aa4b2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--color-text-muted);
 }
 .studio-empty-state h2 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-text-primary, #f2f4f7);
-  margin: 0;
-  letter-spacing: -0.02em;
+  font-size: var(--font-size-region);
 }
 .studio-empty-state p {
-  color: var(--color-text-muted, #9aa4b2);
   max-width: 44ch;
-  margin: 0;
-  font-size: 0.88rem;
+  color: var(--color-text-secondary);
 }
-.start-first-btn {
-  font-weight: 500;
-  padding: 8px 16px;
-  margin-top: 4px;
+@media (max-width: 1100px) {
+  .control-label > span {
+    display: none;
+  }
 }
 </style>
