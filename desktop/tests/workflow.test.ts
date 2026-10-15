@@ -50,6 +50,34 @@ describe('workflow visibility', () => {
     expect(w.text()).not.toContain('Revisão editorial pendente');
     w.unmount();
   });
+
+  it('keeps the active tab and panel associated while switching project areas', async () => {
+    const w = mount(ProjectWorkspace, {
+      props: {
+        project,
+        transcript: null,
+        revisions: [],
+        jobs: [],
+        sourceUrl: '',
+        previewUrl: '',
+        busy: false,
+      },
+    });
+
+    for (const [tabId, contentSelector] of [
+      ['tab-transcript', '.transcript-layout'],
+      ['tab-analysis', '.analysis-workspace'],
+      ['tab-cuts', '.cuts-empty'],
+    ]) {
+      await w.get(`#${tabId}`).trigger('click');
+      expect(w.get(`#${tabId}`).attributes('aria-selected')).toBe('true');
+      expect(w.get('#project-panel').attributes('aria-labelledby')).toBe(tabId);
+      expect(w.find(contentSelector).exists()).toBe(true);
+    }
+
+    w.unmount();
+  });
+
   it('offers access to the project trash from the library', async () => {
     const w = mount(ProjectLibrary, { props: { projects: [project], busy: false } });
     await w.get('[data-action=open-project-trash]').trigger('click');

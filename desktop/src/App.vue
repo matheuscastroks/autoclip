@@ -630,8 +630,8 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <main class="main-content">
-        <div class="page-content">
+      <main class="main-content" :class="{ 'project-main': project && page === 'projects' }">
+        <div class="page-content" :class="{ 'project-page': project && page === 'projects' }">
           <div v-if="initial" class="loading-state">
             <LoaderCircle class="spin" :size="25" />
             <p>Abrindo seus projetos…</p>
@@ -690,7 +690,11 @@ onUnmounted(() => {
             </section>
 
             <Transition name="screen">
-              <div :key="project?.id || page" class="screen-content">
+              <div
+                :key="project?.id || page"
+                class="screen-content"
+                :class="{ 'project-screen': project && page === 'projects' }"
+              >
                 <SettingsPanel
                   v-if="page === 'settings' && config"
                   :config="config"

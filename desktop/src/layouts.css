@@ -25,10 +25,6 @@ h1 {
 svg {
   flex-shrink: 0;
 }
-.app-shell {
-  display: flex;
-  min-height: 100vh;
-}
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
@@ -107,10 +103,6 @@ svg {
   width: 7px;
   height: 7px;
   flex-shrink: 0;
-}
-.main-content {
-  margin-left: 208px;
-  width: calc(100% - 208px);
 }
 .topbar {
   height: 62px;
@@ -2303,32 +2295,62 @@ svg {
 .sidebar-session .icon-button {
   flex: none;
 }
-.workspace-body {
+.project-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
+}
+.project-workspace > .project-heading,
+.project-workspace > .project-tabs {
+  flex: none;
+}
+.workspace-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 .workspace-body.with-generation {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 #project-panel {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+.workspace-body.editor-workspace #project-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.workspace-body.editor-workspace #project-panel > * {
+  flex: 1;
+  min-height: 0;
   min-width: 0;
 }
 .generation-sidebar {
-  position: sticky;
-  top: 18px;
-  max-height: calc(100dvh - 100px);
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 0 5px 5px 0;
 }
 .generation-sidebar .generation-queue {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   margin: 0;
   padding: 16px;
-}
-.generation-sidebar {
-  max-height: calc(100dvh - 310px);
 }
 .generation-sidebar .generation-queue > header {
   align-items: flex-start;
@@ -2399,8 +2421,8 @@ svg {
   margin-top: 16px;
 }
 .transcript-layout {
-  height: calc(100dvh - 300px);
-  min-height: 280px;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -2409,12 +2431,8 @@ svg {
   margin-bottom: 16px;
 }
 .transcript-body {
-  display: grid;
-  grid-template-columns: minmax(200px, 28%) minmax(0, 1fr);
-  gap: 20px;
   min-height: 0;
   flex: 1;
-  align-items: start;
 }
 .transcript-body > video {
   width: 100%;
@@ -2444,8 +2462,7 @@ svg {
 .analysis-layout {
   grid-template-columns: 200px minmax(240px, 1fr) minmax(260px, 1fr);
   gap: 16px;
-  height: calc(100dvh - 415px);
-  min-height: 320px;
+  min-height: 0;
   align-items: stretch;
 }
 .topic-list,
@@ -2569,20 +2586,20 @@ svg {
 }
 @media (min-width: 951px) {
   .workspace-body.with-generation #project-panel {
-    max-height: var(--work-area-height);
-    overflow: auto;
-    overscroll-behavior: contain;
-    padding-right: 5px;
+    min-height: 0;
   }
   .generation-sidebar {
-    max-height: var(--work-area-height);
+    display: flex;
+    flex-direction: column;
   }
   .generation-sidebar .generation-queue ol {
-    max-height: calc(var(--work-area-height) - 140px);
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow: auto;
   }
   .transcript-layout {
-    height: var(--work-area-height);
+    height: 100%;
     min-height: 0;
   }
   .analysis-workspace {
@@ -2612,17 +2629,6 @@ svg {
   .preparation-group .pipeline-step[data-state='completed'] {
     min-height: 86px;
   }
-  .clip-preview > video {
-    height: clamp(240px, calc(var(--work-area-height) - 110px), 480px);
-  }
-}
-@media (min-width: 951px) {
-  .clip-preview > video {
-    height: clamp(240px, calc(var(--work-area-height) - 130px), 480px);
-  }
-  .review-grid .clip-list {
-    max-height: calc(var(--work-area-height) - 128px);
-  }
 }
 @media (max-width: 1200px) {
   .workspace-body.with-generation {
@@ -2645,8 +2651,8 @@ svg {
     grid-template-columns: 1fr;
   }
   .generation-sidebar {
-    position: static;
-    max-height: 400px;
+    height: auto;
+    max-height: min(40dvh, 400px);
   }
   .analysis-layout {
     height: auto;
@@ -2679,7 +2685,11 @@ svg {
     grid-template-columns: 1fr;
   }
   .transcript-layout {
-    height: auto;
+    height: 100%;
+    min-width: 580px;
+  }
+  .workspace-body.transcript-workspace #project-panel {
+    overflow-x: auto;
   }
   .transcript-body {
     grid-template-columns: 1fr;
@@ -2731,7 +2741,7 @@ svg {
 }
 .clip-information {
   min-width: 0;
-  max-height: calc(var(--work-area-height) - 120px);
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 0 5px 5px 0;
@@ -2756,9 +2766,6 @@ svg {
   .review-grid {
     grid-template-columns: 130px max-content minmax(0, 1fr);
     gap: 12px;
-  }
-  .clip-preview > video {
-    height: clamp(240px, calc(var(--work-area-height) - 150px), 360px);
   }
 }
 @media (max-width: 950px) {
@@ -2813,23 +2820,11 @@ svg {
     grid-template-columns: 150px max-content minmax(0, 1fr);
     gap: 20px;
   }
-  .clip-preview > video {
-    height: clamp(280px, calc(var(--work-area-height) - 60px), 520px);
-  }
-  .review-grid .clip-list {
-    max-height: calc(var(--work-area-height) - 65px);
-  }
-  .clip-information {
-    max-height: calc(var(--work-area-height) - 65px);
-  }
 }
 @media (min-width: 951px) and (max-width: 1200px) {
   .review-grid {
     grid-template-columns: 125px max-content minmax(0, 1fr);
     gap: 14px;
-  }
-  .clip-preview > video {
-    height: clamp(280px, calc(var(--work-area-height) - 65px), 430px);
   }
 }
 @media (max-width: 760px) {
@@ -2878,8 +2873,8 @@ svg {
   min-width: 0;
 }
 .workspace-body.cuts-workspace #project-panel {
-  max-height: none;
-  overflow: visible;
+  min-height: 0;
+  overflow: hidden;
 }
 .cuts-workspace .review-grid .clip-list,
 .cuts-workspace .clip-information {
@@ -2892,9 +2887,7 @@ svg {
   align-self: start;
 }
 .generation-sidebar {
-  max-height: var(--work-area-height);
-  position: sticky;
-  top: 20px;
+  max-height: 100%;
 }
 .generation-sidebar .generation-queue li {
   padding: 18px 0;
@@ -2921,6 +2914,8 @@ svg {
 .cuts-review-layout {
   display: flex;
   align-items: stretch;
+  min-height: 0;
+  min-width: 0;
 }
 .cuts-review-left {
   min-width: 0;
@@ -3001,23 +2996,31 @@ svg {
   margin-left: 12px;
 }
 .cuts-player-rail {
-  position: sticky;
-  top: 20px;
-  align-self: start;
+  position: static;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
 }
 .cuts-player-rail .clip-preview {
   position: static;
-  width: fit-content;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  max-width: 100%;
+  width: auto;
 }
 .cuts-player-rail .clip-preview > video {
-  height: calc(var(--work-area-height) - 6px);
-  max-height: calc(100dvh - 40px);
+  height: 100%;
+  max-height: 100%;
+  max-width: 100%;
   width: auto;
   aspect-ratio: 9/16;
   object-fit: cover;
 }
 .cuts-player-rail .video-unavailable {
-  height: calc(var(--work-area-height) - 6px);
+  height: 100%;
+  max-height: 100%;
+  max-width: 100%;
   width: auto;
   aspect-ratio: 9/16;
 }
@@ -3035,9 +3038,6 @@ svg {
 @media (max-width: 1100px) {
   .cuts-review-layout {
     gap: 20px;
-  }
-  .cuts-player-rail .clip-preview > video {
-    height: min(calc(var(--work-area-height) - 6px), 520px);
   }
 }
 @media (max-width: 760px) {
