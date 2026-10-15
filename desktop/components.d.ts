@@ -37,11 +37,16 @@ declare module 'vue' {
     ProjectQueue: typeof import('./src/components/ProjectQueue.vue')['default']
     ProjectTabs: typeof import('./src/components/layout/ProjectTabs.vue')['default']
     ProjectWorkspace: typeof import('./src/components/ProjectWorkspace.vue')['default']
+    ProposalInspectorDrawer: typeof import('./src/components/analysis/ProposalInspectorDrawer.vue')['default']
+    ProposalItem: typeof import('./src/components/analysis/ProposalItem.vue')['default']
+    ProposalList: typeof import('./src/components/analysis/ProposalList.vue')['default']
     ProviderSelector: typeof import('./src/components/ProviderSelector.vue')['default']
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
+    SelectionDock: typeof import('./src/components/analysis/SelectionDock.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
     TechnicalDetails: typeof import('./src/components/ui/TechnicalDetails.vue')['default']
+    TopicNavigation: typeof import('./src/components/analysis/TopicNavigation.vue')['default']
     WorkspaceHeader: typeof import('./src/components/layout/WorkspaceHeader.vue')['default']
   }
 }

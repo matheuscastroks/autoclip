@@ -2,21 +2,18 @@ import { ref, computed, type Ref } from 'vue';
 import type { Proposal } from '../types';
 import { overlaps } from '../utils/intervals';
 
-export function useProposalSelection(
-  proposalsRef: Ref<Proposal[]>,
-  discardedRef: Ref<string[]>
-) {
+export function useProposalSelection(proposalsRef: Ref<Proposal[]>, discardedRef: Ref<string[]>) {
   const selected = ref<string[]>([]);
 
   const validSelection = computed(() => {
     const list: string[] = [];
     const validProposals = proposalsRef.value.filter(
-      p => !discardedRef.value.includes(p.candidate_id)
+      p => p.eligible && !discardedRef.value.includes(p.candidate_id)
     );
 
     for (const id of selected.value) {
       const target = validProposals.find(p => p.candidate_id === id);
-      if (!target) continue;
+      if (!target || list.includes(id)) continue;
 
       const hasOverlap = list.some(keptId => {
         const kept = validProposals.find(p => p.candidate_id === keptId);
@@ -52,6 +49,7 @@ export function useProposalSelection(
       selected.value = selected.value.filter(s => s !== id);
     } else {
       const target = proposalsRef.value.find(p => p.candidate_id === id);
+      if (!target?.eligible || discardedRef.value.includes(id)) return false;
       if (target && hasOverlapWithSelected(target)) {
         return false;
       }

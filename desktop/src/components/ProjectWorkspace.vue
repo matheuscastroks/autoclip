@@ -270,6 +270,7 @@ function seek(us: number) {
           :jobs="jobs"
           :source-url="sourceUrl"
           :busy="busy"
+          :load-source="loadMedia ? () => loadMedia!('source') : undefined"
           @generate="$emit('render', $event)"
           @selection="$emit('selection', $event)"
           @resume="$emit('resumeAnalysis')"
