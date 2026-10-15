@@ -993,6 +993,7 @@ function choose(id: string) {
   width: 100%;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -1047,8 +1048,10 @@ function choose(id: string) {
 
 /* 3-COLUMN WORKSPACE SPLITTER */
 .analysis-layout.curation-3col-layout {
-  height: calc(var(--work-area-height, 100vh - 210px) - 54px) !important;
-  min-height: 560px !important;
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
@@ -1076,6 +1079,7 @@ function choose(id: string) {
 
 .panel-inner-container {
   height: 100%;
+  min-height: 0;
   width: 100%;
   padding: 14px;
   display: flex;
@@ -1108,7 +1112,7 @@ function choose(id: string) {
   gap: 4px;
   overflow-y: auto;
   flex: 1;
-  min-height: 100px;
+  min-height: 0;
 }
 
 .column-panel-header {
@@ -2090,9 +2094,9 @@ function choose(id: string) {
 }
 
 @media (max-width: 900px) {
-  .curation-3col-layout {
-    grid-template-columns: 1fr;
-    height: auto;
+  .analysis-layout.curation-3col-layout {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 }
 </style>
