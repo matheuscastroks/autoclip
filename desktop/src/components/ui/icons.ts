@@ -23,6 +23,18 @@ import Link from '~icons/fluent/link-24-regular';
 import Check from '~icons/fluent/checkmark-24-regular';
 import Warning from '~icons/fluent/warning-24-regular';
 import Clock from '~icons/fluent/clock-24-regular';
+import Key from '~icons/fluent/key-24-regular';
+import Eye from '~icons/fluent/eye-24-regular';
+import EyeOff from '~icons/fluent/eye-off-24-regular';
+import Save from '~icons/fluent/save-24-regular';
+import Cpu from '~icons/fluent/developer-board-24-regular';
+import Sparkle from '~icons/fluent/sparkle-24-regular';
+import CheckCircle from '~icons/fluent/checkmark-circle-24-regular';
+import Stop from '~icons/fluent/stop-24-regular';
+import OpenExternal from '~icons/fluent/open-24-regular';
+import Spinner from '~icons/fluent/spinner-ios-20-regular';
+import Download from '~icons/fluent/arrow-download-24-regular';
+import Globe from '~icons/fluent/globe-24-regular';
 import type { Component } from 'vue';
 
 interface IconDefinition {
@@ -55,6 +67,18 @@ export const icons = {
   check: { regular: Check, label: 'Concluído' },
   warning: { regular: Warning, label: 'Atenção' },
   clock: { regular: Clock, label: 'Aguardando' },
+  key: { regular: Key, label: 'Credencial' },
+  eye: { regular: Eye, label: 'Mostrar' },
+  'eye-off': { regular: EyeOff, label: 'Ocultar' },
+  save: { regular: Save, label: 'Salvar' },
+  cpu: { regular: Cpu, label: 'Processamento local' },
+  sparkle: { regular: Sparkle, label: 'Análise' },
+  'check-circle': { regular: CheckCircle, label: 'Concluído' },
+  stop: { regular: Stop, label: 'Cancelar' },
+  'open-external': { regular: OpenExternal, label: 'Abrir' },
+  spinner: { regular: Spinner, label: 'Em andamento' },
+  download: { regular: Download, label: 'Baixar' },
+  globe: { regular: Globe, label: 'Provedor remoto' },
 } satisfies Record<string, IconDefinition>;
 
 export type IconName = keyof typeof icons;

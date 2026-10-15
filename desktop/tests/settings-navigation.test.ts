@@ -28,6 +28,23 @@ function setup() {
 }
 
 describe('settings navigation', () => {
+  it('keeps technical paths collapsed but reveals and focuses an invalid required field', async () => {
+    const { wrapper } = setup();
+    try {
+      const details = wrapper.get('details.settings-paths');
+      expect((details.element as HTMLDetailsElement).open).toBe(false);
+      await wrapper.get('#settings-tab-2').trigger('click');
+      const field = wrapper.get('.settings-paths input');
+      await field.setValue('');
+      await field.trigger('invalid');
+      await flushPromises();
+      expect(wrapper.get('#settings-tab-0').attributes('aria-selected')).toBe('true');
+      expect((details.element as HTMLDetailsElement).open).toBe(true);
+      expect(document.activeElement).toBe(field.element);
+    } finally {
+      wrapper.unmount();
+    }
+  });
   it('uses keyboard tabs without submitting or losing edited values', async () => {
     const { wrapper, saveConfig } = setup();
     await wrapper.get('.local-resources input').setValue('updated-model');

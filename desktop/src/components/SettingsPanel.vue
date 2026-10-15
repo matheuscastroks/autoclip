@@ -1,17 +1,8 @@
 <script setup lang="ts">
+import AppIcon from './ui/AppIcon.vue';
 import AppButton from './AppButton.vue';
 import AppSelect from './AppSelect.vue';
 import { reactive, ref, watch, computed, onMounted, nextTick } from 'vue';
-import {
-  FolderOpen,
-  KeyRound,
-  Save,
-  Cpu,
-  Sparkles,
-  Scissors,
-  CheckCircle2,
-  AlertCircle,
-} from '@lucide/vue';
 import { notify } from '../notifications';
 import type { Config, GeminiConnection } from '../types';
 
@@ -42,9 +33,9 @@ const key = ref(''),
 const settingsStep = ref(0);
 
 const settingsCategories = [
-  { title: 'Recursos locais', sub: 'Whisper, FFmpeg e aceleração', icon: Cpu },
-  { title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves', icon: Sparkles },
-  { title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo', icon: Scissors },
+  { title: 'Recursos locais', sub: 'Whisper, FFmpeg e aceleração' },
+  { title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves' },
+  { title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo' },
 ];
 
 let invalidHandled = false;
@@ -328,8 +319,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
               <div class="readiness-banner-vertical">
                 <div class="readiness-card" :class="{ ok: config.asr_available }">
                   <div class="readiness-card-icon">
-                    <CheckCircle2 v-if="config.asr_available" :size="20" />
-                    <AlertCircle v-else :size="20" />
+                    <AppIcon v-if="config.asr_available" name="check-circle" size="md" />
+                    <AppIcon v-else name="warning" size="md" />
                   </div>
                   <div class="readiness-card-info">
                     <strong>Transcrição · Whisper</strong>
@@ -343,8 +334,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 
                 <div class="readiness-card" :class="{ ok: config.tools_available }">
                   <div class="readiness-card-icon">
-                    <CheckCircle2 v-if="config.tools_available" :size="20" />
-                    <AlertCircle v-else :size="20" />
+                    <AppIcon v-if="config.tools_available" name="check-circle" size="md" />
+                    <AppIcon v-else name="warning" size="md" />
                   </div>
                   <div class="readiness-card-info">
                     <strong>Vídeo · FFmpeg e ffprobe</strong>
@@ -359,7 +350,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
             </section>
 
             <!-- Coluna 2: Caminhos dos Executáveis e Modelos -->
-            <section class="setting-section">
+            <details class="setting-section settings-paths">
+              <summary>Caminhos técnicos</summary>
               <div class="section-title-wrap">
                 <div>
                   <h2>Caminhos e executáveis</h2>
@@ -382,7 +374,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                         class="icon-button"
                         title="Escolher pasta do modelo"
                         @click="handlePick('model', 'asr_model_path')"
-                        ><FolderOpen :size="18"
+                        ><AppIcon name="folder-open" size="md"
                       /></AppButton>
                     </el-tooltip>
                   </span>
@@ -403,7 +395,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                         class="icon-button"
                         title="Localizar FFmpeg"
                         @click="handlePick('ffmpeg', 'ffmpeg')"
-                        ><FolderOpen :size="17"
+                        ><AppIcon name="folder-open" size="md"
                       /></AppButton>
                     </el-tooltip>
                   </span>
@@ -424,14 +416,14 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                         class="icon-button"
                         title="Localizar ffprobe"
                         @click="handlePick('ffprobe', 'ffprobe')"
-                        ><FolderOpen :size="17"
+                        ><AppIcon name="folder-open" size="md"
                       /></AppButton>
                     </el-tooltip>
                   </span>
                   <small>Usado para inspeção técnica e validação dos streams de vídeo.</small>
                 </label>
               </div>
-            </section>
+            </details>
           </div>
 
           <!-- Etapa 1: IA & Provedor -->
@@ -560,7 +552,9 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                       :disabled="busy || !key.trim()"
                       @click="handleSaveKey"
                     >
-                      <KeyRound :size="16" />{{ validating ? 'Validando…' : 'Salvar e validar' }}
+                      <AppIcon name="key" size="sm" />{{
+                        validating ? 'Validando…' : 'Salvar e validar'
+                      }}
                     </AppButton>
                     <AppButton
                       type="button"
@@ -671,7 +665,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
                       :disabled="busy || !openrouterKey.trim()"
                       @click="handleSaveOpenRouterKey"
                     >
-                      <KeyRound :size="16" />{{
+                      <AppIcon name="key" size="sm" />{{
                         validating ? 'Salvando…' : 'Salvar chave OpenRouter'
                       }}
                     </AppButton>
@@ -793,7 +787,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
               data-action="save-config"
               :disabled="busy || missingModel"
             >
-              <Save :size="16" />{{ busy ? 'Salvando…' : 'Salvar configurações' }}
+              <AppIcon name="save" size="sm" />{{ busy ? 'Salvando…' : 'Salvar configurações' }}
             </AppButton>
             <p class="save-hint">
               As preferências são aplicadas ao salvar. Chaves são salvas separadamente.
@@ -873,7 +867,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   line-height: 1.4;
 }
 .cat-sub {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   color: var(--color-text-muted);
   line-height: 1.5;
 }
@@ -942,7 +936,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 .section-desc {
   margin: 6px 0 0;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-size-control);
   line-height: 1.6;
 }
 .title-with-pill {
@@ -960,10 +954,10 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   margin: 0;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-size-control);
 }
 .settings-workspace .field small {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -973,7 +967,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 .settings-workspace .input-action input {
   min-width: 0;
   width: 100%;
-  font-size: 12px;
+  font-size: var(--font-size-control);
 }
 .readiness-banner-vertical {
   display: grid;
@@ -998,11 +992,11 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   gap: 5px;
 }
 .readiness-card-info strong {
-  font-size: 12px;
+  font-size: var(--font-size-control);
   font-weight: 500;
 }
 .readiness-card-info span {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -1053,7 +1047,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   display: none;
 }
 .provider-card-content small {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -1073,7 +1067,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 .settings-workspace .test-timestamp,
 .settings-workspace .api-cost-note {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   color: var(--color-text-muted);
 }
 .quick-chips-wrap {
@@ -1082,7 +1076,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   gap: 10px;
 }
 .chips-label {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   color: var(--color-text-muted);
 }
 .quick-chips {
@@ -1109,7 +1103,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   gap: 6px;
 }
 .chip-title-row strong {
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   font-weight: 500;
 }
 .model-chip small,
@@ -1127,7 +1121,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   padding-top: 8px;
 }
 .check-row {
-  font-size: 12px;
+  font-size: var(--font-size-control);
 }
 .provider-details-grid {
   display: grid;
@@ -1152,7 +1146,7 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
 .save-hint {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-meta);
   line-height: 1.6;
   flex: 1;
   max-width: 42ch;
