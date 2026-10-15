@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
-import { computed, watch, ref, toRef } from 'vue';
+import { computed, watch, toRef } from 'vue';
 import {
   Check,
   Square,
@@ -12,13 +12,12 @@ import {
   Scissors,
   Download,
   Film,
-  Clock,
   ListOrdered,
   ChevronDown,
   FolderOpen,
 } from '@lucide/vue';
 import type { Project, Job, Revision, AnalysisView } from '../types';
-import { active, labels, analysisLabels, latestJob, time } from '../format';
+import { active, labels, analysisLabels, latestJob } from '../format';
 import { notifyJob, notify } from '../notifications';
 import { usePipelineSteps, type StepId } from '../composables/usePipelineSteps';
 import { useRenderFailures } from '../composables/useRenderFailures';
@@ -32,6 +31,7 @@ const props = defineProps<{
   analysis?: AnalysisView | null;
   sourceUrl?: string;
   selectedCount?: number;
+  selectedCandidateIds?: string[];
 }>();
 const emit = defineEmits<{
   transcribe: [];
@@ -67,6 +67,26 @@ const importRecovery = computed(
 const approved = computed(() =>
   props.revisions?.some(r => r.technical_pass && r.review_status === 'approved')
 );
+const pendingSelectedCount = computed(() =>
+  props.selectedCandidateIds
+    ? props.selectedCandidateIds.filter(
+        id =>
+          !props.revisions?.some(
+            r => r.candidate_id === id && (r.preview?.state === 'available' || r.technical_pass)
+          )
+      ).length
+    : props.hasCuts
+      ? 0
+      : props.selectedCount || 0
+);
+const needsFinalReview = computed(() =>
+  props.revisions?.some(
+    r => r.technical_pass && ['needs_review', 'stale_review'].includes(r.review_status)
+  )
+);
+const hasPreviews = computed(() =>
+  props.revisions?.some(r => r.preview?.state === 'available' && !r.technical_pass)
+);
 const processing = computed(() => props.jobs.some(j => active(j.status)));
 
 watch(
@@ -96,14 +116,8 @@ function handleStepClick(id: string) {
   else if ((id === 'render' || id === 'export') && props.hasCuts) emit('review');
 }
 
-const {
-  renderJobs,
-  failedRenderItem,
-  pendingQueueCount,
-  hasFailure,
-  lastFailureTitle,
-  lastFailureReason,
-} = useRenderFailures(toRef(props, 'jobs'), importRecovery, recovery, job);
+const { failedRenderItem, pendingQueueCount, hasFailure, lastFailureTitle, lastFailureReason } =
+  useRenderFailures(toRef(props, 'jobs'), importRecovery, recovery, job);
 
 const completedStepsCount = computed(
   () => names.filter(([id]) => state(id) === 'completed').length
@@ -121,24 +135,9 @@ function triggerErrorDetails() {
     <!-- 1. CABEÇALHO COMPACTO DO PROJETO -->
     <header class="project-headline-bar">
       <div class="headline-meta">
-        <span class="project-section-eyebrow">Preparação · Fonte e processamento do projeto</span>
-        <h2 class="project-main-title">{{ project.title || project.name }}</h2>
+        <h2 class="project-main-title">Preparação</h2>
         <p class="project-tags-strip">
-          <el-tag
-            v-if="project.source?.channel || project.source?.attribution"
-            size="small"
-            effect="plain"
-            class="source-author"
-            >{{ project.source.channel || project.source.attribution }}</el-tag
-          >
-          <span v-if="project.duration_us" class="meta-dot">·</span>
-          <el-tag v-if="project.duration_us" size="small" effect="plain"
-            ><Clock :size="11" /> {{ time(project.duration_us) }}</el-tag
-          >
-          <span class="meta-dot">·</span>
-          <el-tag size="small" effect="plain"
-            >{{ project.word_count.toLocaleString('pt-BR') }} palavras</el-tag
-          >
+          Fonte preservada · Acompanhe o processamento e o próximo passo
         </p>
       </div>
 
@@ -233,7 +232,7 @@ function triggerErrorDetails() {
               {{
                 importRecovery
                   ? 'O link foi bloqueado ou o arquivo está inacessível. Escolha uma alternativa para prosseguir.'
-                  : 'Uma das prévias apresentou erro durante a renderização. Os resultados preservados continuam disponíveis.'
+                  : 'Uma operação apresentou erro. Os resultados preservados continuam disponíveis.'
               }}
             </p>
           </div>
@@ -336,7 +335,7 @@ function triggerErrorDetails() {
         <!-- ESTADO 3: PRÓXIMO PASSO NORMAL (Transcrição, Análise, Seleção, Renderização ou Cortes) -->
         <article v-else class="state-hero-card ready-mode" data-state="ready">
           <!-- CASO A: Transcrição Pendente -->
-          <template v-if="!project.has_transcript">
+          <template v-if="!project.has_transcript && !hasCuts">
             <div class="hero-body-text">
               <h3>Transcrição pendente</h3>
               <p>Gere a transcrição com marcação temporal para habilitar a curadoria.</p>
@@ -353,7 +352,7 @@ function triggerErrorDetails() {
           </template>
 
           <!-- CASO B: Análise Pendente -->
-          <template v-else-if="!project.has_analysis">
+          <template v-else-if="!project.has_analysis && !hasCuts">
             <div class="hero-body-text">
               <h3>Análise pendente</h3>
               <p>
@@ -393,9 +392,9 @@ function triggerErrorDetails() {
           </template>
 
           <!-- CASO D: Pronto para Renderizar Cortes -->
-          <template v-else-if="!hasCuts && selectedCount && selectedCount > 0">
+          <template v-else-if="pendingSelectedCount > 0">
             <div class="hero-body-text">
-              <h3>{{ selectedCount }} corte(s) pronto(s) para renderização</h3>
+              <h3>{{ pendingSelectedCount }} proposta(s) aguardando prévia</h3>
               <p>Gere as prévias verticais 9:16 com enquadramento e legendas.</p>
             </div>
             <div class="hero-action-buttons">
@@ -404,7 +403,7 @@ function triggerErrorDetails() {
                 :disabled="busy || !selectedCount || !project.has_analysis"
                 @click="$emit('generate')"
               >
-                <Film :size="15" />Gerar {{ selectedCount }} corte(s)
+                <Film :size="15" />Gerar prévias rápidas
               </AppButton>
               <AppButton class="button secondary" @click="$emit('analysis')">
                 Ajustar seleção
@@ -415,15 +414,56 @@ function triggerErrorDetails() {
           <!-- CASO E: Cortes Prontos para Revisão / Exportação -->
           <template v-else>
             <div class="hero-body-text">
-              <h3>{{ revisions?.length || 0 }} corte(s) gerado(s)</h3>
-              <p>Revise os cortes verticais e exporte os arquivos aprovados.</p>
+              <h3>
+                {{
+                  needsFinalReview
+                    ? 'Versões finais para revisar'
+                    : approved
+                      ? 'Cortes aprovados para exportar'
+                      : hasPreviews
+                        ? 'Prévias prontas para avaliar'
+                        : 'Acompanhe seus cortes'
+                }}
+              </h3>
+              <p>
+                {{
+                  needsFinalReview
+                    ? 'Confira o vídeo final e os cinco critérios editoriais antes de aprovar.'
+                    : approved
+                      ? 'A exportação inclui somente versões finais tecnicamente válidas e aprovadas.'
+                      : hasPreviews
+                        ? 'Avalie as prévias em Cortes. Gere a versão final apenas dos resultados que quiser publicar.'
+                        : 'Abra Cortes para verificar versões, avisos e ações disponíveis.'
+                }}
+              </p>
             </div>
             <div class="hero-action-buttons">
-              <AppButton class="button primary hero-primary-btn" @click="$emit('review')">
-                <Play :size="15" />Revisar cortes
+              <AppButton
+                v-if="approved && !needsFinalReview"
+                class="button primary hero-primary-btn"
+                :disabled="busy"
+                @click="$emit('export')"
+              >
+                <Download :size="15" />Exportar aprovados
+              </AppButton>
+              <AppButton v-else class="button primary hero-primary-btn" @click="$emit('review')">
+                <Play :size="15" />{{
+                  needsFinalReview
+                    ? 'Revisar versões finais'
+                    : hasPreviews
+                      ? 'Avaliar prévias'
+                      : 'Abrir cortes'
+                }}
               </AppButton>
               <AppButton
-                v-if="approved"
+                v-if="approved && !needsFinalReview"
+                class="button secondary"
+                @click="$emit('review')"
+              >
+                Abrir cortes
+              </AppButton>
+              <AppButton
+                v-if="approved && needsFinalReview"
                 class="button secondary"
                 :disabled="busy"
                 @click="$emit('export')"
@@ -441,7 +481,7 @@ function triggerErrorDetails() {
     <details class="technical-history-disclosure">
       <summary class="technical-history-trigger">
         <ListOrdered :size="15" />
-        <span>Histórico técnico detalhado das 6 etapas da esteira</span>
+        <span>Detalhes do processamento</span>
         <ChevronDown :size="14" class="disclosure-chevron" />
       </summary>
 
@@ -600,7 +640,7 @@ function triggerErrorDetails() {
                   class="button small primary"
                   :disabled="busy || !selectedCount || !project.has_analysis"
                   @click="$emit('generate')"
-                  >Gerar prévias</AppButton
+                  >Gerar prévias rápidas</AppButton
                 >
                 <AppButton
                   v-if="id === 'export' && approved"
