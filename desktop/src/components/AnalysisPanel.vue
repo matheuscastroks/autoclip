@@ -1167,10 +1167,18 @@ function choose(id: string) {
   width: 100%;
   border-radius: 8px;
   transition: all 0.15s ease;
+  gap: 2px;
 }
 
-.topic-chip-container:hover .topic-action-icon-btn {
+.topic-chip-container .topic-chip-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-chip-container:hover .topic-action-icon-btn,
+.topic-action-icon-btn:focus-visible {
   opacity: 1;
+  visibility: visible;
 }
 
 .topic-chip-container.discarded {
@@ -1178,32 +1186,35 @@ function choose(id: string) {
 }
 
 .topic-action-icon-btn {
-  position: absolute;
-  right: 28px;
+  position: static;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #a0abba);
+  color: var(--color-text-muted, var(--muted));
   cursor: pointer;
-  padding: 3px 5px;
+  padding: 4px;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
+  visibility: hidden;
+  flex-shrink: 0;
+  margin-right: 4px;
   transition: all 0.15s ease;
 }
 
 .topic-action-icon-btn:hover {
-  color: #ef4444;
+  color: var(--color-danger, #ef4444);
   background: rgba(239, 68, 68, 0.12);
 }
 
 .topic-action-icon-btn.restore {
   opacity: 1;
+  visibility: visible;
 }
 
 .topic-action-icon-btn.restore:hover {
-  color: #10b981;
+  color: var(--color-success, #10b981);
   background: rgba(16, 185, 129, 0.12);
 }
 
@@ -1344,17 +1355,18 @@ function choose(id: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .filter-mode-pills {
-  display: flex;
+  display: inline-flex;
   gap: 2px;
   background: var(--color-canvas);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-control, 6px);
   padding: 2px;
+  flex-shrink: 0;
 }
 
 .filter-pill-btn {
@@ -1366,6 +1378,7 @@ function choose(id: string) {
   color: var(--color-text-muted, var(--muted));
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .filter-pill-btn:hover {
@@ -1380,9 +1393,10 @@ function choose(id: string) {
 }
 
 .bulk-selection-actions {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .bulk-action-btn {
@@ -1397,12 +1411,13 @@ function choose(id: string) {
   color: var(--color-text-secondary, var(--muted));
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .bulk-action-btn:hover:not(:disabled) {
   background: var(--color-surface-hover, var(--soft));
   color: var(--color-text-primary, var(--ink));
-  border-color: var(--color-border-strong, #555);
+  border-color: var(--color-border-strong);
 }
 
 .bulk-action-btn:disabled {
@@ -1414,12 +1429,18 @@ function choose(id: string) {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-surface-raised, rgba(255, 255, 255, 0.03));
+  background: var(--color-canvas);
   border: 1px solid var(--color-border-subtle, var(--line));
-  border-radius: 8px;
+  border-radius: var(--radius-control, 6px);
   padding: 6px 10px;
   color: var(--color-text-muted, var(--muted));
   flex-shrink: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-proposals-wrap:focus-within {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 1px var(--color-border-focus);
 }
 
 .search-proposals-wrap input {
@@ -1435,14 +1456,16 @@ function choose(id: string) {
   background: var(--color-surface-raised, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-control, 6px);
-  padding: 8px 12px;
+  padding: 9px 12px;
   transition: all 0.15s ease;
   cursor: pointer;
   outline: none;
+  box-sizing: border-box;
 }
 
 .proposal-card:hover {
-  border-color: var(--color-border-strong, #555);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .proposal-card:focus-visible {
@@ -1456,7 +1479,11 @@ function choose(id: string) {
 }
 
 .proposal-card.checked {
-  border-left: 2px solid var(--color-text-primary);
+  box-shadow: inset 3px 0 0 var(--color-action-primary, #eceef0);
+}
+
+.proposal-card.selected.checked {
+  box-shadow: inset 3px 0 0 var(--color-action-primary, #eceef0);
 }
 
 .proposal-card.overlapping {
@@ -1475,18 +1502,22 @@ function choose(id: string) {
 .proposal-top-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
 }
 
 .proposal-checkbox-label {
-  padding-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  padding-top: 1px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .proposal-checkbox-label input {
   width: 16px;
   height: 16px;
   cursor: pointer;
+  accent-color: var(--color-action-primary, #e5e7eb);
 }
 
 .proposal-discard-icon-btn,
@@ -1506,12 +1537,12 @@ function choose(id: string) {
 }
 
 .proposal-discard-icon-btn:hover {
-  color: #ef4444;
+  color: var(--color-danger, #ef4444);
   background: rgba(239, 68, 68, 0.12);
 }
 
 .proposal-restore-icon-btn {
-  color: #10b981;
+  color: var(--color-success, #10b981);
   background: rgba(16, 185, 129, 0.1);
   padding: 2px 7px;
 }
@@ -1522,6 +1553,7 @@ function choose(id: string) {
 
 .proposal-open {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   padding: 0;
@@ -1531,18 +1563,23 @@ function choose(id: string) {
 }
 
 .proposal-open strong {
-  display: block;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.85rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
   color: var(--color-text-primary, var(--ink));
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .proposal-time-subline {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .time-range {
