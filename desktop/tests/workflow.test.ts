@@ -22,6 +22,34 @@ const project = {
   error: null,
 };
 describe('workflow visibility', () => {
+  it('distinguishes pipeline readiness from editorial decisions and an unstarted analysis', () => {
+    const w = mount(ProjectWorkspace, {
+      props: {
+        project: { ...project, status: 'needs_review', has_transcript: true },
+        transcript: null,
+        revisions: [],
+        jobs: [],
+        busy: false,
+        sourceUrl: '',
+        previewUrl: '',
+        analysis: {
+          schema_version: '1.0',
+          state: 'not_started',
+          job_id: null,
+          analysis_hash: null,
+          model: null,
+          completed_windows: 0,
+          total_windows: 0,
+          topic_groups: [],
+          proposals: [],
+        },
+      },
+    });
+    expect(w.text()).toContain('Cortes gerados');
+    expect(w.get('.analysis-metric-item .metric-label').text()).toBe('Análise ainda não iniciada');
+    expect(w.text()).not.toContain('Revisão editorial pendente');
+    w.unmount();
+  });
   it('offers access to the project trash from the library', async () => {
     const w = mount(ProjectLibrary, { props: { projects: [project], busy: false } });
     await w.get('[data-action=open-project-trash]').trigger('click');

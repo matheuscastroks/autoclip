@@ -11,7 +11,7 @@ import type {
   AnalysisView,
   AnalysisSelection,
 } from '../types';
-import { time, labels, active, latestJob } from '../format';
+import { time, projectLabel, active, latestJob } from '../format';
 import { notify } from '../notifications';
 import ReviewPanel from './ReviewPanel.vue';
 import PipelinePanel from './PipelinePanel.vue';
@@ -172,7 +172,7 @@ function seek(us: number) {
         class="status-pill"
         :data-status="project.status"
       >
-        {{ labels[project.status] || project.status }}
+        {{ projectLabel(project.status) }}
       </el-tag>
     </div>
     <el-tooltip content="Abrir pasta no Windows Explorer" placement="bottom">

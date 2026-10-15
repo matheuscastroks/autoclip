@@ -102,7 +102,7 @@ const visibleRevisions = computed(() => {
     r =>
       filter.value === 'all' ||
       (filter.value === 'approved' && r.technical_pass && r.review_status === 'approved') ||
-      (filter.value === 'review' && r.review_status === 'needs_review') ||
+      (filter.value === 'review' && ['needs_review', 'stale_review'].includes(r.review_status)) ||
       (filter.value === 'exported' && r.exported)
   );
 });
@@ -665,9 +665,12 @@ function copyDescription() {
                     :href="mediaUrl + (mediaUrl.includes('?') ? '&' : '?') + 'download=1'"
                     download
                   >
-                    <Download :size="16" />Baixar vídeo (MP4 9:16)
+                    <Download :size="16" />Baixar prévia técnica (MP4 9:16)
                   </a>
                   <p v-else class="subtle">Download disponível após a validação técnica.</p>
+                  <p class="subtle">
+                    A publicação final exige aprovação editorial e a ação “Exportar aprovados”.
+                  </p>
                 </div>
               </div>
             </section>

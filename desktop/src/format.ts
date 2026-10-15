@@ -1,4 +1,20 @@
-import type { Job } from './types';
+import type { Job, Project, AnalysisView } from './types';
+export const analysisLabels: Record<AnalysisView['state'], string> = {
+  not_started: 'Análise ainda não iniciada',
+  running: 'Analisando a transcrição',
+  partial: 'Análise parcial disponível',
+  completed: 'Análise concluída',
+  failed: 'Análise precisa de atenção',
+  cancelled: 'Análise cancelada',
+  interrupted: 'Análise interrompida',
+  invalid: 'Análise salva inválida',
+  unavailable: 'Análise salva indisponível',
+  stale: 'Análise salva desatualizada',
+};
+export function projectLabel(status: Project['status']) {
+  // The project records the pipeline stage; editorial decisions belong to each revision.
+  return status === 'needs_review' ? 'Cortes gerados' : labels[status] || status;
+}
 export const active = (status: string) => ['pending', 'running', 'cancelling'].includes(status);
 export function latestJob(jobs: Job[]) {
   const ordered = [...jobs].sort(

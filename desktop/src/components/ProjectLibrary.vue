@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from '@lucide/vue';
 import type { Project } from '../types';
-import { time, labels, stages } from '../format';
+import { time, projectLabel, stages } from '../format';
 
 const props = defineProps<{
   projects: Project[];
@@ -43,7 +43,7 @@ const stateOptions = computed(() => [
   { value: 'all', label: 'Todos os estados' },
   ...Array.from(new Set(props.projects.map(p => p.status))).map(state => ({
     value: state,
-    label: labels[state] || state,
+    label: projectLabel(state),
   })),
 ]);
 
@@ -224,7 +224,7 @@ function timeAgo(value: number) {
             {{
               project.summary?.stage
                 ? stages[project.summary.stage] || project.summary.stage
-                : labels[project.status] || project.status
+                : projectLabel(project.status)
             }}
           </el-tag>
         </div>
@@ -351,7 +351,7 @@ function timeAgo(value: number) {
           >{{
             project.summary?.stage
               ? stages[project.summary.stage] || project.summary.stage
-              : labels[project.status] || project.status
+              : projectLabel(project.status)
           }}
         </span>
         <span class="project-counts">

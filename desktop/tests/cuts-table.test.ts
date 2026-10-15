@@ -82,6 +82,7 @@ it('requires human confirmation of each editorial criterion before approval', as
     },
   });
   const approve = w.get('[data-action=editorial-approve]');
+  expect(w.get('a[download]').text()).toContain('prévia técnica');
   expect((approve.element as HTMLButtonElement).disabled).toBe(true);
   const checks = w.findAll('.editorial-checklist input[type=checkbox]');
   expect(checks).toHaveLength(5);
@@ -98,5 +99,31 @@ it('requires human confirmation of each editorial criterion before approval', as
       audiovisual: true,
     },
   });
+  w.unmount();
+});
+
+it('includes outdated editorial decisions in the review queue', async () => {
+  const w = mount(ReviewPanel, {
+    props: {
+      manual: false,
+      mediaUrl: '',
+      sourceUrl: '',
+      revisions: [
+        {
+          revision_id: 'stale',
+          title: 'Revisar novamente',
+          technical_pass: true,
+          review_status: 'stale_review',
+          warnings: [],
+        },
+      ],
+    },
+  });
+  await w
+    .findAll('.cuts-filter-chip')
+    .find(button => button.text() === 'Para revisar')!
+    .trigger('click');
+  expect(w.get('tbody tr.clip-item').text()).toContain('Revisar novamente');
+  expect((w.get('.cuts-table-heading button').element as HTMLButtonElement).disabled).toBe(true);
   w.unmount();
 });

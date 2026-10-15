@@ -18,7 +18,7 @@ import {
   X,
 } from '@lucide/vue';
 import type { AnalysisView, AnalysisSelection, Job, Proposal } from '../types';
-import { time } from '../format';
+import { time, analysisLabels } from '../format';
 import { notify } from '../notifications';
 import AnalysisFeedback from './AnalysisFeedback.vue';
 import { useDiscardedProposals } from '../composables/useDiscardedProposals';
@@ -54,18 +54,6 @@ const {
 } = useDiscardedProposals();
 const filterMode = ref<'active' | 'discarded' | 'all'>('active');
 
-const analysisLabels: Record<string, string> = {
-  not_started: 'Análise ainda não iniciada',
-  running: 'Analisando a transcrição',
-  partial: 'Análise parcial disponível',
-  completed: 'Análise concluída',
-  failed: 'Análise precisa de atenção',
-  cancelled: 'Análise cancelada',
-  interrupted: 'Análise interrompida',
-  invalid: 'Análise salva inválida',
-  unavailable: 'Análise salva indisponível',
-  stale: 'Análise salva desatualizada',
-};
 const analysisStateLabel = computed(
   () => analysisLabels[props.analysis?.state || 'not_started'] || 'Estado da análise'
 );

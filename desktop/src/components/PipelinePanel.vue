@@ -18,7 +18,7 @@ import {
   FolderOpen,
 } from '@lucide/vue';
 import type { Project, Job, Revision, AnalysisView } from '../types';
-import { active, labels, latestJob, time } from '../format';
+import { active, labels, analysisLabels, latestJob, time } from '../format';
 import { notifyJob, notify } from '../notifications';
 import { usePipelineSteps, type StepId } from '../composables/usePipelineSteps';
 import { useRenderFailures } from '../composables/useRenderFailures';
@@ -202,7 +202,7 @@ function triggerErrorDetails() {
           </div>
 
           <div class="metric-item analysis-metric-item">
-            <span class="metric-label">Análise concluída</span>
+            <span class="metric-label">{{ analysisLabels[analysis?.state || 'not_started'] }}</span>
             <span class="metric-sub">{{
               analysis
                 ? `${analysis.completed_windows}/${analysis.total_windows} janelas · ${analysis.topic_groups.length} temas · ${analysis.proposals.length} propostas`
