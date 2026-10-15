@@ -439,9 +439,9 @@ function choose(id: string) {
     <el-splitter class="analysis-layout curation-3col-layout">
       <!-- COLUNA 1: NAVEGAÇÃO POR TEMAS -->
       <el-splitter-panel
-        :size="250"
+        :size="240"
         :min="170"
-        :max="420"
+        :max="380"
         class="curation-topics-col"
         role="region"
         aria-label="Temas identificados"
@@ -536,8 +536,8 @@ function choose(id: string) {
       <!-- COLUNA 2: PROPOSTAS DE CORTES / WORK ITEMS -->
       <el-splitter-panel
         :size="380"
-        :min="260"
-        :max="650"
+        :min="280"
+        :max="550"
         class="curation-proposals-col"
         aria-label="Lista de propostas de cortes"
       >
@@ -725,7 +725,7 @@ function choose(id: string) {
       </el-splitter-panel>
 
       <!-- COLUNA 3: SUÍTE DE INSPEÇÃO EDITORIAL -->
-      <el-splitter-panel :min="360" class="curation-inspection-col">
+      <el-splitter-panel :min="380" class="curation-inspection-col">
         <div class="panel-inner-container">
           <section v-if="current" class="proposal-detail custom-scrollbar">
             <div class="inspection-head-bar">
@@ -991,7 +991,9 @@ function choose(id: string) {
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  height: auto !important;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .analysis-heading {
@@ -1001,6 +1003,7 @@ function choose(id: string) {
   gap: 16px;
   flex-wrap: wrap;
   min-height: 38px;
+  flex-shrink: 0;
 }
 
 .analysis-heading.is-complete {
@@ -1044,8 +1047,8 @@ function choose(id: string) {
 
 /* 3-COLUMN WORKSPACE SPLITTER */
 .analysis-layout.curation-3col-layout {
-  height: 560px !important;
-  min-height: 520px !important;
+  height: calc(var(--work-area-height, 100vh - 210px) - 54px) !important;
+  min-height: 560px !important;
   background: var(--color-surface, var(--panel));
   border: 1px solid var(--color-border-subtle, var(--line));
   border-radius: var(--radius-panel, 12px);
