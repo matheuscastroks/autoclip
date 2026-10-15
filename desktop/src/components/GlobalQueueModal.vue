@@ -16,7 +16,12 @@ import type { Job, Project } from '../types';
 import { active, labels, stages } from '../format';
 import { useJobQueue } from '../composables/useJobQueue';
 
-const props = defineProps<{ jobs: Job[]; projects: Project[]; busy: boolean }>();
+const props = defineProps<{
+  jobs: Job[];
+  projects: Project[];
+  busy: boolean;
+  pendingJobIds?: string[];
+}>();
 const emit = defineEmits<{
   cancel: [id: string];
   open: [projectId: string];
@@ -200,7 +205,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
             <div v-if="active(job.status)" class="job-card-footer">
               <AppButton
                 class="button small secondary cancel-job-btn"
-                :disabled="busy || job.status === 'cancelling'"
+                :disabled="pendingJobIds?.includes(job.id) || job.status === 'cancelling'"
                 @click="$emit('cancel', job.id)"
               >
                 <Square :size="12" />{{

@@ -40,6 +40,8 @@ import { ElConfigProvider, ElBacktop } from 'element-plus';
 import ptBr from 'element-plus/es/locale/lang/pt-br';
 import { notify, createJobNotifier } from './notifications';
 import { usePolling } from './composables/usePolling';
+import { useOperations } from './composables/useOperations';
+const { run: action, pending, isPending, anyPending } = useOperations();
 const projects = ref<Project[]>([]),
   config = ref<Config | null>(null),
   jobs = ref<Job[]>([]),
@@ -80,7 +82,6 @@ function closeEngineMenu() {
 const page = ref('projects'),
   sourceUrl = ref(''),
   previewUrl = ref(''),
-  busy = ref(false),
   initial = ref(true),
   offline = ref(false),
   dialog = ref<HTMLDialogElement>(),
@@ -125,6 +126,14 @@ async function loadCover(row: Project) {
 const projectToDelete = ref<{ id: string; name: string; title?: string } | null>(null);
 const deleteMode = ref<'trash' | 'permanent'>('trash');
 const deleteConfirmDialog = ref<HTMLDialogElement>();
+const libraryBusy = computed(() => isPending('library') || isPending('project-load'));
+const projectBusy = computed(() => isPending('project:' + project.value?.id));
+const createBusy = computed(() => isPending('create') || isPending('pick-video'));
+const deleteBusy = computed(() => isPending('project:' + projectToDelete.value?.id));
+const trashBusy = computed(() => isPending('trash'));
+const pendingJobIds = computed(() =>
+  [...pending.value].filter(key => key.startsWith('job:')).map(key => key.slice(4))
+);
 
 async function deleteProject(id: string) {
   const row = projects.value.find(p => p.id === id);
@@ -153,7 +162,7 @@ async function confirmDeleteProject() {
   } catch {
     // The dialog may already be closed.
   }
-  await action(async () => {
+  await action('project:' + id, async () => {
     if (permanent) await api.deletePermanent(id);
     else await api.deleteProject(id);
     if (project.value?.id === id) {
@@ -176,31 +185,31 @@ async function deleteClip(id: string) {
   )
     return;
   const pid = project.value.id;
-  await action(async () => {
+  await action('project:' + pid, async () => {
     await api.deleteClip(pid, id);
-    await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid);
   });
 }
 async function bulkDelete(ids: string[]) {
   if (!project.value || !confirm(`Mover ${ids.length} cortes para a lixeira?`)) return;
   const pid = project.value.id;
-  await action(async () => {
+  await action('project:' + pid, async () => {
     await api.bulkDeleteClips(pid, ids);
-    await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid);
     notify.success('Cortes movidos para a lixeira.');
   });
 }
 async function bulkExport(ids: string[]) {
   if (!project.value) return;
   const pid = project.value.id;
-  await action(async () => {
+  await action('project:' + pid, async () => {
     await api.bulkExportClips(pid, ids);
-    await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid);
     notify.success('Cortes selecionados exportados.');
   });
 }
 async function showTrash(kind: 'projects' | 'cuts') {
-  await action(async () => {
+  await action('trash', async () => {
     trashKind.value = kind;
     trashRows.value =
       kind === 'projects'
@@ -215,12 +224,13 @@ async function showTrash(kind: 'projects' | 'cuts') {
   });
 }
 async function restore(id: string) {
-  await action(async () => {
+  const pid = project.value?.id;
+  await action('trash', async () => {
     if (trashKind.value === 'projects') await api.restoreProject(id);
     else if (project.value) await api.restoreClip(project.value.id, id);
     trashRows.value = trashRows.value.filter(r => r.id !== id);
     await refresh();
-    if (project.value) await openProject(project.value.id);
+    if (pid && project.value?.id === pid) await openProject(pid);
   });
 }
 
@@ -249,18 +259,6 @@ function navigate(destination: string) {
   ++generation;
   project.value = null;
   page.value = destination;
-}
-async function action(fn: () => Promise<unknown>, success = '') {
-  if (busy.value) return;
-  busy.value = true;
-  try {
-    await fn();
-    if (success) notify.success(success);
-  } catch (e) {
-    notify.error((e as Error).message);
-  } finally {
-    busy.value = false;
-  }
 }
 async function refresh() {
   if (refreshing) return;
@@ -357,7 +355,7 @@ async function openProject(id: string) {
   if (current === generation) mediaLoading.value = false;
 }
 async function importProject() {
-  await action(async () => {
+  await action('library', async () => {
     const path = await api.pick('project');
     if (!path) return;
     const row = await api.importProject(path);
@@ -366,7 +364,7 @@ async function importProject() {
   });
 }
 async function pickVideo() {
-  await action(async () => {
+  await action('pick-video', async () => {
     const path = await api.pick('video');
     if (path) {
       sourceInput.value = path;
@@ -380,7 +378,7 @@ async function pickVideo() {
   });
 }
 async function create() {
-  await action(async () => {
+  await action('create', async () => {
     const value = await api.create(newName.value.trim(), sourceInput.value.trim(), {
       automatic: !setupMissing.value,
     });
@@ -408,23 +406,30 @@ function showAnalysis() {
   analysisDialog.value?.showModal();
 }
 async function start(operation: string, options: Record<string, unknown> = {}) {
-  await action(async () => {
-    if (!project.value) return;
-    const queued = await api.start(project.value.id, operation, options);
-    if (operation === 'render')
-      notify.info(
-        `${queued.enqueued_items || 0} prévia(s) enviada(s) · ${queued.ignored_ready || 0} pronta(s) e ${queued.ignored_queued || 0} já na fila, ignoradas.`
-      );
-    analysisDialog.value?.close();
-    await refresh();
-  }, 'Tarefa recebida. Acompanhe a fila do projeto.');
+  const pid = project.value?.id;
+  if (!pid) return;
+  await action(
+    'project:' + pid,
+    async () => {
+      const queued = await api.start(pid, operation, options);
+      if (operation === 'render')
+        notify.info(
+          `${queued.enqueued_items || 0} prévia(s) enviada(s) · ${queued.ignored_ready || 0} pronta(s) e ${queued.ignored_queued || 0} já na fila, ignoradas.`
+        );
+      analysisDialog.value?.close();
+      await refresh();
+    },
+    'Tarefa recebida. Acompanhe a fila do projeto.'
+  );
 }
 async function review(decision: Decision) {
+  const pid = project.value?.id;
+  if (!pid) return;
   await action(
+    'project:' + pid,
     async () => {
-      if (!project.value) return;
-      await api.decide(project.value.id, decision);
-      await openProject(project.value.id);
+      await api.decide(pid, decision);
+      if (project.value?.id === pid) await openProject(pid);
     },
     decision.decision === 'approved' ? 'Corte aprovado para esta revisão.' : 'Corte rejeitado.'
   );
@@ -459,7 +464,7 @@ async function saveOpenRouterKey(key: string) {
   return result;
 }
 async function closeService() {
-  await action(async () => {
+  await action('service', async () => {
     await api.shutdown();
     stopPolling();
     offline.value = true;
@@ -467,18 +472,18 @@ async function closeService() {
   });
 }
 async function openFolder() {
-  await action(async () => {
+  await action('open-folder', async () => {
     if (project.value) await api.openFolder(project.value.id);
   });
 }
 async function cancelJob(id: string) {
-  await action(async () => {
+  await action('job:' + id, async () => {
     await api.cancel(id);
     await refresh();
   });
 }
 async function replaceSource(id: string) {
-  await action(async () => {
+  await action('job:' + id, async () => {
     const path = await api.pick('video');
     if (!path) return;
     await api.resume(id, { source_input: path });
@@ -487,20 +492,20 @@ async function replaceSource(id: string) {
   });
 }
 async function retryClip(value: { job_id: string; candidate_id: string }) {
-  await action(async () => {
+  await action('job:' + value.job_id, async () => {
     await api.resume(value.job_id, { candidate_id: value.candidate_id });
     await refresh();
     notify.success('Corte enviado para a fila novamente.');
   });
 }
 async function resumeJob(id: string) {
-  await action(async () => {
+  await action('job:' + id, async () => {
     await api.resume(id);
     await refresh();
   });
 }
 async function clearJobHistory() {
-  await action(async () => {
+  await action('history', async () => {
     const res = await api.clearJobHistory();
     notify.success(`${res.cleared} tarefa(s) concluída(s) e seus arquivos temporários removidos.`);
     if (res.preserved)
@@ -576,13 +581,13 @@ onUnmounted(() => {
           <AppButton
             class="button secondary small header-import-action"
             @click="importProject"
-            :disabled="busy || initial"
+            :disabled="libraryBusy || createBusy || initial"
             ><FolderOpen :size="15" />Importar projeto</AppButton
           >
           <AppButton
             class="button primary small new-project-action"
             @click="showCreate"
-            :disabled="busy || initial"
+            :disabled="libraryBusy || createBusy || initial"
             ><Plus :size="15" />Novo projeto</AppButton
           >
           <details ref="engineMenu" class="engine-menu" @keydown.esc.prevent="closeEngineMenu">
@@ -600,7 +605,8 @@ onUnmounted(() => {
                   <AppButton
                     class="icon-button"
                     title="Atualizar projetos"
-                    @click="action(refresh)"
+                    :disabled="isPending('refresh')"
+                    @click="action('refresh', refresh)"
                   >
                     <RefreshCw :size="15" />
                   </AppButton>
@@ -614,7 +620,7 @@ onUnmounted(() => {
               <AppButton
                 class="button small secondary"
                 @click="closeService"
-                :disabled="busy || running"
+                :disabled="anyPending || running"
                 title="Disponível quando nenhuma tarefa estiver em execução"
               >
                 Encerrar serviço
@@ -710,7 +716,7 @@ onUnmounted(() => {
                   :preview-url="previewUrl"
                   :selected-revision="selectedRevision"
                   :media-loading="mediaLoading"
-                  :busy="busy"
+                  :busy="projectBusy"
                   :analysis="analysis"
                   :selection="selection"
                   @selection="saveSelection"
@@ -736,9 +742,9 @@ onUnmounted(() => {
                   v-else
                   :covers="covers"
                   :projects="projects"
-                  :busy="busy"
+                  :busy="libraryBusy"
                   :active-projects="jobs.filter(j => active(j.status)).map(j => j.project_id)"
-                  @open="action(() => openProject($event))"
+                  @open="action('project-load', () => openProject($event))"
                   @create="showCreate"
                   @import="importProject"
                   @delete="deleteProject"
@@ -756,10 +762,11 @@ onUnmounted(() => {
       v-if="showGlobalQueue"
       :jobs="jobs"
       :projects="projects"
-      :busy="busy"
+      :busy="isPending('history')"
+      :pending-job-ids="pendingJobIds"
       @cancel="cancelJob"
       @open="
-        action(() => openProject($event));
+        action('project-load', () => openProject($event));
         showGlobalQueue = false;
       "
       @clear-history="clearJobHistory"
@@ -822,7 +829,7 @@ onUnmounted(() => {
             <AppButton
               type="button"
               class="button small secondary"
-              :disabled="busy"
+              :disabled="createBusy"
               @click="pickVideo"
             >
               Trocar
@@ -832,7 +839,7 @@ onUnmounted(() => {
             <AppButton
               type="button"
               class="button secondary pick-video-btn"
-              :disabled="busy"
+              :disabled="createBusy"
               @click="pickVideo"
             >
               <FolderOpen :size="15" />Selecionar arquivo de vídeo
@@ -894,7 +901,7 @@ onUnmounted(() => {
             type="submit"
             class="button primary studio-submit-btn"
             :disabled="
-              busy ||
+              createBusy ||
               !sourceInput.trim() ||
               !newName.trim() ||
               !config?.tools_available ||
@@ -902,7 +909,7 @@ onUnmounted(() => {
             "
             @click="create"
           >
-            <LoaderCircle v-if="busy" class="spin" :size="15" />
+            <LoaderCircle v-if="createBusy" class="spin" :size="15" />
             Criar projeto
           </AppButton>
         </footer>
@@ -945,7 +952,7 @@ onUnmounted(() => {
           <AppButton
             type="button"
             class="button danger delete-confirm-action"
-            :disabled="busy"
+            :disabled="deleteBusy"
             @click="confirmDeleteProject"
           >
             {{ deleteMode === 'permanent' ? 'Excluir permanentemente' : 'Mover para a lixeira' }}
@@ -969,14 +976,14 @@ onUnmounted(() => {
           <strong>{{ row.name }}</strong>
           <AppButton
             class="button small secondary"
-            :disabled="busy || running"
+            :disabled="trashBusy || projectBusy"
             @click="restore(row.id)"
             >Restaurar</AppButton
           >
           <AppButton
             v-if="trashKind === 'projects'"
             class="button small danger"
-            :disabled="busy || running"
+            :disabled="trashBusy || isPending('project:' + row.id)"
             @click="deleteFromTrash(row)"
             >Excluir permanentemente</AppButton
           >
@@ -1062,7 +1069,7 @@ onUnmounted(() => {
           <AppButton type="button" class="button secondary" @click="analysisDialog?.close()"
             >Cancelar</AppButton
           >
-          <AppButton type="submit" class="button primary" :disabled="busy || !keyConfigured"
+          <AppButton type="submit" class="button primary" :disabled="projectBusy || !keyConfigured"
             >Iniciar análise</AppButton
           >
         </footer>
