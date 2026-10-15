@@ -6,6 +6,7 @@ import { vRecoverMedia } from '../directives/recoverMedia';
 import type { Revision, Decision, Job, GenerationItem } from '../types';
 import { time, labels, active, latestJob } from '../format';
 import { useBulkSelection } from '../composables/useBulkSelection';
+import { isFinalAvailable, isExportable } from '../domain/revisionPresentation';
 
 const props = defineProps<{
   revisions: Revision[];
@@ -81,7 +82,11 @@ const phases: Record<string, string> = {
 };
 const generationItems = computed(() => {
   const seen = new Set<string>();
-  const items: (GenerationItem & { retry_job_id: string; operation: string })[] = [];
+  const items: (GenerationItem & {
+    retry_job_id: string;
+    operation: string;
+    job_status: Job['status'];
+  })[] = [];
   for (const job of [...(props.jobs || [])]
     .filter(j => ['render', 'preview', 'render_final'].includes(j.operation))
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))) {
@@ -91,7 +96,12 @@ const generationItems = computed(() => {
       if (seen.has(key)) continue;
       seen.add(key);
       if (!['ready', 'cancelled'].includes(item.state))
-        items.push({ ...item, retry_job_id: job.id, operation: job.operation });
+        items.push({
+          ...item,
+          retry_job_id: job.id,
+          operation: job.operation,
+          job_status: job.status,
+        });
     }
   }
   return items;
@@ -104,9 +114,9 @@ const visibleRevisions = computed(() => {
     r =>
       filter.value === 'all' ||
       (filter.value === 'generation' && !!outputJob(r)) ||
-      (filter.value === 'approved' && r.technical_pass && r.review_status === 'approved') ||
+      (filter.value === 'approved' && isExportable(r)) ||
       (filter.value === 'review' &&
-        r.technical_pass &&
+        isFinalAvailable(r) &&
         ['needs_review', 'stale_review'].includes(r.review_status)) ||
       (filter.value === 'exported' && r.exported)
   );
@@ -132,6 +142,8 @@ function choose(id: string) {
 }
 function finalLabel(r: Revision) {
   const job = outputJob(r);
+  if (job?.operation === 'render_final' && ['interrupted', 'cancelled'].includes(job.job_status))
+    return job.job_status === 'interrupted' ? 'Final interrompida' : 'Final cancelada';
   if (job)
     return job.operation === 'render_final'
       ? job.state === 'failed'
@@ -140,7 +152,7 @@ function finalLabel(r: Revision) {
       : phases[job.phase] || 'Em geração';
   if (r.final_state === 'not_generated') return 'Final não gerada';
   if (r.final_state === 'invalid') return 'Final inválida';
-  return labels[r.review_status] || r.review_status;
+  return isFinalAvailable(r) ? 'Final disponível' : 'Final indisponível';
 }
 </script>
 
@@ -164,11 +176,7 @@ function finalLabel(r: Revision) {
         Cortes <span>{{ revisions.length }}</span>
       </h2>
       <AppButton
-        :disabled="
-          busy ||
-          processing ||
-          !revisions.some(r => r.technical_pass && r.review_status === 'approved')
-        "
+        :disabled="busy || processing || !revisions.some(isExportable)"
         @click="$emit('export')"
         >Exportar aprovados</AppButton
       >
@@ -286,6 +294,9 @@ function finalLabel(r: Revision) {
             </td>
             <td>
               <span>{{ finalLabel(r) }}</span
+              ><small data-editorial-status>{{
+                isFinalAvailable(r) ? labels[r.review_status] : 'Revisão após validação final'
+              }}</small
               ><progress
                 v-if="outputJob(r)?.total_us"
                 :value="outputJob(r)?.processed_us"
@@ -375,7 +386,7 @@ function finalLabel(r: Revision) {
 }
 .cuts-table-heading h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-size-region);
 }
 .cuts-table-heading h2 span {
   color: var(--muted);
@@ -425,7 +436,13 @@ function finalLabel(r: Revision) {
 .cuts-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--font-size-control);
+}
+.cuts-table [data-editorial-status] {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-meta);
 }
 .cuts-table th {
   text-align: left;

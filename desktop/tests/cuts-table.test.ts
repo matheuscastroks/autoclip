@@ -1,6 +1,92 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { it, expect } from 'vitest';
 import ReviewPanel from '../src/components/ReviewPanel.vue';
+import type { Job } from '../src/types';
+it('shows interrupted final work without hiding its valid preview', () => {
+  const w = mount(ReviewPanel, {
+    props: {
+      manual: false,
+      mediaUrl: '',
+      sourceUrl: '',
+      revisions: [
+        {
+          revision_id: 'r',
+          candidate_id: 'c',
+          title: 'Corte',
+          technical_pass: false,
+          final_state: 'not_generated',
+          review_status: 'needs_review',
+          warnings: [],
+          preview: { state: 'available', asset: 'preview-r' },
+        },
+      ],
+      jobs: [
+        {
+          id: 'j',
+          created_at: '2026-10-15T10:00:00Z',
+          operation: 'render_final',
+          status: 'interrupted',
+          progress: {
+            items: [
+              { revision_id: 'r', candidate_id: 'c', state: 'pending', phase: 'render_final' },
+            ],
+          },
+        } as Job,
+      ],
+    },
+  });
+  try {
+    expect(w.get('tbody tr.clip-item').text()).toContain('Final interrompida');
+    expect(w.get('tbody tr.clip-item').text()).toContain('Prévia disponível');
+  } finally {
+    w.unmount();
+  }
+});
+it('separates final availability from editorial status and never exports an invalidated final', async () => {
+  const w = mount(ReviewPanel, {
+    props: {
+      manual: false,
+      mediaUrl: '',
+      sourceUrl: '',
+      revisions: [
+        {
+          revision_id: 'r',
+          title: 'Corte',
+          technical_pass: true,
+          final_state: 'invalid',
+          review_status: 'approved',
+          warnings: [],
+        },
+      ],
+    },
+  });
+  try {
+    expect((w.get('.cuts-table-heading button').element as HTMLButtonElement).disabled).toBe(true);
+    await w.get('input[aria-label="Selecionar corte: Corte"]').setValue(true);
+    const bulkExport = w
+      .findAll('.bulk-actions button')
+      .find(b => b.text() === 'Exportar selecionados')!;
+    expect((bulkExport.element as HTMLButtonElement).disabled).toBe(true);
+    await w
+      .findAll('.cuts-filter-chip')
+      .find(b => b.text() === 'Aprovados')!
+      .trigger('click');
+    expect(w.find('tbody tr.clip-item').exists()).toBe(false);
+    await w
+      .findAll('.cuts-filter-chip')
+      .find(b => b.text() === 'Todos')!
+      .trigger('click');
+    await w.setProps({
+      revisions: [
+        { ...w.props('revisions')[0], final_state: 'available', review_status: 'needs_review' },
+      ],
+    });
+    expect(w.get('tbody tr.clip-item').text()).toContain('Final disponível');
+    expect(w.get('[data-editorial-status]').text()).toContain('Revisão editorial pendente');
+  } finally {
+    w.unmount();
+  }
+});
 it('selects a table row with the keyboard without changing bulk selection', async () => {
   const revisions = ['a', 'b'].map(id => ({
     revision_id: id,

@@ -1,5 +1,6 @@
 import { ref, computed, watch, type Ref } from 'vue';
 import type { Revision } from '../types';
+import { isExportable } from '../domain/revisionPresentation';
 
 export function useBulkSelection(
   revisionsRef: Ref<Revision[]>,
@@ -16,11 +17,7 @@ export function useBulkSelection(
   const exportableBulk = computed(
     () =>
       bulk.value.length > 0 &&
-      bulk.value.every(id =>
-        revisionsRef.value.some(
-          r => r.revision_id === id && r.technical_pass && r.review_status === 'approved'
-        )
-      )
+      bulk.value.every(id => revisionsRef.value.some(r => r.revision_id === id && isExportable(r)))
   );
 
   watch(

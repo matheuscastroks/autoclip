@@ -26,6 +26,24 @@ function open(revision = preview, loadMedia = vi.fn().mockResolvedValue('/previe
   });
 }
 describe('clip preview drawer', () => {
+  it('keeps final details collapsed and blocks export when technical validation no longer passes', async () => {
+    const w = open({
+      ...preview,
+      final_state: 'available',
+      technical_pass: false,
+      review_status: 'approved',
+    });
+    try {
+      await flushPromises();
+      expect(
+        w.findAll('.clip-drawer-actions button').some(b => b.text() === 'Exportar aprovados')
+      ).toBe(false);
+      const details = w.findAll('.clip-inspection-details details')[0];
+      expect((details.element as HTMLDetailsElement).open).toBe(false);
+    } finally {
+      w.unmount();
+    }
+  });
   it('invalidates a pending ticket when the real Drawer close button is used', async () => {
     let resolve: (url: string) => void = () => {};
     const w = open(

@@ -3,6 +3,7 @@ import type { AnalysisView, Job, Project, Revision } from '../types';
 import { active, latestJob, stages } from '../format';
 import { PIPELINE_STEPS, usePipelineSteps } from './usePipelineSteps';
 import { useRenderFailures } from './useRenderFailures';
+import { isFinalAvailable as validFinal } from '../domain/revisionPresentation';
 
 export interface PipelineInput {
   project: Project;
@@ -66,8 +67,6 @@ export function usePipelinePresentation(props: Readonly<PipelineInput>) {
     recovery,
     job
   );
-  const validFinal = (r: Revision) =>
-    r.technical_pass && (!r.final_state || r.final_state === 'available');
   const approved = computed(() =>
     props.revisions?.some(r => validFinal(r) && r.review_status === 'approved')
   );

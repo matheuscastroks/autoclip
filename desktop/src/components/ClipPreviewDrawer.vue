@@ -5,6 +5,7 @@ import AppButton from './AppButton.vue';
 import { vRecoverMedia } from '../directives/recoverMedia';
 import { active, labels, time } from '../format';
 import type { Revision, Job, Decision, Checks } from '../types';
+import { isFinalAvailable, isExportable } from '../domain/revisionPresentation';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -33,11 +34,7 @@ const player = ref<HTMLVideoElement>();
 const closing = ref(false);
 let request = 0;
 const hasPreview = computed(() => props.revision?.preview?.state === 'available');
-const hasFinal = computed(
-  () =>
-    props.revision?.final_state === 'available' ||
-    (!props.revision?.final_state && props.revision?.technical_pass)
-);
+const hasFinal = computed(() => !!props.revision && isFinalAvailable(props.revision));
 const finalJob = computed(() =>
   [...(props.jobs || [])]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -281,7 +278,7 @@ onBeforeUnmount(() => {
             />
             <p>A prévia continua disponível. A aprovação será liberada após a validação final.</p>
           </div>
-          <details open>
+          <details>
             <summary>Detalhes do corte</summary>
             <dl>
               <dt>Intervalo original</dt>
@@ -376,7 +373,7 @@ onBeforeUnmount(() => {
           >Baixar final técnico</a
         >
         <AppButton
-          v-if="hasFinal && revision.review_status === 'approved'"
+          v-if="isExportable(revision)"
           :disabled="busy || finalRunning"
           @click="$emit('export')"
           >Exportar aprovados</AppButton
