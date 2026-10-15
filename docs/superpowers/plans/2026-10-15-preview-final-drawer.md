@@ -100,3 +100,24 @@ Compatibility ruling: legacy `render` retains separate output revisions when cus
 - [ ] Execute backend suite, generated-type check, frontend check/lint/format/test/build. Report pre-existing failures separately, without unrelated formatting changes.
 - [ ] Browser QA at 1920×1080, 1366×768, 1280×720, 1000×680 and 800×600 where supported; long titles, warnings, absent media and scrolling. Save screenshots.
 - [ ] Document legacy compatibility, verification evidence and untested native/real-media behavior. Commit focused integration/benchmark changes; confirm final worktree state.
+
+## Final execution evidence
+
+Implementation: `ada761a` profiles, `624d75c` shared preparation/output storage,
+`ccabfe8` API/queue/contracts, `af347f7` integrity review fixes, `ef96e27` Drawer,
+`341c590` contextual journey. Native styling is a separate follow-up commit.
+
+Independent review findings were reproduced and fixed: source metadata binding,
+preview survival with damaged preparation, per-revision overlapping-job dedup,
+polling without full-source rehash, final progress identity, close/load races,
+candidate retry for finals and recovery of published outputs after cache loss.
+Added regression coverage for the final publication/index crash window as well.
+
+Backend: 251 passed, one real-media deselected. Frontend: 146 passed / 27 files,
+followed by 15 focused scrollbar/Analysis passes. Generated types, type checking
+and production build passed. Lint has no errors (40 existing warnings). Global
+Prettier fails on 11 untouched baseline files, not on the changed frontend files.
+
+Synthetic parity, measured benchmark, compatibility decisions, browser screenshots
+and limits are documented in `docs/preview-final-validation.md`. The hosted Linux
+CI, native desktop runtime, real-face footage and paid providers were not run.
