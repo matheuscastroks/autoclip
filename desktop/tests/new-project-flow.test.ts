@@ -3,6 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import App from '../src/App.vue';
 import { api } from '../src/api';
 import NewProjectDialog from '../src/components/dialogs/NewProjectDialog.vue';
+import OnboardingModal from '../src/components/OnboardingModal.vue';
 
 vi.mock('../src/api', () => ({
   api: {
@@ -188,6 +189,85 @@ it('does not describe a pending file picker as project creation', async () => {
     expect(w.get('dialog[open] [type=submit]').attributes('disabled')).toBeDefined();
     finishPicker('C:/Videos/Escolhido.mp4');
     await flushPromises();
+  } finally {
+    w.unmount();
+  }
+});
+
+it('cancels the native dialog and reopens it without leaving a stale open state', async () => {
+  const w = mount(App, { attachTo: document.body });
+  try {
+    await flushPromises();
+    await w.get('.new-project-action').trigger('click');
+    await flushPromises();
+    const cancel = new Event('cancel', { cancelable: true });
+    w.get('dialog[open]').element.dispatchEvent(cancel);
+    await flushPromises();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(w.find('dialog[open]').exists()).toBe(false);
+    await w.get('.new-project-action').trigger('click');
+    await flushPromises();
+    expect(w.find('dialog[open]').exists()).toBe(true);
+    (w.get('dialog[open]').element as HTMLDialogElement).close();
+    await flushPromises();
+    expect(w.getComponent(NewProjectDialog).props('modelValue')).toBe(false);
+  } finally {
+    w.unmount();
+  }
+});
+
+it.each([
+  { busy: true, picking: false },
+  { busy: false, picking: true },
+])('prevents native Escape cancellation while an operation is pending: %o', async pending => {
+  const w = mount(NewProjectDialog, {
+    attachTo: document.body,
+    props: {
+      modelValue: true,
+      name: 'Teste',
+      sourceInput: '/fixture.mp4',
+      sourceKind: 'file',
+      setupReady: true,
+      toolsAvailable: true,
+      configSummary: 'Local',
+      ...pending,
+    },
+  });
+  try {
+    const cancel = new Event('cancel', { cancelable: true });
+    w.get('dialog').element.dispatchEvent(cancel);
+    await flushPromises();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(w.emitted('update:modelValue')).toBeUndefined();
+    expect(w.get('dialog').attributes('open')).toBeDefined();
+  } finally {
+    w.unmount();
+  }
+});
+
+it('creates without automatic preparation when video tools exist but ASR and credentials do not', async () => {
+  const readyConfig = await api.config();
+  vi.mocked(api.config).mockResolvedValueOnce({
+    ...readyConfig,
+    tools_available: true,
+    asr_available: false,
+    gemini_key_configured: false,
+  });
+  const w = mount(App, { attachTo: document.body });
+  try {
+    await flushPromises();
+    w.getComponent(OnboardingModal).vm.$emit('close');
+    await flushPromises();
+    await w.get('.new-project-action').trigger('click');
+    await flushPromises();
+    await w.get('.file-drop button').trigger('click');
+    await flushPromises();
+    expect(w.get('dialog[open]').text()).toContain('sem preparação automática');
+    await w.get('dialog[open] form').trigger('submit');
+    await flushPromises();
+    expect(api.create).toHaveBeenLastCalledWith('Entrevista', 'C:/Videos/Entrevista.mp4', {
+      automatic: false,
+    });
   } finally {
     w.unmount();
   }
