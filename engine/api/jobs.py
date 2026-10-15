@@ -47,8 +47,9 @@ class JobManager:
 
     def _status(self,job_id):
         job=self.store.job(job_id)
+        from .job_progress import present_progress
         if job.get('finished_at') or (job.get('status') in ('completed','cancelled','rejected') and 'events' in job and job.get('error') is not None):
-            return job
+            return present_progress(job,self.root/job_id)
         folder=self.root/job_id
         original_data=dict(job)
         result=read_json(folder/'result.json')
@@ -74,7 +75,7 @@ class JobManager:
             with sqlite3.connect(budget) as c:job['requests_used']=c.execute('SELECT count(*) FROM attempts').fetchone()[0]
         if job!=original_data:
             self.store.save_job(job)
-        return job
+        return present_progress(job,folder)
 
     def request_shutdown(self,callback):
         with self.lock:

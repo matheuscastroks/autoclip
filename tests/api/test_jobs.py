@@ -2,6 +2,28 @@ import json,pytest
 from pathlib import Path
 from test_projects import client,source_folder
 
+
+def test_api_exposes_measured_progress_and_startup_warning(client):
+    from datetime import datetime, timezone, timedelta
+    from engine.pipeline.artifacts import atomic_json
+    jobs = client.app.state.jobs
+    started = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+    jobs.store.save_job({'id': 'telemetry', 'project_id': 'p', 'operation': 'prepare',
+                         'status': 'running', 'started_at': started})
+    jobs.processes['telemetry'] = type('Alive', (), {'poll': lambda self: None})()
+    response = client.get('/api/v1/jobs/telemetry').json()
+    assert response['progress']['warning'] == 'startup_slow'
+    assert response['progress']['stage_percent'] is None
+    folder = jobs.root / 'telemetry'
+    atomic_json(folder / 'telemetry.json', {'phase': 'transcribe', 'stage_percent': 25,
+                'overall_percent': None, 'advanced_at': datetime.now(timezone.utc).isoformat()})
+    atomic_json(folder / 'startup.json', {'heartbeat_at': datetime.now(timezone.utc).isoformat()})
+    response = client.get('/api/v1/jobs/telemetry').json()
+    assert response['progress']['stage_percent'] == 25
+    assert response['progress']['overall_percent'] is None
+    assert response['progress']['elapsed_seconds'] >= 60
+    assert response['progress']['warning'] is None
+
 def test_one_job_at_a_time_and_cancellation(tmp_path):
     from engine.api.jobs import JobManager
     from engine.api.store import ProjectStore

@@ -120,6 +120,17 @@ class JobProgress(Response):
     processed_us: int | None = None
     total_us: int | None = None
     activity_at: str | None = None
+    stage_percent: float | None = Field(default=None, ge=0, le=100)
+    overall_percent: float | None = Field(default=None, ge=0, le=100)
+    completed_units: float | None = Field(default=None, ge=0)
+    total_units: float | None = Field(default=None, gt=0)
+    unit: Literal['bytes', 'media_us', 'items', 'samples'] | None = None
+    elapsed_seconds: float | None = Field(default=None, ge=0)
+    stage_eta_seconds: float | None = Field(default=None, ge=0)
+    eta_seconds: float | None = Field(default=None, ge=0)
+    heartbeat_at: str | None = None
+    advanced_at: str | None = None
+    warning: Literal['startup_slow', 'heartbeat_missing', 'no_advance'] | None = None
 
 
 class Job(Response):
@@ -128,6 +139,8 @@ class Job(Response):
     status: JobStatus
     operation: Literal['', 'prepare', 'import', 'transcribe', 'analyze', 'preview', 'render_final', 'render', 'export'] = ''
     created_at: str = ''
+    started_at: str | None = None
+    finished_at: str | None = None
     requests_used: int = 0
     request_limit: int | None = None
     request_mode: Literal['automatic', 'manual'] | None = None

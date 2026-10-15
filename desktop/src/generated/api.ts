@@ -102,6 +102,8 @@ export interface Job {
   status: "pending" | "running" | "cancelling" | "completed" | "failed" | "cancelled" | "interrupted" | "rejected";
   operation: "" | "prepare" | "import" | "transcribe" | "analyze" | "preview" | "render_final" | "render" | "export";
   created_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
   requests_used: number;
   request_limit?: number | null;
   request_mode?: "automatic" | "manual" | null;
@@ -129,6 +131,17 @@ export interface JobProgress {
   processed_us?: number | null;
   total_us?: number | null;
   activity_at?: string | null;
+  stage_percent?: number | null;
+  overall_percent?: number | null;
+  completed_units?: number | null;
+  total_units?: number | null;
+  unit?: "bytes" | "media_us" | "items" | "samples" | null;
+  elapsed_seconds?: number | null;
+  stage_eta_seconds?: number | null;
+  eta_seconds?: number | null;
+  heartbeat_at?: string | null;
+  advanced_at?: string | null;
+  warning?: "startup_slow" | "heartbeat_missing" | "no_advance" | null;
   [key: string]: unknown;
 }
 
