@@ -4,6 +4,12 @@ Date: 2026-10-15. Reference: `bfaf7e5`; implementation on
 `poc-openshorts-gemini`. This is frontend validation, not a native-release sign-off.
 Backend, Python contracts, queue scheduling, persistence formats and Rust are unchanged.
 
+Subsequent real-runtime checks are recorded in
+[`native-runtime-validation-2026-10-15.md`](native-runtime-validation-2026-10-15.md).
+They confirm native startup, Gemini generation and physical export, but expose
+OpenRouter contract failures. They do not turn this browser UI audit into native
+visual QA or a clean-installation sign-off.
+
 ## Product decisions and requirement coverage
 
 | Requirement | Result / evidence |

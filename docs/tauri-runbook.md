@@ -1,8 +1,23 @@
 # AutoClip desktop — Tauri 2
 
+> Validação posterior (2026-10-15): o sidecar standalone com Python/frontend e um
+> instalador NSIS debug foram gerados e o app iniciou em workspace novo. FFmpeg e
+> modelos continuam externos. As evidências e limites atuais estão em
+> [native-runtime-validation-2026-10-15.md](native-runtime-validation-2026-10-15.md);
+> as evidências da entrega original abaixo são históricas, não QA visual nativa atual.
+
 Esta entrega encapsula a interface Vue existente em uma janela nativa. O motor Python continua por API/CLI e os projetos existentes permanecem no checkout. Não é um instalador autossuficiente para outros computadores.
 
 ## Pré-requisitos e build
+
+Na configuração atual, prepare o sidecar antes do build Tauri: execute
+`npm --prefix desktop run build`, depois
+`.venv/Scripts/python.exe scripts/build_engine_sidecar.py`. PyInstaller está nas
+dependências opcionais `desktop`. Regere o sidecar após mudanças no motor ou no
+frontend: ele incorpora o `desktop/dist` existente. Sem esse passo, o recurso
+`bin/autoclip-engine-x86_64-pc-windows-msvc.exe` pode faltar ou conter uma UI antiga.
+Não abra o executável enquanto o bundler ainda estiver regravando-o; para uma
+instância ativa, use alvo de build isolado e preserve os jobs em execução.
 
 Windows x64, Rust estável MSVC, Visual Studio Build Tools com workload C++ e Windows SDK, WebView2 e Node/npm. O checkout precisa de `.venv/Scripts/python.exe`, dependências Python e frontend compilado. Execute `scripts/check_tauri_prerequisites.ps1` para inventário. Se o PATH estiver antigo após instalar Rust, abra novo terminal ou adicione `$env:USERPROFILE\.cargo\bin` ao PATH da sessão.
 
