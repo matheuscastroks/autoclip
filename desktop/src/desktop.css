@@ -1,0 +1,106 @@
+/* Native scrolling and controls: no JavaScript scroll engine or fake window chrome. */
+:root {
+  color-scheme: dark;
+  font-optical-sizing: auto;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  min-height: 28px;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+  border-width: 2px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+.el-scrollbar__thumb {
+  background-color: var(--scrollbar-thumb);
+  opacity: 1;
+}
+
+.el-scrollbar__thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+  opacity: 1;
+}
+
+.page-content,
+.el-drawer__body,
+.custom-scrollbar,
+.cuts-table-scroll {
+  scrollbar-gutter: stable;
+}
+
+/* Clicking commands should not leave a browser ring. Keyboard focus remains visible. */
+:where(button, a, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+:where(button, a, summary, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.global-header,
+.project-tabs,
+.settings-tiles,
+button,
+summary {
+  user-select: none;
+}
+
+button:not(:disabled),
+.clip-version-tabs button,
+[role='tab'],
+.clip-item,
+summary {
+  cursor: default;
+}
+
+/* Preserve OS contrast preferences rather than forcing decorative custom rails. */
+@media (forced-colors: active) {
+  * {
+    scrollbar-color: auto;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: ButtonText;
+  }
+
+  :where(button, a, summary, input, textarea, select, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .el-drawer,
+  .el-overlay,
+  .el-scrollbar__thumb {
+    transition-duration: 0.01ms !important;
+  }
+}

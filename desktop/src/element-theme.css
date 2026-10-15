@@ -73,7 +73,7 @@ html.dark,
 }
 
 .el-button--primary:hover,
-.el-button--primary:focus {
+.el-button--primary:focus-visible {
   background-color: var(--color-action-primary-hover, #f3f4f6) !important;
   border-color: var(--color-action-primary-hover, #f3f4f6) !important;
   color: var(--color-action-primary-text, #111317) !important;
@@ -86,7 +86,7 @@ html.dark,
 }
 
 .el-button--default:hover,
-.el-button--default:focus {
+.el-button--default:focus-visible {
   background-color: var(--color-surface-hover) !important;
   border-color: var(--color-border-strong) !important;
   color: var(--color-text-primary) !important;

@@ -6,6 +6,7 @@ import './tokens.css';
 import './element-theme.css';
 import './layouts.css';
 import './theme.css';
+import './desktop.css';
 
 initializeSession();
 createApp(App).mount('#app');

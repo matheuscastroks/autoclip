@@ -2066,24 +2066,6 @@ function choose(id: string) {
   font-weight: 500;
 }
 
-/* CUSTOM SLIM SCROLLBAR */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
 @media (max-width: 1100px) {
   .curation-3col-layout {
     grid-template-columns: 190px 330px minmax(0, 1fr);

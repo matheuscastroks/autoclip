@@ -68,8 +68,10 @@
   --line-strong: var(--color-border-strong);
   --line-soft: var(--color-border-subtle);
   --warning: var(--color-warning-text);
-  --heading: -apple-system, BlinkMacSystemFont, 'Inter', 'Geist', 'Segoe UI', Roboto, sans-serif;
-  --body: -apple-system, BlinkMacSystemFont, 'Inter', 'Geist', 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --body: var(--heading);
+  --scrollbar-thumb: #464b52;
+  --scrollbar-thumb-hover: #656c75;
 
   /* Geometria e Superfícies */
   --radius-panel: 8px;
