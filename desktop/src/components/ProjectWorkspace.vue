@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from './AppButton.vue';
 import { computed, ref, watch } from 'vue';
-import { ArrowLeft, FolderOpen, FileText, Scissors, Play, Search, Clock } from '@lucide/vue';
+import { Search, Clock, FileText } from '@lucide/vue';
 import type {
   Project,
   Transcript,
@@ -13,6 +13,8 @@ import type {
 } from '../types';
 import { time, projectLabel, active } from '../format';
 import { notify } from '../notifications';
+import WorkspaceHeader from './layout/WorkspaceHeader.vue';
+import ProjectTabs, { type ProjectTab } from './layout/ProjectTabs.vue';
 import ReviewPanel from './ReviewPanel.vue';
 import PipelinePanel from './PipelinePanel.vue';
 import AnalysisPanel from './AnalysisPanel.vue';
@@ -54,8 +56,8 @@ defineEmits<{
   bulkExport: [ids: string[]];
 }>();
 
-const tab = ref('overview'),
-  player = ref<HTMLVideoElement>();
+const tab = defineModel<ProjectTab>('activeTab', { default: 'overview' });
+const player = ref<HTMLVideoElement>();
 const transcriptQuery = ref('');
 watch(
   () => props.project.warnings,
@@ -89,26 +91,6 @@ const filteredSegments = computed(() => {
   return segments.value.filter(s => s.text.toLowerCase().includes(q));
 });
 
-const tabs = ['overview', 'transcript', 'analysis', 'cuts'];
-function tabKey(event: KeyboardEvent) {
-  const at = tabs.indexOf(tab.value);
-  const next =
-    event.key === 'ArrowRight'
-      ? (at + 1) % 4
-      : event.key === 'ArrowLeft'
-        ? (at + 3) % 4
-        : event.key === 'Home'
-          ? 0
-          : event.key === 'End'
-            ? 3
-            : -1;
-  if (next < 0) return;
-  event.preventDefault();
-  tab.value = tabs[next];
-  (event.currentTarget as HTMLElement)
-    .querySelectorAll<HTMLButtonElement>('[role=tab]')
-    [next]?.focus();
-}
 function seek(us: number) {
   if (player.value) {
     player.value.currentTime = us / 1e6;
@@ -119,19 +101,13 @@ function seek(us: number) {
 
 <template>
   <div class="project-workspace">
-    <header class="page-heading project-heading compact-project-heading">
-      <el-tooltip content="Voltar para a biblioteca de projetos" placement="bottom">
-        <AppButton
-          class="icon-button project-back"
-          aria-label="Todos os projetos"
-          title="Todos os projetos"
-          @click="$emit('back')"
-          ><ArrowLeft :size="18"
-        /></AppButton>
-      </el-tooltip>
-      <h1 :title="project.title || project.name">{{ project.title || project.name }}</h1>
-      <div class="project-meta">
-        <span :title="project.source?.channel">{{ project.source?.channel || 'Vídeo local' }}</span>
+    <WorkspaceHeader
+      :title="project.title || project.name"
+      project
+      @back="$emit('back')"
+      @folder="$emit('folder')"
+    >
+      <template #metadata>
         <span>{{ project.duration_us ? time(project.duration_us) : 'Duração pendente' }}</span>
         <el-tag
           size="small"
@@ -147,65 +123,18 @@ function seek(us: number) {
           effect="dark"
           class="status-pill"
           :data-status="project.status"
+          >{{ projectLabel(project.status) }}</el-tag
         >
-          {{ projectLabel(project.status) }}
-        </el-tag>
-      </div>
-      <el-tooltip content="Abrir pasta no Windows Explorer" placement="bottom">
-        <AppButton
-          class="icon-button project-folder"
-          title="Abrir pasta"
-          aria-label="Abrir pasta"
-          @click="$emit('folder')"
-          ><FolderOpen :size="18"
-        /></AppButton>
-      </el-tooltip>
-    </header>
-
-    <div class="project-tabs" role="tablist" aria-label="Áreas do projeto" @keydown="tabKey">
-      <AppButton
-        id="tab-overview"
-        role="tab"
-        aria-controls="project-panel"
-        :tabindex="tab === 'overview' ? 0 : -1"
-        :aria-selected="tab === 'overview'"
-        :class="{ selected: tab === 'overview' }"
-        @click="tab = 'overview'"
-        ><Play :size="16" />Preparação</AppButton
-      >
-      <AppButton
-        id="tab-transcript"
-        role="tab"
-        aria-controls="project-panel"
-        :tabindex="tab === 'transcript' ? 0 : -1"
-        :aria-selected="tab === 'transcript'"
-        :class="{ selected: tab === 'transcript' }"
-        @click="tab = 'transcript'"
-        ><FileText :size="16" />Transcrição<span v-if="project.has_transcript">{{
-          project.word_count.toLocaleString('pt-BR')
-        }}</span></AppButton
-      >
-      <AppButton
-        id="tab-analysis"
-        role="tab"
-        aria-controls="project-panel"
-        :tabindex="tab === 'analysis' ? 0 : -1"
-        :aria-selected="tab === 'analysis'"
-        :class="{ selected: tab === 'analysis' }"
-        @click="tab = 'analysis'"
-        ><FileText :size="16" />Análise<span>{{ analysis?.proposals.length || 0 }}</span></AppButton
-      >
-      <AppButton
-        id="tab-cuts"
-        role="tab"
-        aria-controls="project-panel"
-        :tabindex="tab === 'cuts' ? 0 : -1"
-        :aria-selected="tab === 'cuts'"
-        :class="{ selected: tab === 'cuts' }"
-        @click="tab = 'cuts'"
-        ><Scissors :size="16" />Cortes<span>{{ revisions.length }}</span></AppButton
-      >
-    </div>
+      </template>
+    </WorkspaceHeader>
+    <ProjectTabs
+      v-model="tab"
+      :counts="{
+        transcript: project.has_transcript ? project.word_count : undefined,
+        analysis: analysis?.proposals.length,
+        cuts: revisions.length,
+      }"
+    />
 
     <div
       class="workspace-body"
