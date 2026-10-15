@@ -93,3 +93,11 @@ binary. Deploy/restart the updated app only at a safe point, preserving active j
 - Synthetic browser fixture inspected, including unknown totals and inactivity;
   this is not a full-window or native Tauri visual-validation matrix.
 - No paid provider calls, real private media, installer upgrade or live-job restart.
+- Final frozen sidecar rebuilt with final UI assets: 188,774,131 bytes, SHA-256
+  `020d10dc0ad46b235dbde449fa3f5ec4de3c0e03dd2c2ecff475d60c81ba7680`.
+  Isolated import exited 0 at 100%; silent-ASR exited 1 without overall success,
+  observing audio, integrity, model loading and transcription. The existing
+  supervisor exposes generic `ASR_FAILED`; this is not a speech-quality test.
+- The staging binaries for the next Tauri build were updated. The running
+  application's executable/sidecar were not overwritten or restarted. Native
+  visual QA, installation upgrade and remote CI were not executed.

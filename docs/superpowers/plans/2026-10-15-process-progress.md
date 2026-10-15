@@ -18,7 +18,7 @@ supported by observations, and explicit initialization/inactivity feedback.
 - [x] 2. Add compatible progress contracts, collection and estimation.
 - [x] 3. Instrument preparation, analysis, rendering, verification, export and provisioning.
 - [x] 4. Share progress presentation across preparation, queues, drawer and onboarding.
-- [ ] 5. Run regression suites, isolated runtime smoke and independent review.
+- [x] 5. Run regression suites, isolated runtime smoke and independent review.
 
 ## Verification record
 
@@ -65,3 +65,21 @@ supported by observations, and explicit initialization/inactivity feedback.
   No remote calls. Rebuild final assets before publishing the final runtime result.
 - Final frontend after review fixes: 248 passed / 40 files; type-check and build
   passed; lint 0 errors / 19 inherited warnings; same six untouched format failures.
+- Final sidecar rebuilt with final frontend assets and reviewed source: 188774131
+  bytes, SHA256 `020d10dc0ad46b235dbde449fa3f5ec4de3c0e03dd2c2ecff475d60c81ba7680`.
+- Final frozen smoke: import exit 0/startup confirmed/overall 100; silent-ASR
+  exit 1/startup confirmed/overall null, with audio/integrity/model_load/transcribe
+  observed. Supervisor reports generic ASR_FAILED; no speech-quality claim.
+- Declined-review areas resolved explicitly: providers/private real media remain
+  out of scope; generated FFmpeg media and exports were exercised; frozen runtime
+  was tested in isolation; native visual QA and the original wait remain unverified.
+- Own browser tab and development server closed; original desktop PID 10732 and
+  its workspace/job were never stopped, migrated or replaced.
+
+## Commits by responsibility
+
+- `547e02c`: early startup and heartbeat.
+- `ff1625d`: compatible contracts and estimation core.
+- `d0122d4`: measured pipeline progress and cache compatibility.
+- `1bca482`: safe measured provisioning.
+- `8ae7dd9`: shared desktop presentation and user documentation.
