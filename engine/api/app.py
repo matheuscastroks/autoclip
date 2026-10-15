@@ -234,9 +234,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
         return {'deleted':True}
     @app.post('/api/v1/jobs/clear-history')
     def clear_job_history():
-        with jobs.lock:
-            count=store.clear_terminal_jobs()
-            return {'cleared':count}
+        return jobs.clear_history()
 
     @app.get('/api/v1/trash')
     def trash():return store.trash()

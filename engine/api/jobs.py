@@ -85,6 +85,11 @@ class JobManager:
             if callback:callback()
             return True
 
+    def clear_history(self):
+        from .job_history import clear_job_history
+        with self.lock:
+            return clear_job_history(self.store,self.root,self.owned_alive)
+
     def start(self,project_id,operation,options,*,persist_selection=True):
         if operation not in ('prepare','import','transcribe','analyze','render','export'):raise ValueError('Operação não suportada.')
         if any(r['id']==project_id for r in self.store.trash()):raise ValueError('Restaure o projeto antes de iniciar uma tarefa.')

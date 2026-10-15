@@ -56,11 +56,9 @@ class ProjectStore:
             c.execute('DELETE FROM projects WHERE id=?',(project_id,))
         return True
 
-    def clear_terminal_jobs(self)->int:
+    def delete_finished_job(self,job_id:str)->bool:
         with self.connect() as c:
-            count=c.execute("SELECT count(*) FROM jobs WHERE status NOT IN ('running','pending','cancelling')").fetchone()[0]
-            c.execute("DELETE FROM jobs WHERE status NOT IN ('running','pending','cancelling')")
-            return count
+            return c.execute("DELETE FROM jobs WHERE id=? AND status IN ('completed','rejected')",(job_id,)).rowcount==1
 
     def get(self,project_id:str)->dict:
         with self.connect() as c:r=c.execute('SELECT * FROM projects WHERE id=?',(project_id,)).fetchone()

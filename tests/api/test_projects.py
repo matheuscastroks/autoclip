@@ -109,7 +109,7 @@ def test_failed_permanent_delete_preserves_project_record(client,tmp_path,monkey
     assert client.app.state.store.get(row['id'])['path']==str(managed.resolve())
 
 
-def test_clear_job_history_removes_only_terminal_jobs(client):
+def test_clear_job_history_removes_only_disposable_jobs(client):
     from engine.api.store import now
     store=client.app.state.store
     # Inserir jobs em vários estados
@@ -119,12 +119,13 @@ def test_clear_job_history_removes_only_terminal_jobs(client):
 
     res=client.post('/api/v1/jobs/clear-history')
     assert res.status_code==200
-    assert res.json()['cleared']>=2
+    assert res.json()['cleared']==1
+    assert res.json()['preserved']==1
 
     # Job em execução deve permanecer
     assert client.get('/api/v1/jobs').status_code in (200, 404, 405) # ou verificar via store
     remaining_ids=[j['id'] for j in store.jobs()]
     assert 'job-run' in remaining_ids
     assert 'job-comp' not in remaining_ids
-    assert 'job-fail' not in remaining_ids
+    assert 'job-fail' in remaining_ids
 

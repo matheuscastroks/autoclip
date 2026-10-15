@@ -499,7 +499,11 @@ async function resumeJob(id: string) {
 async function clearJobHistory() {
   await action(async () => {
     const res = await api.clearJobHistory();
-    notify.success(`${res.cleared} tarefa(s) removida(s) do histórico.`);
+    notify.success(`${res.cleared} tarefa(s) concluída(s) e seus arquivos temporários removidos.`);
+    if (res.preserved)
+      notify.info(`${res.preserved} tarefa(s) preservada(s) para permitir retomada.`);
+    for (const error of res.errors || [])
+      notify.warning(error.message, { key: 'history:' + error.job_id });
     await refresh();
   });
 }
