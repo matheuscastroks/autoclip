@@ -1,13 +1,16 @@
 import json
 from pathlib import Path
-from engine.contracts import Source,TranscriptArtifact,ProjectRun
+from engine.contracts import Source,TranscriptArtifact,ProjectRun,AnalysisArtifact
+from .artifact_reads import read_artifact
 
 def read_json(path:Path,default=None):
     try:return json.loads(path.read_text(encoding='utf-8'))
     except (OSError,ValueError):return default
 
-def project_summary(root:Path,state:dict,job)->dict:
-    analysis=read_json(root/'analysis.json',{}) or {}
+def project_summary(root:Path,state:dict,job,analysis=None)->dict:
+    if analysis is None:
+        analysis=read_json(root/'analysis.json',{}) or {}
+        if not isinstance(analysis,dict):analysis={}
     ids={str(c.get('id')) for c in analysis.get('candidates',[]) if c.get('id')}
     selection=read_json(root/'analysis-selection.json',{}) or {}
     # Reject stale selections when the analysis was replaced.
@@ -34,14 +37,17 @@ def project_summary(root:Path,state:dict,job)->dict:
 
 def project_detail(row:dict,job=None)->dict:
     root=Path(row['path']);warnings=[];source=None;transcript=None;state=None
-    for name,model in [('source',Source),('transcript',TranscriptArtifact),('project',ProjectRun)]:
-        path=root/(name+'.json')
-        if path.exists():
-            try:value=model.model_validate_json(path.read_bytes())
-            except (OSError,ValueError):warnings.append(f'Arquivo {name}.json inválido. Os demais dados foram preservados.');value=None
-            if name=='source':source=value
-            elif name=='transcript':transcript=value
-            else:state=value
+    artifacts={}
+    values={}
+    for name,model in [('source',Source),('transcript',TranscriptArtifact),('project',ProjectRun),('analysis',AnalysisArtifact)]:
+        artifact=read_artifact(root/(name+'.json'),model)
+        artifacts[name]=artifact.diagnostic()
+        values[name]=artifact.value
+        if artifact.message:warnings.append(artifact.message)
+    source=values['source'];transcript=values['transcript'];state=values['project'];analysis=values['analysis']
+    if analysis and transcript and (analysis.transcript_id!=transcript.transcript_id or analysis.complete and set(analysis.covered_word_ids)!={w.id for w in transcript.words}):
+        message='A análise salva não corresponde à transcrição atual. Gere a análise novamente; os arquivos anteriores foram preservados.'
+        artifacts['analysis']={'state':'stale','message':message};warnings.append(message);analysis=None
     manual=(root/'manual-check.json').exists()
     status=state.status if state else ('transcribed' if transcript else 'imported')
     if manual:status='manual_preview'
@@ -56,8 +62,8 @@ def project_detail(row:dict,job=None)->dict:
         'source':source.model_dump(mode='json') if source else None,'duration_us':source.duration_us if source else 0,
         'status':status,'has_transcript':transcript is not None,'word_count':len(transcript.words) if transcript else 0,
         'revisions':state.revisions if state and not manual else [],'is_manual':manual,'warnings':warnings,'error':error,
-        'has_analysis':bool((read_json(root/'analysis.json') or {}).get('complete')),
-        'summary':project_summary(root,state.model_dump(mode='json') if state else {},job),
+        'has_analysis':bool(analysis and analysis.complete),'artifacts':artifacts,
+        'summary':project_summary(root,state.model_dump(mode='json') if state else {},job,analysis.model_dump(mode='json') if analysis else {}),
         'updated_at':max((p.stat().st_mtime for p in root.glob('*.json')),default=0)}
 
 def discover(store,workspace):

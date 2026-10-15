@@ -6,6 +6,7 @@ from engine.editorial.select import select_candidates
 from engine.pipeline.artifacts import object_hash,atomic_json
 from fastapi import HTTPException
 from .projects import read_json
+from .artifact_reads import read_artifact
 from engine.render.opening import opening_for
 
 def normalized(label):
@@ -14,15 +15,16 @@ def normalized(label):
 def analysis_view(root,job=None,job_folder=None,max_seconds=300):
     root=Path(root)
     path=root/'analysis.json';transcript_path=root/'transcript.json'
-    empty={'schema_version':'1.0','state':'not_started','job_id':job['id'] if job else None,'analysis_hash':None,'model':None,'completed_windows':0,'total_windows':0,'topic_groups':[],'proposals':[]}
-    if not transcript_path.exists():return empty
-    t=TranscriptArtifact.model_validate_json(transcript_path.read_bytes())
+    empty={'schema_version':'1.0','state':'not_started','diagnostic':None,'job_id':job['id'] if job else None,'analysis_hash':None,'model':None,'completed_windows':0,'total_windows':0,'topic_groups':[],'proposals':[]}
+    transcript=read_artifact(transcript_path,TranscriptArtifact)
+    if transcript.value is None:
+        return {**empty,'state':transcript.state if transcript.message else 'not_started','diagnostic':transcript.message}
+    t=transcript.value
+    saved=read_artifact(path,AnalysisArtifact)
     has_completed=False
-    if path.exists():
-        try:
-            completed_art=AnalysisArtifact.model_validate_json(path.read_bytes())
-            has_completed=completed_art.complete and completed_art.transcript_id==t.transcript_id and set(completed_art.covered_word_ids)=={w.id for w in t.words}
-        except Exception:has_completed=False
+    if saved.value:
+        completed_art=saved.value
+        has_completed=completed_art.complete and completed_art.transcript_id==t.transcript_id and set(completed_art.covered_word_ids)=={w.id for w in t.words}
     running=job and job['operation'] in ('analyze','prepare') and job['status'] in ('running','pending','cancelling')
     active=running or (not has_completed and job and job['operation'] in ('analyze','prepare') and job['status']!='completed')
     preview=read_json(Path(job_folder)/'analysis-preview.json') if active and job_folder else None
@@ -33,10 +35,12 @@ def analysis_view(root,job=None,job_folder=None,max_seconds=300):
         a=AnalysisArtifact.model_validate(preview['analysis'])
         if str(t.transcript_id)!=str(a.transcript_id):return empty
         complete=False;done=preview['completed_windows'];total=preview['total_windows']
-    elif path.exists():
-        a=AnalysisArtifact.model_validate_json(path.read_bytes());complete=a.complete
-        if a.transcript_id!=t.transcript_id or complete and set(a.covered_word_ids)!={w.id for w in t.words}:return empty
+    elif saved.value:
+        a=saved.value;complete=a.complete
+        if a.transcript_id!=t.transcript_id or complete and set(a.covered_word_ids)!={w.id for w in t.words}:
+            return {**empty,'state':'stale','diagnostic':'A análise salva não corresponde à transcrição atual. Gere a análise novamente; os arquivos anteriores foram preservados.'}
         done=total=len(a.responses)
+    elif saved.message:return {**empty,'state':saved.state,'diagnostic':saved.message}
     else:return empty
     words={w.id:w for w in t.words};order={w.id:i for i,w in enumerate(t.words)}
     groups={};topic_group={}

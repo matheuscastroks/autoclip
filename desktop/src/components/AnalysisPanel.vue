@@ -61,6 +61,9 @@ const analysisLabels: Record<string, string> = {
   failed: 'Análise precisa de atenção',
   cancelled: 'Análise cancelada',
   interrupted: 'Análise interrompida',
+  invalid: 'Análise salva inválida',
+  unavailable: 'Análise salva indisponível',
+  stale: 'Análise salva desatualizada',
 };
 const analysisStateLabel = computed(
   () => analysisLabels[props.analysis?.state || 'not_started'] || 'Estado da análise'
@@ -404,7 +407,8 @@ function choose(id: string) {
     </header>
 
     <!-- BANNER DE RETOMADA COM 1 CLIQUE SE ANÁLISE FOR PARCIAL -->
-    <div v-if="isPartial" class="analysis-resume-card" role="status">
+    <p v-if="analysis?.diagnostic" role="alert" class="subtle">{{ analysis.diagnostic }}</p>
+    <div v-else-if="isPartial" class="analysis-resume-card" role="status">
       <div class="resume-info">
         <strong
           >Análise parcial · {{ analysis?.completed_windows }} de
@@ -1435,7 +1439,9 @@ function choose(id: string) {
   padding: 6px 10px;
   color: var(--color-text-muted, var(--muted));
   flex-shrink: 0;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .search-proposals-wrap:focus-within {

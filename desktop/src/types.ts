@@ -29,6 +29,13 @@ export interface Project {
   updated_at: number;
   source: Source | null;
   error: { code: string; message: string } | null;
+  artifacts?: Record<
+    string,
+    {
+      state: 'available' | 'not_generated' | 'invalid' | 'unavailable' | 'stale';
+      message: string | null;
+    }
+  >;
 }
 export interface Config {
   asr_model_path: string;
@@ -196,6 +203,7 @@ export interface Proposal {
 export interface AnalysisView {
   schema_version: string;
   state: string;
+  diagnostic?: string | null;
   job_id: string | null;
   analysis_hash: string | null;
   model: string | null;

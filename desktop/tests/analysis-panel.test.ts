@@ -48,6 +48,21 @@ const view = {
     },
   ],
 };
+it('explains a damaged saved analysis and blocks generation', () => {
+  const diagnostic = 'Arquivo analysis.json inválido ou corrompido. Os dados foram preservados.';
+  const w = mount(AnalysisPanel, {
+    props: {
+      analysis: { ...view, state: 'invalid', diagnostic, analysis_hash: null, proposals: [] },
+      selection: null,
+      jobs: [],
+      sourceUrl: '',
+      busy: false,
+    },
+  });
+  expect(w.get('[role=alert]').text()).toBe(diagnostic);
+  expect(w.get('[data-action=generate-selected]').attributes('disabled')).toBeDefined();
+  w.unmount();
+});
 it('selects and removes the inspected proposal through the final step', async () => {
   const w = mount(AnalysisPanel, {
     props: { analysis: view, selection: null, jobs: [], sourceUrl: '', busy: false },
