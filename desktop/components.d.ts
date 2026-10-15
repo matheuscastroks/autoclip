@@ -13,6 +13,7 @@ declare module 'vue' {
     ApiKeyField: typeof import('./src/components/ApiKeyField.vue')['default']
     AppButton: typeof import('./src/components/AppButton.vue')['default']
     AppIcon: typeof import('./src/components/ui/AppIcon.vue')['default']
+    AppRail: typeof import('./src/components/layout/AppRail.vue')['default']
     AppSelect: typeof import('./src/components/AppSelect.vue')['default']
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
     ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']
@@ -31,10 +32,12 @@ declare module 'vue' {
     PipelinePanel: typeof import('./src/components/PipelinePanel.vue')['default']
     ProjectLibrary: typeof import('./src/components/ProjectLibrary.vue')['default']
     ProjectQueue: typeof import('./src/components/ProjectQueue.vue')['default']
+    ProjectTabs: typeof import('./src/components/layout/ProjectTabs.vue')['default']
     ProjectWorkspace: typeof import('./src/components/ProjectWorkspace.vue')['default']
     ProviderSelector: typeof import('./src/components/ProviderSelector.vue')['default']
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
+    WorkspaceHeader: typeof import('./src/components/layout/WorkspaceHeader.vue')['default']
   }
 }

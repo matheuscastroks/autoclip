@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import AppButton from './components/AppButton.vue';
+import AppRail from './components/layout/AppRail.vue';
+import WorkspaceHeader from './components/layout/WorkspaceHeader.vue';
+import type { ProjectTab } from './components/layout/ProjectTabs.vue';
 import AppIcon from './components/ui/AppIcon.vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
@@ -73,7 +76,8 @@ function closeEngineMenu() {
     engineMenu.value.querySelector<HTMLElement>('summary')?.focus();
   }
 }
-const page = ref('projects'),
+const projectTab = ref<ProjectTab>('overview');
+const page = ref<'projects' | 'settings'>('projects'),
   sourceUrl = ref(''),
   previewUrl = ref(''),
   initial = ref(true),
@@ -181,7 +185,7 @@ async function deleteClip(id: string) {
   const pid = project.value.id;
   await action('project:' + pid, async () => {
     await api.deleteClip(pid, id);
-    if (project.value?.id === pid) await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid, false);
   });
 }
 async function bulkDelete(ids: string[]) {
@@ -189,7 +193,7 @@ async function bulkDelete(ids: string[]) {
   const pid = project.value.id;
   await action('project:' + pid, async () => {
     await api.bulkDeleteClips(pid, ids);
-    if (project.value?.id === pid) await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid, false);
     notify.success('Cortes movidos para a lixeira.');
   });
 }
@@ -198,7 +202,7 @@ async function bulkExport(ids: string[]) {
   const pid = project.value.id;
   await action('project:' + pid, async () => {
     await api.bulkExportClips(pid, ids);
-    if (project.value?.id === pid) await openProject(pid);
+    if (project.value?.id === pid) await openProject(pid, false);
     notify.success('Cortes selecionados exportados.');
   });
 }
@@ -224,7 +228,7 @@ async function restore(id: string) {
     else if (project.value) await api.restoreClip(project.value.id, id);
     trashRows.value = trashRows.value.filter(r => r.id !== id);
     await refresh();
-    if (pid && project.value?.id === pid) await openProject(pid);
+    if (pid && project.value?.id === pid) await openProject(pid, false);
   });
 }
 
@@ -246,13 +250,19 @@ const { start: startPolling, stop: stopPolling } = usePolling(refresh, {
 });
 let refreshing = false;
 let generation = 0;
+let navigationGeneration = 0;
 const projectJobs = computed(() => jobs.value.filter(j => j.project_id === project.value?.id)),
   running = computed(() => jobs.value.some(j => active(j.status)));
-function navigate(destination: string) {
+function navigate(destination: 'projects' | 'settings') {
   if (engineMenu.value) engineMenu.value.open = false;
+  ++navigationGeneration;
+  page.value = destination;
+}
+function backToLibrary() {
   ++generation;
   project.value = null;
-  page.value = destination;
+  projectTab.value = 'overview';
+  navigate('projects');
 }
 async function refresh() {
   if (refreshing) return;
@@ -279,7 +289,7 @@ async function refresh() {
           ['completed', 'failed', 'cancelled', 'interrupted'].includes(j.status) &&
           previous.find(p => p.id === j.id)?.status !== j.status
       );
-      if (finished || available) await openProject(project.value.id);
+      if (finished || available) await openProject(project.value.id, false);
       else {
         const pid = project.value.id;
         const guard = generation;
@@ -299,15 +309,17 @@ async function refresh() {
     refreshing = false;
   }
 }
-async function openProject(id: string) {
+async function openProject(id: string, activate = true) {
   const same = project.value?.id === id;
   const prior = same ? selectedRevision.value : '';
   const current = ++generation;
+  const navigation = navigationGeneration;
   const detail = await api.project(id);
-  if (current !== generation) return;
+  if (current !== generation || (activate && navigation !== navigationGeneration)) return;
   project.value = detail;
-  page.value = 'projects';
+  if (activate) page.value = 'projects';
   if (!same) {
+    projectTab.value = 'overview';
     transcript.value = null;
     revisions.value = [];
     sourceUrl.value = '';
@@ -423,7 +435,7 @@ async function review(decision: Decision) {
     'project:' + pid,
     async () => {
       await api.decide(pid, decision);
-      if (project.value?.id === pid) await openProject(pid);
+      if (project.value?.id === pid) await openProject(pid, false);
     },
     decision.decision === 'approved' ? 'Corte aprovado para esta revisão.' : 'Corte rejeitado.'
   );
@@ -524,70 +536,33 @@ onUnmounted(() => {
 <template>
   <el-config-provider :locale="ptBr" size="default" :z-index="2000">
     <div class="app-shell">
-      <header class="global-header">
-        <a class="brand" href="#" @click.prevent="navigate('projects')">
-          <span class="brand-symbol"><AppIcon name="scissors" /></span>
-          <span>AutoClip</span>
-        </a>
-        <nav class="global-navigation" aria-label="Navegação principal">
-          <AppButton
-            class="nav-button"
-            :class="{ selected: page === 'projects' }"
-            :aria-current="page === 'projects' ? 'page' : undefined"
-            @click="navigate('projects')"
-          >
-            <AppIcon
-              name="projects"
-              size="sm"
-              :variant="page === 'projects' ? 'filled' : 'regular'"
-            />Projetos<span class="nav-badge">{{ projects.length }}</span>
-          </AppButton>
-          <AppButton
-            class="nav-button"
-            :class="{ selected: page === 'settings' }"
-            :aria-current="page === 'settings' ? 'page' : undefined"
-            @click="navigate('settings')"
-          >
-            <AppIcon
-              name="settings"
-              size="sm"
-              :variant="page === 'settings' ? 'filled' : 'regular'"
-            />Configurações
-          </AppButton>
-        </nav>
-        <div class="global-actions">
-          <AppButton
-            class="header-queue-btn button secondary small"
-            :class="{ active: activeJobsCount > 0 }"
-            title="Fila global de tarefas"
-            @click="showGlobalQueue = true"
-          >
-            <AppIcon name="queue" size="sm" />Fila<el-tag
-              v-if="activeJobsCount"
-              size="small"
-              type="primary"
-              effect="dark"
-              class="header-queue-badge"
-              >{{ activeJobsCount }}</el-tag
-            >
-          </AppButton>
-          <AppButton
-            class="button secondary small header-import-action"
-            @click="importProject"
-            :disabled="libraryBusy || createBusy || initial"
-            ><AppIcon name="folder-open" size="sm" />Importar projeto</AppButton
-          >
-          <AppButton
-            class="button primary small new-project-action"
-            @click="showCreate"
-            :disabled="libraryBusy || createBusy || initial"
-            ><AppIcon name="add" size="sm" />Novo projeto</AppButton
-          >
+      <AppRail
+        :active-page="page"
+        :active-jobs-count="activeJobsCount"
+        :engine-state="initial ? 'checking' : offline ? 'offline' : 'online'"
+        @navigate="navigate"
+        @open-queue="showGlobalQueue = true"
+      >
+        <template #engine>
           <details ref="engineMenu" class="engine-menu" @keydown.esc.prevent="closeEngineMenu">
-            <summary>
-              <span class="local-dot" :class="{ offline }"></span>
-              {{ offline ? 'Sem conexão' : 'Motor local' }}
-              <AppIcon name="engine" size="sm" />
+            <summary
+              :aria-label="
+                initial
+                  ? 'Motor local: conectando'
+                  : offline
+                    ? 'Motor local: sem conexão'
+                    : 'Motor local: conectado'
+              "
+              :title="
+                initial
+                  ? 'Conectando ao motor local'
+                  : offline
+                    ? 'Motor local sem conexão'
+                    : 'Motor local conectado'
+              "
+            >
+              <AppIcon name="engine" />
+              <span class="local-dot" :class="{ offline, checking: initial }"></span>
             </summary>
             <div class="engine-popover">
               <div class="sidebar-session">
@@ -620,8 +595,8 @@ onUnmounted(() => {
               </AppButton>
             </div>
           </details>
-        </div>
-      </header>
+        </template>
+      </AppRail>
 
       <main class="main-content" :class="{ 'project-main': project && page === 'projects' }">
         <div class="page-content" :class="{ 'project-page': project && page === 'projects' }">
@@ -630,6 +605,22 @@ onUnmounted(() => {
             <p>Abrindo seus projetos…</p>
           </div>
           <template v-else>
+            <WorkspaceHeader v-if="page === 'projects' && !project" title="Projetos">
+              <template #actions>
+                <AppButton
+                  class="button secondary small header-import-action"
+                  :disabled="libraryBusy || createBusy || initial"
+                  @click="importProject"
+                  ><AppIcon name="folder-open" size="sm" />Importar projeto</AppButton
+                >
+                <AppButton
+                  class="button primary small new-project-action"
+                  :disabled="libraryBusy || createBusy || initial"
+                  @click="showCreate"
+                  ><AppIcon name="add" size="sm" />Novo projeto</AppButton
+                >
+              </template>
+            </WorkspaceHeader>
             <!-- Painel Proeminente de Prontidão e Onboarding -->
             <section
               v-if="setupMissing && !project && page === 'projects'"
@@ -684,7 +675,7 @@ onUnmounted(() => {
 
             <Transition name="screen">
               <div
-                :key="project?.id || page"
+                :key="page === 'settings' ? page : project?.id || page"
                 class="screen-content"
                 :class="{ 'project-screen': project && page === 'projects' }"
               >
@@ -701,6 +692,7 @@ onUnmounted(() => {
                 <ProjectWorkspace
                   v-else-if="project"
                   :key="project.id"
+                  v-model:active-tab="projectTab"
                   :project="project"
                   :transcript="transcript"
                   :revisions="revisions"
@@ -715,7 +707,7 @@ onUnmounted(() => {
                   :selection="selection"
                   @render-final="start('render_final', { revision_ids: [$event] })"
                   @selection="saveSelection"
-                  @back="navigate('projects')"
+                  @back="backToLibrary"
                   @folder="openFolder"
                   @transcribe="start('transcribe')"
                   @analyze="showAnalysis"

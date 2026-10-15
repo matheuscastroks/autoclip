@@ -130,7 +130,7 @@ describe('review identity across refresh and failures', () => {
     const w = mount(App);
     await flushPromises();
     await w.get('[data-project-id=p]').trigger('click');
-    await w.get('nav button:nth-child(2)').trigger('click');
+    await w.get('[aria-label="Configurações"]').trigger('click');
     resolveProject(project);
     await flushPromises();
     expect(w.get('h1').text()).toBe('Configurações');
