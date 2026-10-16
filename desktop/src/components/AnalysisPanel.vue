@@ -111,6 +111,21 @@ const discardedTopicIds = computed(() =>
 const overlappingIds = computed(() =>
   proposals.value.filter(overlapsWithSelected).map(p => p.candidate_id)
 );
+const generationBlockedReason = computed(() => {
+  if (!complete.value) return 'Aguarde a conclusão da análise para gerar prévias.';
+  if (props.busy) return 'Aguarde a tarefa atual terminar.';
+  if (overlap.value) return 'Desmarque uma das propostas sobrepostas para continuar.';
+  if (!validSelection.value.length) return 'Selecione ao menos uma proposta elegível.';
+  return '';
+});
+
+function generatePreviews() {
+  if (generationBlockedReason.value) return;
+  emit('generate', {
+    analysis_hash: props.analysis!.analysis_hash!,
+    candidate_ids: [...validSelection.value],
+  });
+}
 
 function discard(id: string) {
   discardItem(id, props.analysis?.analysis_hash);
@@ -393,17 +408,9 @@ watch(current, value => {
       :count="validSelection.length"
       :duration-us="totalSelectedDurationUs"
       :conflict="overlap"
+      :blocked-reason="generationBlockedReason"
       :disabled="!complete || !validSelection.length || busy || overlap"
-      @generate="
-        complete &&
-        !busy &&
-        !overlap &&
-        validSelection.length &&
-        emit('generate', {
-          analysis_hash: analysis!.analysis_hash!,
-          candidate_ids: [...validSelection],
-        })
-      "
+      @generate="generatePreviews"
     />
     <ProposalInspectorDrawer
       v-model="drawerOpen"

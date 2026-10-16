@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import AppButton from './AppButton.vue';
 import TranscriptPanel from './TranscriptPanel.vue';
 import type {
   Project,
@@ -31,6 +32,7 @@ const props = defineProps<{
   loadMedia?: (asset: string) => Promise<string>;
   analysis?: AnalysisView | null;
   selection?: AnalysisSelection | null;
+  previewError?: string | null;
 }>();
 defineEmits<{
   back: [];
@@ -52,6 +54,7 @@ defineEmits<{
   retry: [value: { job_id: string; candidate_id: string }];
   bulkDelete: [ids: string[]];
   bulkExport: [ids: string[]];
+  dismissPreviewError: [];
 }>();
 
 const tab = defineModel<ProjectTab>('activeTab', { default: 'overview' });
@@ -111,6 +114,36 @@ const currentSelection = computed(() =>
         cuts: revisions.length,
       }"
     />
+
+    <section v-if="previewError" class="preview-failure" data-preview-failure role="alert">
+      <div class="preview-failure-copy">
+        <strong>Não foi possível gerar as prévias</strong>
+        <p>Revise a seleção na Análise ou tente novamente.</p>
+        <details>
+          <summary>Detalhes do erro</summary>
+          <p class="preview-failure-detail">{{ previewError }}</p>
+        </details>
+      </div>
+      <div class="preview-failure-actions">
+        <AppButton
+          class="button secondary"
+          data-action="retry-previews"
+          :disabled="busy || !currentSelection?.candidate_ids.length"
+          @click="
+            $emit('dismissPreviewError');
+            currentSelection &&
+              $emit('render', {
+                analysis_hash: currentSelection.analysis_hash!,
+                candidate_ids: [...currentSelection.candidate_ids],
+              });
+          "
+          >Tentar novamente</AppButton
+        >
+        <button type="button" class="text-button" @click="$emit('dismissPreviewError')">
+          Dispensar
+        </button>
+      </div>
+    </section>
 
     <div
       class="workspace-body"
@@ -204,3 +237,38 @@ const currentSelection = computed(() =>
     </div>
   </div>
 </template>
+<style scoped>
+.preview-failure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-block: 1px solid var(--color-border-subtle);
+}
+.preview-failure-copy {
+  min-width: 0;
+}
+.preview-failure-copy p,
+.preview-failure-detail {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-meta);
+}
+.preview-failure-copy details {
+  margin-top: 6px;
+  font-size: var(--font-size-meta);
+}
+.preview-failure-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .preview-failure {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

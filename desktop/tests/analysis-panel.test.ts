@@ -176,6 +176,14 @@ it('shows validated partial data without allowing generation', () => {
   });
   expect(w.text()).toContain('parcial');
   expect(w.get('[data-action=generate-selected]').attributes('disabled')).toBeDefined();
+  expect(w.get('[data-generation-blocked]').text()).toContain('conclusão da análise');
+});
+it('explains why preview generation is disabled before a proposal is selected', () => {
+  const w = mount(AnalysisPanel, {
+    props: { analysis: view, selection: null, jobs: [], sourceUrl: '', busy: false },
+  });
+  expect(w.get('[data-generation-blocked]').text()).toContain('Selecione ao menos uma proposta');
+  w.unmount();
 });
 it('keeps the topic and inspected proposal when partial analysis completes', async () => {
   const other = { ...proposal, candidate_id: 'other', title: 'Outra proposta' };

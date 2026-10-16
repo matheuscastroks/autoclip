@@ -2,7 +2,13 @@
 import AppButton from '../AppButton.vue';
 import AppIcon from '../ui/AppIcon.vue';
 import { time } from '../../format';
-defineProps<{ count: number; durationUs: number; disabled: boolean; conflict: boolean }>();
+defineProps<{
+  count: number;
+  durationUs: number;
+  disabled: boolean;
+  conflict: boolean;
+  blockedReason?: string;
+}>();
 defineEmits<{ generate: [] }>();
 </script>
 <template>
@@ -13,7 +19,12 @@ defineEmits<{ generate: [] }>();
           count === 1 ? '' : 's'
         }}</strong
       >
-      <p v-if="conflict" role="status">Revise propostas inválidas ou sobrepostas antes de gerar.</p>
+      <p v-if="conflict" role="status" data-generation-blocked>
+        Desmarque uma das propostas sobrepostas para continuar.
+      </p>
+      <p v-else-if="blockedReason" role="status" data-generation-blocked>
+        {{ blockedReason }}
+      </p>
       <p v-else>
         {{
           count

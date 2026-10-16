@@ -42,6 +42,7 @@ const showGlobalQueue = ref(false),
   hardwareProfile = ref<HardwareProfile | null>(null),
   onboardingDismissed = ref(false);
 const onboardingStarted = ref(false);
+const previewFailure = ref<{ projectId: string; message: string } | null>(null);
 watch(
   config,
   value => {
@@ -125,6 +126,10 @@ const deleteMode = ref<'trash' | 'permanent'>('trash');
 const deleteConfirmDialog = ref<HTMLDialogElement>();
 const libraryBusy = computed(() => isPending('library') || isPending('project-load'));
 const projectBusy = computed(() => isPending('project:' + project.value?.id));
+const projectPreviewError = computed(() => {
+  const failure = previewFailure.value;
+  return failure && failure.projectId === project.value?.id ? failure.message : null;
+});
 const createBusy = computed(() => isPending('create') || isPending('pick-video'));
 const deleteBusy = computed(() => isPending('project:' + projectToDelete.value?.id));
 const trashBusy = computed(() => isPending('trash'));
@@ -425,10 +430,23 @@ function showAnalysis() {
 async function start(operation: string, options: Record<string, unknown> = {}) {
   const pid = project.value?.id;
   if (!pid) return;
+  if (operation === 'preview') previewFailure.value = null;
   await action(
     'project:' + pid,
     async () => {
-      const queued = await api.start(pid, operation, options);
+      let queued;
+      try {
+        queued = await api.start(pid, operation, options);
+      } catch (error) {
+        if (operation === 'preview') {
+          previewFailure.value = {
+            projectId: pid,
+            message: error instanceof Error ? error.message : 'Erro inesperado ao gerar prévias.',
+          };
+        }
+        throw error;
+      }
+      if (operation === 'preview') previewFailure.value = null;
       if (operation === 'render' || operation === 'preview')
         notify.info(
           `${queued.enqueued_items || 0} prévia(s) enviada(s) · ${queued.ignored_ready || 0} pronta(s) e ${queued.ignored_queued || 0} já na fila, ignoradas.`
@@ -641,11 +659,12 @@ onUnmounted(() => {
             >
               <div class="readiness-info">
                 <span class="readiness-tag"
-                  ><AppIcon name="sparkle" size="sm" />Configuração do Estúdio AutoClip</span
+                  ><AppIcon name="sparkle" size="sm" />Preparação inicial</span
                 >
-                <h2>Prepare seu espaço de edição</h2>
+                <h2>Prepare o essencial para analisar</h2>
                 <p>
-                  Confira os recursos necessários antes de iniciar o processamento automático local.
+                  A transcrição, o processamento de vídeo e um serviço de análise precisam estar
+                  prontos antes de gerar propostas.
                 </p>
                 <div class="readiness-items">
                   <span :class="{ ready: config?.asr_available }">
@@ -653,8 +672,8 @@ onUnmounted(() => {
                     <AppIcon v-else name="warning" size="sm" />
                     {{
                       config?.asr_available
-                        ? 'Transcrição disponível (Whisper local)'
-                        : 'Localizar modelo Whisper'
+                        ? 'Transcrição local pronta'
+                        : 'Instalar recurso de transcrição'
                     }}
                   </span>
                   <span :class="{ ready: config?.tools_available }">
@@ -662,8 +681,8 @@ onUnmounted(() => {
                     <AppIcon v-else name="warning" size="sm" />
                     {{
                       config?.tools_available
-                        ? 'Processamento de vídeo pronto (FFmpeg)'
-                        : 'Localizar FFmpeg e ffprobe'
+                        ? 'Processamento de vídeo pronto'
+                        : 'Instalar recurso de vídeo'
                     }}
                   </span>
                   <span :class="{ ready: keyConfigured }">
@@ -682,7 +701,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <AppButton class="button primary" @click="navigate('settings')"
-                >Configurar processamento</AppButton
+                >Revisar configuração</AppButton
               >
             </section>
 
@@ -718,6 +737,8 @@ onUnmounted(() => {
                   :busy="projectBusy"
                   :analysis="analysis"
                   :selection="selection"
+                  :preview-error="projectPreviewError"
+                  @dismiss-preview-error="previewFailure = null"
                   @render-final="start('render_final', { revision_ids: [$event] })"
                   @selection="saveSelection"
                   @back="backToLibrary"
