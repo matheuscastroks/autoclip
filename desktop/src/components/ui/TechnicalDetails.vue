@@ -16,11 +16,14 @@ defineProps<{ title?: string }>();
 
 <style scoped>
 .technical-details {
-  border-top: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
   min-width: 0;
+  overflow: hidden;
 }
 summary {
-  padding: 16px 0;
+  padding: 14px 16px;
   cursor: pointer;
   color: var(--color-text-secondary);
   font-weight: 500;
@@ -30,7 +33,7 @@ summary {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 0 0 16px;
+  padding: 0 16px 16px;
   min-width: 0;
 }
 </style>

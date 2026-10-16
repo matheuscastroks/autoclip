@@ -495,11 +495,11 @@ onUnmounted(() => {
   overflow-y: auto;
   min-height: 0;
   background: var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-panel);
   width: 100%;
   max-width: 680px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: var(--shadow-floating);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -548,10 +548,10 @@ onUnmounted(() => {
 }
 
 .hardware-diagnosis-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -561,31 +561,35 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--color-action-primary);
-  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .diagnosis-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
+  gap: 16px 24px;
 }
 
 .diag-item {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 4px;
+  min-width: 0;
 }
 
 .diag-label {
   font-size: var(--font-size-meta);
   color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
 }
 
 .diag-val {
-  font-size: 0.85rem;
+  font-size: var(--font-size-body);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -615,9 +619,9 @@ onUnmounted(() => {
 }
 
 .tier-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
   padding: 0.85rem 1.1rem;
   text-align: left;
   cursor: pointer;
@@ -629,8 +633,8 @@ onUnmounted(() => {
 }
 
 .tier-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
 .tier-card.selected {
@@ -682,9 +686,9 @@ onUnmounted(() => {
 }
 
 .ffmpeg-option-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
   padding: 0.85rem 1.1rem;
 }
 
@@ -731,9 +735,9 @@ onUnmounted(() => {
 }
 
 .download-progress-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -763,7 +767,7 @@ onUnmounted(() => {
 .progress-bar-track {
   width: 100%;
   height: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-hover);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -811,9 +815,9 @@ onUnmounted(() => {
 }
 
 .api-key-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
@@ -826,8 +830,8 @@ onUnmounted(() => {
 }
 
 .pill-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
   padding: 0.35rem 0.85rem;
   border-radius: 6px;
@@ -857,7 +861,7 @@ onUnmounted(() => {
 .key-text-input {
   flex: 1;
   background: var(--color-canvas);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--color-border-control);
   border-radius: 6px;
   color: var(--color-text-primary);
   padding: 0.5rem 0.85rem;

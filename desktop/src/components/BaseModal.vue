@@ -124,7 +124,7 @@ onUnmounted(() => {
 }
 .base-modal-close-btn:hover {
   color: var(--ink, #ffffff);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-surface-hover, var(--soft));
 }
 .base-modal-body {
   padding: 16px 20px;
