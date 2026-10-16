@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue';
 import AppButton from './AppButton.vue';
+import AppSelect from './AppSelect.vue';
 import ClipPreviewDrawer from './ClipPreviewDrawer.vue';
+import AppIcon from './ui/AppIcon.vue';
 import { vRecoverMedia } from '../directives/recoverMedia';
 import type { Revision, Decision, Job, GenerationItem } from '../types';
+import { ElTooltip } from 'element-plus';
 import { time, labels, active, latestJob } from '../format';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import { isFinalAvailable, isExportable } from '../domain/revisionPresentation';
@@ -35,6 +38,18 @@ const emit = defineEmits<{
 }>();
 const filter = ref('all');
 const order = ref('recent');
+const filters = [
+  { id: 'all', label: 'Todos', icon: 'grid' },
+  { id: 'generation', label: 'Em geração', icon: 'spinner' },
+  { id: 'review', label: 'Para revisar', icon: 'eye' },
+  { id: 'approved', label: 'Aprovados', icon: 'check-circle' },
+  { id: 'exported', label: 'Exportados', icon: 'download' },
+] as const;
+const orderOptions = [
+  { value: 'recent', label: 'Mais recentes' },
+  { value: 'title', label: 'Título' },
+  { value: 'duration', label: 'Duração' },
+];
 const selected = ref('');
 const drawerOpen = ref(false);
 const deleteBlockedReason = computed(() =>
@@ -182,30 +197,26 @@ function finalLabel(r: Revision) {
       >
     </header>
     <div class="cuts-list-toolbar">
-      <div class="cuts-filters" aria-label="Filtrar cortes">
-        <button
-          v-for="[id, label] in [
-            ['all', 'Todos'],
-            ['generation', 'Em geração'],
-            ['review', 'Para revisar'],
-            ['approved', 'Aprovados'],
-            ['exported', 'Exportados'],
-          ]"
-          :key="id"
-          type="button"
-          class="cuts-filter-chip"
-          :class="{ selected: filter === id }"
-          :aria-pressed="filter === id"
-          @click="filter = id"
-        >
-          {{ label }}
-        </button>
+      <div class="cuts-filters" role="group" aria-label="Filtrar cortes">
+        <ElTooltip v-for="item in filters" :key="item.id" :content="item.label" placement="top">
+          <button
+            type="button"
+            class="cuts-filter-chip"
+            :class="{ selected: filter === item.id }"
+            :aria-label="item.label"
+            :aria-pressed="filter === item.id"
+            @click="filter = item.id"
+          >
+            <AppIcon :name="item.icon" size="sm" />
+          </button>
+        </ElTooltip>
       </div>
-      <select v-model="order" aria-label="Ordenar cortes">
-        <option value="recent">Mais recentes</option>
-        <option value="title">Título</option>
-        <option value="duration">Duração</option>
-      </select>
+      <AppSelect
+        v-model="order"
+        class="cuts-order-select"
+        label="Ordenar cortes"
+        :options="orderOptions"
+      />
       <AppButton class="cuts-trash" @click="$emit('deleted')">Lixeira</AppButton>
     </div>
     <div
@@ -220,18 +231,6 @@ function finalLabel(r: Revision) {
       ><AppButton :disabled="busy" @click="$emit('resume', renderJob.id)"
         >Continuar pendentes</AppButton
       >
-    </div>
-    <div v-if="bulk.length" class="bulk-actions">
-      <span>{{ bulk.length }} selecionado(s)</span>
-      <AppButton :disabled="!!deleteBlockedReason" @click="$emit('bulkDelete', [...bulk])"
-        >Excluir selecionados</AppButton
-      >
-      <AppButton
-        :disabled="busy || processing || !exportableBulk"
-        @click="$emit('bulkExport', [...bulk])"
-        >Exportar selecionados</AppButton
-      >
-      <AppButton @click="bulk = []">Limpar seleção</AppButton>
     </div>
     <div v-if="visibleRevisions.length || visibleGeneration.length" class="cuts-table-scroll">
       <table class="cuts-table" aria-label="Cortes disponíveis">
@@ -346,6 +345,20 @@ function finalLabel(r: Revision) {
         solicitar sua versão final.
       </p>
     </div>
+    <div class="bulk-actions-slot" :class="{ 'has-selection': bulk.length }" aria-live="polite">
+      <div v-if="bulk.length" class="bulk-actions">
+        <span>{{ bulk.length }} selecionado(s)</span>
+        <AppButton :disabled="!!deleteBlockedReason" @click="$emit('bulkDelete', [...bulk])"
+          >Excluir selecionados</AppButton
+        >
+        <AppButton
+          :disabled="busy || processing || !exportableBulk"
+          @click="$emit('bulkExport', [...bulk])"
+          >Exportar selecionados</AppButton
+        >
+        <AppButton @click="bulk = []">Limpar seleção</AppButton>
+      </div>
+    </div>
     <ClipPreviewDrawer
       v-model="drawerOpen"
       :revision="current"
@@ -402,31 +415,47 @@ function finalLabel(r: Revision) {
 }
 .cuts-filters {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface, var(--panel));
 }
 .cuts-filter-chip {
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   color: var(--muted);
   background: transparent;
-  padding: 7px 10px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
-  font-size: 12px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+.cuts-filter-chip:hover {
+  color: var(--ink);
+  background: var(--soft);
 }
 .cuts-filter-chip.selected {
   background: var(--soft);
   color: var(--ink);
   border-color: var(--line);
+  box-shadow: inset 0 -2px 0 var(--action-primary, var(--ink));
 }
-.cuts-list-toolbar select {
-  color: var(--color-text-secondary);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  padding: 6px;
-  font-size: 12px;
+.cuts-filter-chip:focus-visible {
+  outline: 2px solid var(--action-primary, var(--ink));
+  outline-offset: 2px;
+}
+.cuts-list-toolbar :deep(.cuts-order-select) {
   margin-left: auto;
+  width: 160px;
 }
 .cuts-table-scroll {
   min-height: 0;
@@ -463,8 +492,8 @@ function finalLabel(r: Revision) {
 }
 .cuts-table th:first-child,
 .cuts-table td:first-child {
-  width: 32px;
-  padding-left: 0;
+  width: 48px;
+  padding-left: 12px;
 }
 .cuts-table tr.clip-item {
   display: table-row;
@@ -496,6 +525,20 @@ function finalLabel(r: Revision) {
   width: 100%;
   height: 5px;
   margin-top: 6px;
+}
+.bulk-actions-slot {
+  flex: none;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  border-top: 1px solid transparent;
+}
+.bulk-actions-slot.has-selection {
+  border-top-color: var(--line);
+}
+.bulk-actions {
+  width: 100%;
+  min-height: 48px;
 }
 .bulk-actions,
 .render-resume-banner {
