@@ -345,7 +345,7 @@ function finalLabel(r: Revision) {
         solicitar sua versão final.
       </p>
     </div>
-    <div class="bulk-actions-slot" :class="{ 'has-selection': bulk.length }" aria-live="polite">
+    <div class="bulk-actions-slot" aria-live="polite">
       <div v-if="bulk.length" class="bulk-actions">
         <span>{{ bulk.length }} selecionado(s)</span>
         <AppButton :disabled="!!deleteBlockedReason" @click="$emit('bulkDelete', [...bulk])"
@@ -447,7 +447,6 @@ function finalLabel(r: Revision) {
   background: var(--soft);
   color: var(--ink);
   border-color: var(--line);
-  box-shadow: inset 0 -2px 0 var(--action-primary, var(--ink));
 }
 .cuts-filter-chip:focus-visible {
   outline: 2px solid var(--action-primary, var(--ink));
@@ -532,9 +531,6 @@ function finalLabel(r: Revision) {
   display: flex;
   align-items: center;
   border-top: 1px solid transparent;
-}
-.bulk-actions-slot.has-selection {
-  border-top-color: var(--line);
 }
 .bulk-actions {
   width: 100%;
