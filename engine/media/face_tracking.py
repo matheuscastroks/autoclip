@@ -80,7 +80,7 @@ def track_faces(source,edl,config,ffmpeg,*,cancelled=lambda:False,progress=None,
             root=Path(folder)
             for index,span in enumerate(edl.spans):
                 if cancelled():raise PipelineError('CANCELLED','reframe','Face tracking cancelled.')
-                duration=(span.output_end_us-span.output_start_us)/1e6
+                duration=(span.source_end_us-span.source_start_us)/1e6
                 pattern=root/f'{index}-%06d.jpg'
                 result=run_process([str(ffmpeg),'-nostdin','-v','error','-y','-threads','2','-ss',f'{seek_offset+span.source_start_us/1e6:.6f}','-i',str(source.local_path),'-map',f'0:{source.probe.get("video_stream_index",0)}','-t',f'{duration:.6f}','-vf',f'fps={config.sample_fps}:start_time=0:round=up,scale=640:-2','-threads','2',str(pattern)],cancelled=cancelled,capture_output=True,text=True,encoding='utf-8')
                 if result.returncode:raise PipelineError('REFRAME_FAILED','reframe','Could not decode face tracking frames.')
@@ -90,8 +90,10 @@ def track_faces(source,edl,config,ffmpeg,*,cancelled=lambda:False,progress=None,
                     continue # Short source spans can contain no decoded frame; interpolate safely.
                 for frame_index,frame in enumerate(frames):
                     if cancelled():raise PipelineError('CANCELLED','reframe','Face tracking cancelled.')
-                    t=span.output_start_us+round(frame_index/config.sample_fps*1e6)
+                    offset_us=round(frame_index/config.sample_fps*1e6*span.speed_den/span.speed_num)
+                    t=span.output_start_us+offset_us
                     if t>=span.output_end_us:break
+
                     image=mp.Image.create_from_file(str(frame))
                     detector_ms=max(detector_ms+1,t//1000)
                     result=detector.detect_for_video(image,detector_ms)

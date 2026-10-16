@@ -280,6 +280,9 @@ export interface Revision {
   can_render_final?: boolean | null;
   analysis_hash?: string | null;
   plan_hash?: string | null;
+  playback_speed?: string | null;
+  preset_id?: string | null;
+  style_id?: string | null;
   [key: string]: unknown;
 }
 

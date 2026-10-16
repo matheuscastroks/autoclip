@@ -16,6 +16,31 @@ LEGACY_PRESET_ALIASES: dict[str, PresetId] = {
     'karaoke': 'karaoke_yellow',
 }
 
+PlaybackSpeed = Literal['1x', '1.25x', '1.5x']
+DEFAULT_PLAYBACK_SPEED: PlaybackSpeed = '1x'
+PLAYBACK_SPEED_RATIONAL: dict[PlaybackSpeed, tuple[Literal[1, 5, 3], Literal[1, 4, 2]]] = {
+    '1x': (1, 1),
+    '1.25x': (5, 4),
+    '1.5x': (3, 2),
+}
+
+
+def validate_playback_speed(value: str | None) -> PlaybackSpeed:
+    """Strictly validate that value is one of the 3 supported playback speeds."""
+    if not value:
+        return DEFAULT_PLAYBACK_SPEED
+    if value not in PLAYBACK_SPEED_RATIONAL:
+        raise ValueError(f'Invalid playback speed: {value!r}. Supported speeds: 1x, 1.25x, 1.5x')
+    return value  # type: ignore[return-value]
+
+
+def speed_ratio_to_label(speed_num: int, speed_den: int) -> PlaybackSpeed:
+    for label, (num, den) in PLAYBACK_SPEED_RATIONAL.items():
+        if num == speed_num and den == speed_den:
+            return label
+    return '1x'
+
+
 
 @dataclass(frozen=True)
 class CaptionStyleSpec:

@@ -19,9 +19,17 @@ class FFmpegRenderer:
         filters=[];inputs=[]
         for i,span in enumerate(edl.spans):
             start=origin+span.source_start_us/1e6;end=origin+span.source_end_us/1e6
-            filters.append(f'[0:{vf}]fps={fps}:start_time={origin:.6f},trim=start={start:.6f}:end={end:.6f},setpts=PTS-{start:.6f}/TB[v{i}]')
-            filters.append(f'[0:{af}]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-{start:.6f}/TB,aresample=48000:async=1:first_pts=0,apad,atrim=duration={(span.output_end_us-span.output_start_us)/1e6:.6f}[a{i}]')
+            s_num=getattr(span,'speed_num',1);s_den=getattr(span,'speed_den',1)
+            out_dur=(span.output_end_us-span.output_start_us)/1e6
+            if s_num==1 and s_den==1:
+                filters.append(f'[0:{vf}]fps={fps}:start_time={origin:.6f},trim=start={start:.6f}:end={end:.6f},setpts=PTS-{start:.6f}/TB[v{i}]')
+                filters.append(f'[0:{af}]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-{start:.6f}/TB,aresample=48000:async=1:first_pts=0,apad,atrim=duration={out_dur:.6f}[a{i}]')
+            else:
+                tempo=f'{s_num/s_den:g}'
+                filters.append(f'[0:{vf}]fps={fps}:start_time={origin:.6f},trim=start={start:.6f}:end={end:.6f},setpts=(PTS-{start:.6f}/TB)*{s_den}/{s_num}[v{i}]')
+                filters.append(f'[0:{af}]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-{start:.6f}/TB,aresample=48000:async=1:first_pts=0,atempo={tempo},apad,atrim=duration={out_dur:.6f}[a{i}]')
             inputs.append(f'[v{i}][a{i}]')
+
         filters.append(''.join(inputs)+f'concat=n={len(edl.spans)}:v=1:a=1[vbase][aout]')
         x=f'(iw-{width})/2'
         if crop.mode=='face-track':

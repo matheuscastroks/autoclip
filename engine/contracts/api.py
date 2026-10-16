@@ -202,6 +202,10 @@ class Revision(Response):
     can_render_final: bool | None = None
     analysis_hash: str | None = None
     plan_hash: str | None = None
+    playback_speed: str | None = None
+    preset_id: str | None = None
+    style_id: str | None = None
+
 
 
 class Proposal(Response):

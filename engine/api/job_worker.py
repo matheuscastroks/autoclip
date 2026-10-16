@@ -25,10 +25,14 @@ def configure_analysis_requests(config,transcript,settings,folder):
 def pipeline_config(settings,root):
     ai_provider = settings.get('ai_provider', 'gemini')
     model = settings.get('openrouter_model', 'openrouter/free') if ai_provider == 'openrouter' else settings['gemini_model']
+    video_preset = settings.get('video_preset', 'karaoke_yellow')
+    playback_speed = settings.get('playback_speed', '1x')
     return PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),
         analysis=AnalysisConfig(model=model,max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',180),clip_max_seconds=settings.get('clip_max_seconds',300),show_thought_summaries=settings.get('show_thought_summaries',True)),
         selection=SelectionConfig(),pauses=PauseConfig(enabled=settings.get('pause_mode','conservative')=='conservative'),
-        export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
+        captions=CaptionConfig(preset_id=video_preset),
+        export=ExportConfig(output_root=root/'previews',playback_speed=playback_speed),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
+
 
 def make_analyzer(settings,root,folder,config):
     budget=RequestBudget(folder/'budget.sqlite',config.analysis.max_calls)

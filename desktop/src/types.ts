@@ -29,7 +29,10 @@ export interface Config {
   ai_provider?: 'gemini' | 'openrouter';
   openrouter_model?: string;
   openrouter_key_configured?: boolean;
+  video_preset?: 'karaoke_yellow' | 'editorial_sober' | 'documentary' | 'impact';
+  playback_speed?: '1x' | '1.25x' | '1.5x';
 }
+
 export interface GeminiModel {
   id: string;
   name: string;

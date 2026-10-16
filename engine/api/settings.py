@@ -30,7 +30,9 @@ class Settings:
         values={'asr_model_path':str(self.workspace/'research/models/whisper-small'),'gemini_model':'gemini-2.5-flash',
             'max_calls':10,'window_seconds':600,'max_text_chars':60000,'ffmpeg':str(ffmpeg),'ffprobe':str(ffprobe),
             'clip_preferred_seconds':180,'clip_max_seconds':300,'clip_policy_version':2,'pause_mode':'conservative','show_thought_summaries':True,
-            'ai_provider':'gemini','openrouter_model':'openrouter/free'}
+            'ai_provider':'gemini','openrouter_model':'openrouter/free',
+            'video_preset':'karaoke_yellow','playback_speed':'1x'}
+
         saved=read_json(self.path,{}) or {}
         values.update(saved)
         if not (values.get('ffmpeg') and Path(values['ffmpeg']).is_file() and values.get('ffprobe') and Path(values['ffprobe']).is_file()) and ffmpeg.is_file() and ffprobe.is_file():

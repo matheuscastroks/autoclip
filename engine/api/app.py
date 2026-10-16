@@ -30,11 +30,15 @@ class AppConfig(Input):
     show_thought_summaries:bool=True
     ai_provider:Literal['gemini','openrouter']='gemini'
     openrouter_model:str=Field(default='openrouter/free',min_length=1,max_length=120)
+    video_preset:Literal['karaoke_yellow','editorial_sober','documentary','impact']='karaoke_yellow'
+    playback_speed:Literal['1x','1.25x','1.5x']='1x'
+
     openrouter_key_configured:bool|None=Field(default=None,exclude=True)
     gemini_key_configured:bool|None=Field(default=None,exclude=True)
     asr_available:bool|None=Field(default=None,exclude=True)
     tools_available:bool|None=Field(default=None,exclude=True)
     schema_version:str|None=Field(default=None,exclude=True)
+
 
     @model_validator(mode='after')
     def durations(self):

@@ -143,19 +143,25 @@ class CandidateArtifact(Contract):
     rejected: list[dict] = Field(default_factory=list)
 
 
+PlaybackSpeed = Literal['1x', '1.25x', '1.5x']
+
+
 class Span(Contract):
     source_start_us: int = Field(ge=0)
     source_end_us: int = Field(gt=0)
     output_start_us: int = Field(ge=0)
     output_end_us: int = Field(gt=0)
-    speed_num: Literal[1] = 1
-    speed_den: Literal[1] = 1
+    speed_num: Literal[1, 5, 3] = 1
+    speed_den: Literal[1, 4, 2] = 1
 
     @model_validator(mode='after')
     def valid_span(self):
         if self.source_end_us <= self.source_start_us or self.output_end_us <= self.output_start_us:
             raise ValueError('invalid span')
-        if self.source_end_us-self.source_start_us != self.output_end_us-self.output_start_us:
+        if (self.speed_num, self.speed_den) not in ((1, 1), (5, 4), (3, 2)):
+            raise ValueError('invalid speed ratio')
+        expected = (self.source_end_us - self.source_start_us) * self.speed_den // self.speed_num
+        if self.output_end_us - self.output_start_us != max(1, expected):
             raise ValueError('span duration mismatch')
         return self
 
@@ -165,22 +171,42 @@ class EDLArtifact(Contract):
     source_id: UUID
     transcript_id: UUID
     policy: Literal['continuous_selection_with_verified_pause_removal'] = 'continuous_selection_with_verified_pause_removal'
+    playback_speed: PlaybackSpeed = '1x'
     spans: list[Span]
     removed: list[dict] = Field(default_factory=list)
     protected_word_ids: list[str]
     duration_us: int = Field(gt=0)
     warnings: list[str] = Field(default_factory=list)
 
+    @model_validator(mode='before')
+    @classmethod
+    def _sync_speed_before(cls, value):
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        spans = data.get('spans') or []
+        if spans and isinstance(spans[0], dict) and 'playback_speed' not in data:
+            num = spans[0].get('speed_num', 1)
+            den = spans[0].get('speed_den', 1)
+            from engine.render.presets import speed_ratio_to_label
+            data['playback_speed'] = speed_ratio_to_label(num, den)
+        return data
+
     @model_validator(mode='after')
     def valid_timeline(self):
         cursor, source_end = 0, 0
+        from engine.render.presets import PLAYBACK_SPEED_RATIONAL
+        expected_ratio = PLAYBACK_SPEED_RATIONAL.get(self.playback_speed, (1, 1))
         for span in self.spans:
             if span.output_start_us != cursor or span.source_start_us < source_end:
                 raise ValueError('timeline gap/overlap/order')
+            if (span.speed_num, span.speed_den) != expected_ratio:
+                raise ValueError('span speed does not match EDL playback_speed')
             cursor, source_end = span.output_end_us, span.source_end_us
         if cursor != self.duration_us:
             raise ValueError('timeline duration mismatch')
         return self
+
 
 
 class CropPoint(Contract):
@@ -455,6 +481,7 @@ class ExportConfig(Contract):
     fps_num: Literal[30] = 30
     fps_den: Literal[1] = 1
     crf: int = Field(default=20, ge=0, le=51)
+    playback_speed: PlaybackSpeed = '1x'
     output_root: Path
     profile: RenderProfile = FINAL_PROFILE
 

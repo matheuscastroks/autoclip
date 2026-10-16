@@ -70,10 +70,12 @@ def list_revisions(root:Path):
             result.append({'revision_id':rid,'candidate_id':str(candidate.id),'exported':exported,'title':candidate.title_suggestion or 'Corte','rationale':candidate.rationale,'description':publication_description(candidate.description_suggestion,candidate.title_suggestion),'opening_text':caps.opening_text,'opening_duration_us':caps.opening_duration_us,
                 'technical_pass':technical,'review_status':status,'duration_us':edl.duration_us,'start_us':edl.spans[0].source_start_us,
                 'end_us':edl.spans[-1].source_end_us,'caption_words':[w.model_dump(mode='json') for w in caps.words],
+                'playback_speed':getattr(edl,'playback_speed','1x'),'preset_id':getattr(caps,'style_id','karaoke_yellow'),'style_id':getattr(caps,'style_id','karaoke_yellow'),
                 'warnings':warnings,'content_hash':fingerprint,'notes':decision.notes if decision else '',
                 'removed_silence_us':sum(r['source_end_us']-r['source_start_us'] for r in edl.removed),
                 'pause_removals':edl.removed,'preview':preview,'final_state':final_state,
                 'can_render_final':can_render_final,'analysis_hash':prepared.get('analysis_hash'),'plan_hash':prepared.get('plan_hash')})
+
         except (OSError,ValueError,PipelineError,HTTPException):
             preview=preview_version(root,folder,rid) if folder else {'state':'invalid'}
             result.append({'revision_id':rid,'title':'Corte com preparação indisponível','technical_pass':False,'review_status':'invalid','warnings':['A preparação está inválida ou incompleta. A prévia preservada pode ser reproduzida, mas não gerar ou aprovar um final.'],'final_state':'invalid','preview':preview,'can_render_final':False,'duration_us':preview.get('duration_us')})
