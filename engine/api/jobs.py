@@ -13,13 +13,13 @@ ACTIVE=('running','pending','cancelling')
 
 def render_recipe(settings):
     from engine.pipeline.fingerprints import stage_dependencies,ROOT,safe_file_hash
-    keys=('clip_max_seconds','pause_mode','ffmpeg','ffprobe')
+    keys=('pause_mode','ffmpeg','ffprobe')
     return object_hash({'settings':{k:settings.get(k) for k in keys},'stages':{stage:stage_dependencies(stage) for stage in ('edit_plan','captions','reframe','render','verify')},'contracts':safe_file_hash(ROOT/'engine/contracts/models.py')})
 
 def legacy_render_compatible(request,job,settings):
     """Adopt old recipes only when their settings and implementation still match."""
     from engine.pipeline.fingerprints import FILES,ROOT
-    keys=('clip_max_seconds','pause_mode','ffmpeg','ffprobe')
+    keys=('pause_mode','ffmpeg','ffprobe')
     if any(request.get('settings',{}).get(k)!=settings.get(k) for k in keys):return False
     files={name for stage in ('edit_plan','captions','reframe','render','verify') for name in FILES[stage]}|{'engine/contracts/models.py'}
     try:return datetime.fromisoformat(job['created_at']).timestamp()>=max((ROOT/name).stat().st_mtime for name in files)

@@ -11,17 +11,27 @@ class StageCache:
     def run(self,stage:str,inputs:dict,producer,model):
         key=object_hash({'stage':stage,'schema_version':'1.0','inputs':inputs})
         path=confined(self.root,f'stages/{stage}/{key}.json')
-        if path.is_file():
-            try:
-                saved=json.loads(path.read_text(encoding='utf-8'))
-                if saved['status']=='completed':
-                    ref=ArtifactRef.model_validate(saved['artifact'])
-                    result=read_artifact(ref,self.root,model)
-                    for output in saved.get('files',[]):
-                        f=Path(output['path'])
-                        if not f.is_relative_to(self.root) or file_hash(f)!=output['sha256']: raise ValueError('missing/corrupt output file')
-                    self.reused.append(stage);return result
-            except (ValueError,KeyError,OSError,PipelineError): pass
+        candidates=[path]
+        if stage=='analyze' and not path.is_file() and (self.root/'stages/analyze').is_dir():
+            for existing in (self.root/'stages/analyze').glob('*.json'):
+                try:
+                    raw=json.loads(existing.read_text(encoding='utf-8'))
+                    old_inputs=dict(raw.get('inputs') or {})
+                    old_cfg={k:v for k,v in (old_inputs.get('config') or {}).items() if k not in ('clip_min_seconds','clip_preferred_seconds','clip_max_seconds')}
+                    if {**old_inputs,'config':old_cfg}==inputs:candidates.append(existing)
+                except (ValueError,KeyError,OSError):pass
+        for candidate_path in candidates:
+            if candidate_path.is_file():
+                try:
+                    saved=json.loads(candidate_path.read_text(encoding='utf-8'))
+                    if saved['status']=='completed':
+                        ref=ArtifactRef.model_validate(saved['artifact'])
+                        result=read_artifact(ref,self.root,model)
+                        for output in saved.get('files',[]):
+                            f=Path(output['path'])
+                            if not f.is_relative_to(self.root) or file_hash(f)!=output['sha256']: raise ValueError('missing/corrupt output file')
+                        self.reused.append(stage);return result
+                except (ValueError,KeyError,OSError,PipelineError): pass
         started=time.monotonic()
         atomic_json(path,{'schema_version':'1.0','stage':stage,'cache_key':key,'status':'running','inputs':inputs})
         try:

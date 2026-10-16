@@ -130,12 +130,12 @@ class OpenRouterAnalyzer:
             
         prompt = (Path(__file__).resolve().parents[2] / 'prompts/analysis_v1.txt').read_text(encoding='utf-8')
         prompt = prompt.replace('{MIN_SECONDS}', str(config.clip_min_seconds)).replace('{MAX_SECONDS}', str(config.clip_max_seconds)).replace('{PREFERRED_SECONDS}', str(config.clip_preferred_seconds))
-        prompt += '\nNão encerre um argumento no meio. Se a conclusão exigir mais que o máximo, não proponha esse corte. Resumos de análise devem estar em português brasileiro.'
+        prompt += '\nNão encerre um argumento no meio; priorize a conclusão completa mesmo que o trecho fique menor ou maior que a duração preferida. Resumos de análise devem estar em português brasileiro.'
         global_text = ' '.join(w.text for w in transcript.words)
         prompt += '\n<CONTEXTO_GLOBAL>\n' + global_text + '\n</CONTEXTO_GLOBAL>'
         
         topics = []; candidates = []; covered = set(); hashes = []; responses = []; calls = 0
-        windows = build_windows(transcript, max(config.window_seconds, config.clip_max_seconds * 2) if config.clip_min_seconds >= 60 else config.window_seconds, config.max_text_chars, overlap_seconds=config.clip_max_seconds if config.clip_min_seconds >= 60 else 30)
+        windows = build_windows(transcript, config.window_seconds, config.max_text_chars, overlap_seconds=300 if config.window_seconds >= 600 else 30)
         
         runtime = {'analyzer': file_hash(Path(__file__)), 'worker': file_hash(Path(__file__).with_name('request_worker.py')), 'schema': GeminiResponse.model_json_schema(), 'policy': 2}
         identity = {'transcript': object_hash(transcript), 'model': config.model, 'prompt': object_hash(prompt), 'provider': 'openrouter'}
@@ -266,8 +266,8 @@ class OpenRouterAnalyzer:
         from engine.contracts import SelectionConfig
         topic_labels = {t.id: ' '.join(t.label.casefold().split()) for t in topics}
         distinct = []; seen_topics = set()
-        full = AnalysisArtifact(transcript_id=transcript.transcript_id, topics=topics, candidates=candidates, clip_min_seconds=config.clip_min_seconds, complete=True, covered_word_ids=sorted(covered), model=config.model, prompt_hash=object_hash(prompt), payload_hashes=hashes, responses=responses)
-        valid = select_candidates(full, transcript, SelectionConfig(min_us=config.clip_min_seconds * 1_000_000, max_us=config.clip_max_seconds * 1_000_000, max_clips=10)).candidates
+        full = AnalysisArtifact(transcript_id=transcript.transcript_id, topics=topics, candidates=candidates,clip_min_seconds=config.clip_min_seconds, complete=True, covered_word_ids=sorted(covered), model=config.model, prompt_hash=object_hash(prompt), payload_hashes=hashes, responses=responses)
+        valid = select_candidates(full, transcript, SelectionConfig(max_clips=10)).candidates
         for candidate in valid:
             label = topic_labels.get(candidate.topic_id, candidate.topic_id)
             if label in seen_topics:

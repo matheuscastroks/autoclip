@@ -15,7 +15,7 @@ from engine.adapters.openshorts.windows import build_windows
 def configure_analysis_requests(config,transcript,settings,folder):
     if not settings.get('automatic_calls',False):return
     if not transcript.words:raise PipelineError('NO_SPEECH','analyze','Não há fala transcrita para analisar.')
-    windows=len(build_windows(transcript,max(config.analysis.window_seconds,config.analysis.clip_max_seconds*2) if config.analysis.clip_min_seconds>=60 else config.analysis.window_seconds,config.analysis.max_text_chars,overlap_seconds=config.analysis.clip_max_seconds if config.analysis.clip_min_seconds>=60 else 30))
+    windows=len(build_windows(transcript,config.analysis.window_seconds,config.analysis.max_text_chars,overlap_seconds=300 if config.analysis.window_seconds>=600 else 30))
     # Each window allows two transport attempts, plus one JSON repair with two attempts.
     # This covers every existing execution path without unlimited retries on permanent failures.
     config.analysis.max_calls=max(1,windows*4)
@@ -26,8 +26,8 @@ def pipeline_config(settings,root):
     ai_provider = settings.get('ai_provider', 'gemini')
     model = settings.get('openrouter_model', 'openrouter/free') if ai_provider == 'openrouter' else settings['gemini_model']
     return PipelineConfig(asr=ASRConfig(model_path=Path(settings['asr_model_path'])),
-        analysis=AnalysisConfig(clip_min_seconds=60,model=model,max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',180),clip_max_seconds=settings.get('clip_max_seconds',300),show_thought_summaries=settings.get('show_thought_summaries',True)),
-        selection=SelectionConfig(max_us=settings.get('clip_max_seconds',300)*1_000_000),pauses=PauseConfig(enabled=settings.get('pause_mode','conservative')=='conservative'),
+        analysis=AnalysisConfig(model=model,max_calls=settings['max_calls'],window_seconds=settings['window_seconds'],max_text_chars=settings['max_text_chars'],clip_preferred_seconds=settings.get('clip_preferred_seconds',180),clip_max_seconds=settings.get('clip_max_seconds',300),show_thought_summaries=settings.get('show_thought_summaries',True)),
+        selection=SelectionConfig(),pauses=PauseConfig(enabled=settings.get('pause_mode','conservative')=='conservative'),
         export=ExportConfig(output_root=root/'previews'),ffmpeg=Path(settings['ffmpeg']),ffprobe=Path(settings['ffprobe']))
 
 def make_analyzer(settings,root,folder,config):

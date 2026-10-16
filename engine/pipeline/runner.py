@@ -78,7 +78,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         atomic_json(root/'transcript.json',transcript);state.transcript_path=root/'transcript.json';atomic_json(state_path,state)
         if stop_after=='transcribe':
             state.status='transcribed';atomic_json(state_path,state);return state
-        semantic={'clip_min_seconds':config.analysis.clip_min_seconds,'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars,'clip_preferred_seconds':config.analysis.clip_preferred_seconds,'clip_max_seconds':config.analysis.clip_max_seconds,'show_thought_summaries':config.analysis.show_thought_summaries}
+        semantic={'model':config.analysis.model,'prompt_version':config.analysis.prompt_version,'window_seconds':config.analysis.window_seconds,'max_text_chars':config.analysis.max_text_chars,'show_thought_summaries':config.analysis.show_thought_summaries}
         if precomputed_analysis is not None:
             if stop_after not in ('render','preview') or not precomputed_analysis.complete or precomputed_analysis.transcript_id!=transcript.transcript_id or set(precomputed_analysis.covered_word_ids)!={w.id for w in transcript.words}:
                 raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Existing analysis must cover the complete current transcript for rendering.')
@@ -91,8 +91,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
         atomic_json(root/'analysis.json',analysis)
         if stop_after=='analyze':
             state.status='analyzed';atomic_json(state_path,state);return state
-        config.selection=config.selection.model_copy(update={'min_us':analysis.clip_min_seconds*1_000_000})
-        if candidate_ids is not None and analysis.clip_min_seconds>=60 and len(candidate_ids)>10:raise PipelineError('INVALID_SELECTION','select','Select at most 10 topic clips.')
+        if candidate_ids is not None and len(candidate_ids)>config.selection.max_clips:raise PipelineError('INVALID_SELECTION','select','Select at most 10 topic clips.')
         if candidate_ids is not None and analysis_hash!=object_hash(analysis):raise PipelineError('STALE_ANALYSIS','select','Analysis changed; reselect proposals.')
         candidates=stage('select',{'analysis':object_hash(analysis),'selection':candidate_ids,'config':config.selection.model_dump(mode='json'),'runtime':stage_dependencies('select')},lambda:validate_explicit_candidates(analysis,transcript,config.selection,candidate_ids) if candidate_ids is not None else select_candidates(analysis,transcript,config.selection),CandidateArtifact)
         atomic_json(root/'candidates.json',candidates);state.candidates_path=root/'candidates.json'

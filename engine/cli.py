@@ -78,7 +78,7 @@ def main(argv=None):
                 elif requested!=source.local_path or file_hash(requested)!=source.sha256:
                     raise PipelineError('SOURCE_CHANGED','run','Use a new project for a changed source.')
             else:source=import_source(a.source,root)
-            config=PipelineConfig(asr=ASRConfig(model_path=a.asr_model.resolve()),analysis=AnalysisConfig(clip_min_seconds=60,model=a.model,max_calls=a.max_calls,offline=a.offline,clip_preferred_seconds=a.preferred_seconds,clip_max_seconds=a.max_clip_seconds),selection=SelectionConfig(max_us=a.max_clip_seconds*1_000_000),pauses=PauseConfig(enabled=a.shorten_pauses),export=ExportConfig(output_root=root/'previews'),ffmpeg=ffmpeg,ffprobe=ffprobe)
+            config=PipelineConfig(asr=ASRConfig(model_path=a.asr_model.resolve()),analysis=AnalysisConfig(model=a.model,max_calls=a.max_calls,offline=a.offline,clip_preferred_seconds=a.preferred_seconds,clip_max_seconds=a.max_clip_seconds),selection=SelectionConfig(),pauses=PauseConfig(enabled=a.shorten_pauses),export=ExportConfig(output_root=root/'previews'),ffmpeg=ffmpeg,ffprobe=ffprobe)
             from engine.adapters.gemini.analyzer import GeminiAnalyzer
             analyzer=GeminiAnalyzer(work_root=root/'work',events_path=root/'analysis-events.jsonl')
             state=run_project(source,config,root,analyzer=analyzer);print(f'Project: {root}\nStatus: {state.status}')

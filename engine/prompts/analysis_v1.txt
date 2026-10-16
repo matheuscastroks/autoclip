@@ -6,8 +6,8 @@ Selecione somente pensamentos completos, autônomos e informativos, com premissa
 Preserve negações, números, autoria, condicionais e ressalvas relevantes, inclusive posteriores.
 Uma frase impactante sem sua ressalva é um corte inadequado. Examine o contexto antes e depois.
 Não reescreva falas, não preveja viralidade e não emita comandos, ferramentas ou timestamps.
-Use exclusivamente IDs de palavras presentes na janela. Cada proposta deve conter {MIN_SECONDS}–{MAX_SECONDS} segundos; prefira cerca de {PREFERRED_SECONDS} segundos;
-o motor verificará a duração medida. Proponha os trechos distintos que atendam aos critérios, sem quantidade mínima obrigatória.
+Use exclusivamente IDs de palavras presentes na janela. Use cerca de {PREFERRED_SECONDS} segundos (com referência de até {MAX_SECONDS} segundos) apenas como objetivo editorial de duração, nunca como corte rígido; priorize sempre argumentos completos, com premissa, desenvolvimento e conclusão.
+Se um raciocínio completo se fechar em menos tempo ou precisar se estender além da duração preferida para não cortar a conclusão ou ressalvas, preserve o argumento inteiro. Proponha os trechos distintos que atendam aos critérios, sem quantidade mínima obrigatória.
 Retorne zero candidatos se faltar sentido completo. Flags editoriais podem ser uncertain, nunca invente certeza.
 Descreva temas com evidências; para cada candidato informe topic_id, start_word_id, end_word_id,
 evidence_word_ids, rationale, context_before_word_ids, context_after_word_ids,

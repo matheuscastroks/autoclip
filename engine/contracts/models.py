@@ -328,9 +328,15 @@ class AnalysisConfig(Contract):
         return self
 
 
+TECHNICAL_CLIP_MIN_SECONDS = 20
+TECHNICAL_CLIP_MAX_SECONDS = 600
+TECHNICAL_CLIP_MIN_US = TECHNICAL_CLIP_MIN_SECONDS * 1_000_000
+TECHNICAL_CLIP_MAX_US = TECHNICAL_CLIP_MAX_SECONDS * 1_000_000
+
+
 class SelectionConfig(Contract):
-    min_us: int = Field(default=20_000_000, gt=0)
-    max_us: int = Field(default=60_000_000, gt=0, le=300_000_000)
+    min_us: int = Field(default=TECHNICAL_CLIP_MIN_US, gt=0)
+    max_us: int = Field(default=TECHNICAL_CLIP_MAX_US, gt=0, le=TECHNICAL_CLIP_MAX_US)
     max_clips: int = Field(default=10, ge=1, le=10)
 
     @model_validator(mode='after')
