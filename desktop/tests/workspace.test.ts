@@ -94,7 +94,7 @@ describe('workspace interactions', () => {
     await flushPromises();
     await w
       .findAll('.cuts-filters button')
-      .find(b => b.text() === 'Aprovados')!
+      .find(b => b.attributes('aria-label') === 'Aprovados')!
       .trigger('click');
     await w.setProps({ selectedRevision: 'b', mediaUrl: '/b.mp4' });
     expect(w.get('.preview-label').text()).toBe('Aprovada');

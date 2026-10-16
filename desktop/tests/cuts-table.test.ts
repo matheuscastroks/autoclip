@@ -61,6 +61,8 @@ it('separates final availability from editorial status and never exports an inva
     },
   });
   try {
+    expect(w.get('.cuts-filter-label').text()).toBe('Filtrar');
+    expect(w.get('.cuts-filters').attributes('aria-label')).toBe('Filtrar cortes');
     expect((w.get('.cuts-table-heading button').element as HTMLButtonElement).disabled).toBe(true);
     await w.get('input[aria-label="Selecionar corte: Corte"]').setValue(true);
     const bulkExport = w
@@ -69,12 +71,12 @@ it('separates final availability from editorial status and never exports an inva
     expect((bulkExport.element as HTMLButtonElement).disabled).toBe(true);
     await w
       .findAll('.cuts-filter-chip')
-      .find(b => b.text() === 'Aprovados')!
+      .find(b => b.attributes('aria-label') === 'Aprovados')!
       .trigger('click');
     expect(w.find('tbody tr.clip-item').exists()).toBe(false);
     await w
       .findAll('.cuts-filter-chip')
-      .find(b => b.text() === 'Todos')!
+      .find(b => b.attributes('aria-label') === 'Todos')!
       .trigger('click');
     await w.setProps({
       revisions: [
@@ -104,8 +106,8 @@ it('selects a table row with the keyboard without changing bulk selection', asyn
     props: { manual: false, mediaUrl: '/a.mp4', sourceUrl: '', revisions },
   });
   for (const check of w.findAll('input[type=checkbox]')) await check.setValue(true);
-  await w.get('select[aria-label="Ordenar cortes"]').setValue('title');
-  await w.findAll('tbody tr')[1].trigger('keydown', { key: 'Enter' });
+  const row = w.findAll('tbody tr').find(candidate => candidate.text().includes('Corte b'))!;
+  await row.trigger('keydown', { key: 'Enter' });
   await flushPromises();
   expect(w.emitted('select')?.at(-1)).toEqual(['b']);
   expect(w.get('.clip-drawer-heading .preview-label').text()).toBe('Corte b');
@@ -145,7 +147,7 @@ it('shows only editorially approved clips as ready and blocks pending bulk expor
   expect((exportSelected.element as HTMLButtonElement).disabled).toBe(true);
   await w
     .findAll('.cuts-filter-chip')
-    .find(button => button.text() === 'Aprovados')!
+    .find(button => button.attributes('aria-label') === 'Aprovados')!
     .trigger('click');
   expect(w.findAll('tbody tr.clip-item')).toHaveLength(1);
   expect(w.get('tbody tr.clip-item').text()).toContain('Aprovado');
@@ -219,7 +221,7 @@ it('includes outdated editorial decisions in the review queue', async () => {
   });
   await w
     .findAll('.cuts-filter-chip')
-    .find(button => button.text() === 'Para revisar')!
+    .find(button => button.attributes('aria-label') === 'Para revisar')!
     .trigger('click');
   expect(w.get('tbody tr.clip-item').text()).toContain('Revisar novamente');
   expect((w.get('.cuts-table-heading button').element as HTMLButtonElement).disabled).toBe(true);
