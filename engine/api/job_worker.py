@@ -53,8 +53,8 @@ class PreparedAnalysis:
             raise PipelineError('INCOMPLETE_ANALYSIS','analyze','Complete validated analysis required before rendering.')
     def analyze(self,*args,**kwargs):return self.analysis
 
-def import_probed(input_value,root,ffprobe):
-    source=import_source(input_value,root,persist=False)
+def import_probed(input_value,root,ffprobe,cancelled=lambda:False):
+    source=import_source(input_value,root,persist=False,cancelled=cancelled)
     try:source=probe_source(source,ffprobe)
     except PipelineError as exc:
         from engine.media.source_errors import MESSAGES
@@ -80,7 +80,7 @@ def _main(folder:Path):
         if operation=='prepare':
             if not (root/'source.json').is_file():
                 stage('import','running')
-                source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
+                source=import_probed(request['source_input'],root,Path(settings['ffprobe']),cancelled=cancelled)
             stage('import','completed')
             source=Source.model_validate_json((root/'source.json').read_bytes())
             config=pipeline_config(settings,root)
@@ -96,7 +96,7 @@ def _main(folder:Path):
             atomic_json(folder/'result.json',{'status':'completed','finished_at':now()});return 0
         stage(operation,'running')
         if operation=='import':
-            source=import_probed(request['source_input'],root,Path(settings['ffprobe']))
+            source=import_probed(request['source_input'],root,Path(settings['ffprobe']),cancelled=cancelled)
         elif operation=='export':
             packages=export_approved(root,cancelled=cancelled)
             if not packages:raise PipelineError('NO_APPROVED_CLIPS','export','No technically valid and editorially approved clips available.')

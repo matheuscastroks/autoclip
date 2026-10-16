@@ -31,3 +31,39 @@ def test_settings_saves_openrouter_provider_and_model(tmp_path, monkeypatch):
     assert updated['ai_provider'] == 'openrouter'
     assert updated['openrouter_model'] == 'meta-llama/llama-3.3-70b-instruct:free'
     assert updated['openrouter_key_configured'] is True
+
+def test_settings_recovers_provisioned_tools_and_models_when_saved_paths_are_missing(tmp_path, monkeypatch):
+    import engine.api.settings as settings_mod
+    from engine.api.settings import Settings
+    from engine.pipeline.artifacts import atomic_json
+
+    storage = tmp_path / 'appdata'
+    model_dir = storage / 'models' / 'whisper-small'
+    model_dir.mkdir(parents=True)
+    (model_dir / 'model.bin').write_bytes(b'weights')
+    bin_dir = storage / 'bin'
+    bin_dir.mkdir(parents=True)
+    ffmpeg = bin_dir / 'ffmpeg.exe'
+    ffprobe = bin_dir / 'ffprobe.exe'
+    ffmpeg.write_bytes(b'exe')
+    ffprobe.write_bytes(b'exe')
+
+    monkeypatch.setattr(settings_mod, 'locate_tools', lambda: (ffmpeg, ffprobe))
+    monkeypatch.setattr('engine.system.provisioner.get_storage_base', lambda: storage)
+
+    workspace = tmp_path / 'workspace'
+    # Simulate settings saved before tools/model were provisioned
+    atomic_json(workspace / '.autoclip/settings.json', {
+        'ffmpeg': '',
+        'ffprobe': '.',
+        'asr_model_path': str(workspace / 'research/models/whisper-small'),
+        'clip_policy_version': 2,
+    })
+
+    cfg = Settings(workspace).get()
+    assert cfg['tools_available'] is True
+    assert cfg['ffmpeg'] == str(ffmpeg)
+    assert cfg['ffprobe'] == str(ffprobe)
+    assert cfg['asr_available'] is True
+    assert cfg['asr_model_path'] == str(model_dir)
+

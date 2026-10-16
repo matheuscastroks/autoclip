@@ -5,12 +5,14 @@ from engine.pipeline.artifacts import file_hash, atomic_json
 from .source_errors import source_error,MESSAGES
 
 
-def _download(url: str, root: Path):
+def _download(url: str, root: Path, cancelled=lambda: False):
     import yt_dlp
     import shutil
     opts={'format':'bv*[height<=720]+ba/best','outtmpl':str(root/'source.%(ext)s'),'noplaylist':True,'writeinfojson':True,'retries':1,'socket_timeout':20}
     from engine.pipeline.telemetry import observe
     def downloaded(value):
+        if cancelled():
+            raise PipelineError('CANCELLED','import','Import cancelled.')
         observe('download',value.get('downloaded_bytes'),value.get('total_bytes') or value.get('total_bytes_estimate'),'bytes')
     opts['progress_hooks']=[downloaded]
     node=shutil.which('node')
@@ -26,15 +28,17 @@ def _download(url: str, root: Path):
         if file is None: raise RuntimeError('Downloaded file unavailable')
         return file,info
 
-def import_source(input_value: str,project_root: Path,*,persist=True) -> Source:
+def import_source(input_value: str,project_root: Path,*,persist=True,cancelled=lambda:False) -> Source:
     project_root=Path(project_root).resolve(); project_root.mkdir(parents=True,exist_ok=True)
     url=urlparse(input_value)
     try:
+        if cancelled():raise PipelineError('CANCELLED','import','Import cancelled.')
         if url.scheme in ('https','http'):
             if url.hostname not in {'youtube.com','www.youtube.com','youtu.be'}:
                 raise PipelineError('SOURCE_UNSUPPORTED','import',MESSAGES['SOURCE_UNSUPPORTED'])
             folder=project_root/'input'; folder.mkdir(exist_ok=True)
-            path,info=_download(input_value,folder)
+            import inspect
+            path,info=_download(input_value,folder,cancelled) if len(inspect.signature(_download).parameters)>=3 else _download(input_value,folder)
             source=Source(sha256=file_hash(path),local_path=path.resolve(),kind='url',original_url=input_value,original_title=info.get('title',''),channel=info.get('channel',''))
         else:
             path=Path(input_value).expanduser().resolve()

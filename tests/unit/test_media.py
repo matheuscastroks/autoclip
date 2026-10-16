@@ -29,3 +29,26 @@ def test_artifact_path_is_content_addressed_and_validated(tmp_path):
     assert read_artifact(ref,tmp_path,Word) == w
     (tmp_path/ref.relative_path).write_text('{}')
     with pytest.raises(PipelineError): read_artifact(ref,tmp_path,Word)
+
+def test_url_download_progress_hook_honors_cancellation(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from engine.media import importer
+    from engine.contracts import PipelineError
+    monkeypatch.setattr('engine.media.probe.locate_tools', lambda: (tmp_path / 'ffmpeg.exe', tmp_path / 'ffprobe.exe'))
+    class FakeYDL:
+        def __init__(self, opts):
+            self.opts = opts
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            pass
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get('progress_hooks', []):
+                hook({'downloaded_bytes': 1024, 'total_bytes': 4096})
+            return {'title': 'Fixture'}
+    monkeypatch.setitem(sys.modules, 'yt_dlp', SimpleNamespace(YoutubeDL=FakeYDL))
+    with pytest.raises(PipelineError) as exc:
+        importer.import_source('https://www.youtube.com/watch?v=example', tmp_path, cancelled=lambda: True)
+    assert exc.value.code == 'CANCELLED'
+

@@ -69,12 +69,13 @@ def track_faces(source,edl,config,ffmpeg,*,cancelled=lambda:False,progress=None,
     if not path.is_file():return fallback('Face detector model unavailable; using central crop.')
     try:
         import mediapipe as mp
-    except ImportError:return fallback('MediaPipe unavailable; using central crop.')
-    options=mp.tasks.vision.FaceDetectorOptions(base_options=mp.tasks.BaseOptions(model_asset_path=str(path),delegate=mp.tasks.BaseOptions.Delegate.CPU),running_mode=mp.tasks.vision.RunningMode.VIDEO,min_detection_confidence=config.min_confidence)
+        options=mp.tasks.vision.FaceDetectorOptions(base_options=mp.tasks.BaseOptions(model_asset_path=str(path),delegate=mp.tasks.BaseOptions.Delegate.CPU),running_mode=mp.tasks.vision.RunningMode.VIDEO,min_detection_confidence=config.min_confidence)
+        context=(detector_factory or mp.tasks.vision.FaceDetector.create_from_options)(options)
+    except (ImportError,OSError,RuntimeError):return fallback('MediaPipe unavailable; using central crop.')
     samples=[];previous=None;last_seen=None;detected=0;detector_ms=-1
     container_origin=float(source.probe.get('raw',{}).get('format',{}).get('start_time',0))
     seek_offset=source.probe.get('video_origin_us',0)/1e6-container_origin
-    with (detector_factory or mp.tasks.vision.FaceDetector.create_from_options)(options) as detector:
+    with context as detector:
         with tempfile.TemporaryDirectory(prefix='autoclip-faces-') as folder:
             root=Path(folder)
             for index,span in enumerate(edl.spans):

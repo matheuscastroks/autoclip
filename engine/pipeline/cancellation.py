@@ -3,6 +3,7 @@ from engine.contracts import PipelineError
 
 def run_process(args,*,cancelled=lambda:False,grace_s=5,timeout_s=None,on_stdout_line=None,**kwargs):
     kwargs.pop('shell',None)
+    kwargs.setdefault('stdin',subprocess.DEVNULL)
     capture=kwargs.pop('capture_output',False)
     if capture: kwargs.update(stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     if os.name=='nt': kwargs.setdefault('creationflags',subprocess.CREATE_NO_WINDOW)

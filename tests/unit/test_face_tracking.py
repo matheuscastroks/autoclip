@@ -81,3 +81,23 @@ def test_crop_expression_simplifies_large_point_lists():
     assert expr.count('clip(')<=60
     assert 'max(0,min(iw-1080' in expr
 
+def test_native_detector_load_error_falls_back_to_center_crop(tmp_path,monkeypatch):
+    import sys
+    from types import SimpleNamespace as NS
+    from uuid import uuid4
+    from engine.contracts import Source,EDLArtifact,Span,ReframeConfig
+    from engine.media import face_tracking as tracking
+    class Options:
+        Delegate=NS(CPU='CPU')
+        def __init__(self,**kwargs):pass
+    fake_mp=NS(tasks=NS(BaseOptions=Options,vision=NS(FaceDetectorOptions=Options,RunningMode=NS(VIDEO='VIDEO'))))
+    monkeypatch.setitem(sys.modules,'mediapipe',fake_mp)
+    model=tmp_path/'model.tflite';model.write_bytes(b'model')
+    source=Source(local_path=tmp_path/'source.mp4',sha256='a'*64,duration_us=1_000_000,probe={})
+    edl=EDLArtifact(source_id=source.id,transcript_id=uuid4(),duration_us=1_000_000,protected_word_ids=[],spans=[Span(source_start_us=0,source_end_us=1_000_000,output_start_us=0,output_end_us=1_000_000)])
+    def broken_detector(_):
+        raise OSError("Could not find module 'libmediapipe.dll'")
+    crop=tracking.track_faces(source,edl,ReframeConfig(model_path=model),tmp_path/'ffmpeg',detector_factory=broken_detector)
+    assert crop.mode=='center-crop' and 'unavailable' in crop.fallback_reason.lower()
+
+

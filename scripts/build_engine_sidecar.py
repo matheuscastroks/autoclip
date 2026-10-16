@@ -38,6 +38,7 @@ def build():
         "--distpath", str(ROOT_DIR / "build" / "engine-dist"),
         "--workpath", str(ROOT_DIR / "build" / "engine-build"),
         "--collect-all=engine",
+        "--collect-all=mediapipe",
         "--collect-all=uvicorn",
         "--collect-all=starlette",
         "--collect-data=faster_whisper",
