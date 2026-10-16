@@ -11,8 +11,11 @@ const props = defineProps<{
 }>();
 const query = defineModel<string>('query', { default: '' });
 const player = ref<HTMLVideoElement>();
+const passageList = ref<HTMLElement>();
 const positionUs = ref(0);
 const mediaError = ref('');
+const followPauseTimer = ref<ReturnType<typeof setTimeout>>();
+let followPaused = false;
 const segments = computed(() =>
   props.transcript?.segments.length
     ? props.transcript.segments
@@ -31,6 +34,30 @@ const filtered = computed(() =>
     s.text.toLocaleLowerCase('pt-BR').includes(query.value.trim().toLocaleLowerCase('pt-BR'))
   )
 );
+const activeSegmentId = computed(
+  () =>
+    filtered.value.find(s => positionUs.value >= s.start_us && positionUs.value < s.end_us)?.id ||
+    ''
+);
+watch(activeSegmentId, async id => {
+  if (!id || followPaused) return;
+  await Promise.resolve();
+  passageList.value
+    ?.querySelector<HTMLElement>(`[data-segment="${CSS.escape(id)}"]`)
+    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
+function pauseFollow() {
+  followPaused = true;
+  if (followPauseTimer.value) clearTimeout(followPauseTimer.value);
+  followPauseTimer.value = setTimeout(() => {
+    followPaused = false;
+    const id = activeSegmentId.value;
+    if (id)
+      passageList.value
+        ?.querySelector<HTMLElement>(`[data-segment="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+  }, 4000);
+}
 async function seek(us: number) {
   if (!player.value) return;
   player.value.currentTime = us / 1e6;
@@ -42,6 +69,10 @@ async function seek(us: number) {
     mediaError.value =
       'Não foi possível iniciar a reprodução. Use os controles do vídeo para tentar novamente.';
   }
+}
+function seekUnlessSelectingText(us: number) {
+  if (window.getSelection()?.toString()) return;
+  void seek(us);
 }
 function release() {
   if (!player.value) return;
@@ -57,6 +88,9 @@ watch(
   { flush: 'sync' }
 );
 onBeforeUnmount(release);
+onBeforeUnmount(() => {
+  if (followPauseTimer.value) clearTimeout(followPauseTimer.value);
+});
 </script>
 <template>
   <section class="transcript-panel" aria-label="Consulta da transcrição">
@@ -97,27 +131,31 @@ onBeforeUnmount(release);
           copiado.</small
         >
       </section>
-      <section class="transcript-passages" tabindex="0" aria-label="Segmentos da transcrição">
-        <article
+      <section
+        ref="passageList"
+        class="transcript-passages"
+        tabindex="0"
+        aria-label="Segmentos da transcrição"
+        @wheel.passive="pauseFollow"
+        @touchmove.passive="pauseFollow"
+      >
+        <button
           v-for="segment in filtered"
           :key="segment.id"
+          type="button"
           class="transcript-segment-row"
           :class="{ current: positionUs >= segment.start_us && positionUs < segment.end_us }"
           :aria-current="
             positionUs >= segment.start_us && positionUs < segment.end_us ? 'true' : undefined
           "
+          :data-segment="segment.id"
+          :disabled="!sourceUrl"
+          :aria-label="'Reproduzir trecho iniciado em ' + time(segment.start_us)"
+          @click="seekUnlessSelectingText(segment.start_us)"
         >
-          <button
-            type="button"
-            :data-segment="segment.id"
-            :disabled="!sourceUrl"
-            :aria-label="'Reproduzir a partir de ' + time(segment.start_us)"
-            @click="seek(segment.start_us)"
-          >
-            <time>{{ time(segment.start_us) }}</time>
-          </button>
+          <time>{{ time(segment.start_us) }}</time>
           <p>{{ segment.text }}</p>
-        </article>
+        </button>
         <p v-if="!filtered.length" class="transcript-empty">
           {{
             query
@@ -209,23 +247,29 @@ small {
 .transcript-segment-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
   gap: 16px;
   padding: 12px;
   border: 0;
   border-bottom: 1px solid var(--color-border-subtle);
   background: transparent;
   border-radius: 0;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  user-select: text;
 }
 .transcript-segment-row.current {
   background: var(--color-surface-selected);
 }
-.transcript-segment-row button {
-  background: transparent;
-  border: 0;
-  padding: 0;
+.transcript-segment-row time {
   align-self: start;
   color: var(--color-action-primary);
   font-size: var(--font-size-meta);
+}
+.transcript-segment-row:disabled {
+  cursor: default;
 }
 .transcript-segment-row p {
   user-select: text;
