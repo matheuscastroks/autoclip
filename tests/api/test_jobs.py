@@ -102,11 +102,17 @@ def test_failed_import_is_consistent_and_retry_can_use_local_file(client,tmp_pat
 
 def test_retry_cannot_replace_source_of_existing_project(client,tmp_path):
     from types import SimpleNamespace
+    from engine.api.launcher import engine_fingerprint
+    assert client.get('/api/v1/health').json().get('engine_fingerprint')==engine_fingerprint()
     pid=client.post('/api/v1/projects/import',json={'path':str(source_folder(tmp_path))}).json()['id']
+    unsupported=client.post(f'/api/v1/projects/{pid}/jobs',json={'operation':'legacy_unknown','options':{}})
+    assert unsupported.status_code==400 and unsupported.json()['detail']=='Operação não suportada.'
     jobs=client.app.state.jobs;jobs.spawn=lambda *a,**kw:SimpleNamespace(pid=0,poll=lambda:None)
     old=jobs.start(pid,'prepare',{})
     (jobs.root/old['id']/'result.json').write_text(json.dumps({'status':'failed'}))
-    assert client.post('/api/v1/jobs/'+old['id']+'/resume',json={'source_input':'replacement.mp4'}).status_code==400
+    res=client.post('/api/v1/jobs/'+old['id']+'/resume',json={'source_input':'replacement.mp4'})
+    assert res.status_code==400 and 'não pode ser substituída' in res.json()['detail']
+
 
 def test_terminal_job_polling_does_not_trigger_redundant_sqlite_writes(client, monkeypatch):
     store = client.app.state.store

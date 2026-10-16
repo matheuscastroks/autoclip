@@ -9,6 +9,12 @@ def server_command(workspace):
     from engine.system.subprocesses import engine_cmd
     return engine_cmd('serve', str(Path(workspace).resolve()), module='engine.api.server')
 
+def engine_fingerprint()->str:
+    from engine.pipeline.artifacts import object_hash
+    from engine.pipeline.fingerprints import ROOT,safe_file_hash
+    files=('engine/api/app.py','engine/api/jobs.py','engine/api/job_worker.py','engine/api/analysis_view.py','engine/api/reviews.py','engine/contracts/api.py','engine/contracts/models.py')
+    return object_hash({name:safe_file_hash(ROOT/name) for name in files})
+
 def owned_instance(session,workspace):
     try:
         if Path(session.get('workspace','')).resolve()!=Path(workspace).resolve():return False
@@ -24,8 +30,23 @@ def ready(session):
         request=urllib.request.Request(f'http://127.0.0.1:{port}/api/v1/health',headers={'Authorization':'Bearer '+session['token']})
         # Bypass proxy configuration for the local service.
         opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(request,timeout=.5) as response:return json.load(response).get('application')=='autoclip-editor'
+        with opener.open(request,timeout=.5) as response:
+            data=json.load(response)
+            return data.get('application')=='autoclip-editor' and data.get('engine_fingerprint')==engine_fingerprint()
     except Exception:return False
+
+def stop_stale_instance(session,workspace):
+    if not owned_instance(session,workspace):return
+    try:
+        port=int(session['port'])
+        if 1024<=port<=65535 and session.get('token'):
+            request=urllib.request.Request(f'http://127.0.0.1:{port}/api/v1/shutdown',data=b'',headers={'Authorization':'Bearer '+session['token']},method='POST')
+            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(request,timeout=2):pass
+            for _ in range(20):
+                if not owned_instance(session,workspace):return
+                time.sleep(.05)
+    except Exception:pass
 
 def start_server(workspace):
     workspace=Path(workspace).resolve()
@@ -41,7 +62,7 @@ def start_server(workspace):
     try:process=subprocess.Popen(server_command(workspace),**kwargs)
     finally:kwargs['stdout'].close()
     session['pid']=process.pid;session['worker_created']=psutil.Process(process.pid).create_time();atomic_json(root/'session.json',session)
-    for _ in range(80):
+    for _ in range(240):
         if ready(session):return session
         if process.poll() is not None:break
         time.sleep(.25)
@@ -73,8 +94,11 @@ def acquire_session(workspace:Path,on_acquired=None)->tuple[dict,bool]:
     workspace=Path(workspace).resolve()
     with launch_lock(workspace):
         session=read_json(workspace/'.autoclip/session.json',{}) or {}
-        created=session.get('stopping',False) or not (owned_instance(session,workspace) and ready(session))
-        if created:session=start_server(workspace)
+        owned=owned_instance(session,workspace)
+        created=session.get('stopping',False) or not (owned and ready(session))
+        if created:
+            if owned:stop_stale_instance(session,workspace)
+            session=start_server(workspace)
         if on_acquired:on_acquired(session,created)
     return session,created
 

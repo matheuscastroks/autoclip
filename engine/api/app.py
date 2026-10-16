@@ -147,12 +147,26 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.exception_handler(KeyError)
     async def missing(request,exc):return JSONResponse({'detail':'Projeto ou tarefa não encontrado.'},404)
 
+    USER_VALUE_ERRORS={
+        'Operação não suportada.',
+        'Restaure o projeto antes de iniciar uma tarefa.',
+        'Selecione uma revisão preparada.',
+        'Revisão não encontrada neste projeto.',
+        'Tarefa não pode ser retomada neste estado.',
+        'A fonte de um projeto já importado não pode ser substituída. Crie outro projeto.',
+        'Este corte final não está disponível para nova tentativa.',
+        'Este corte não está disponível para nova tentativa.',
+        'Todas as prévias já estão prontas.',
+    }
+
     @app.exception_handler(ValueError)
     async def invalid(request,exc):
         if str(exc)=='Selecione pelo menos um trecho.':
             return JSONResponse({'detail':str(exc)},422)
         if str(exc)=='Projeto manual disponível apenas para consulta nesta fase.':
             return JSONResponse({'detail':str(exc)},409)
+        if str(exc) in USER_VALUE_ERRORS:
+            return JSONResponse({'detail':str(exc)},400)
         return JSONResponse({'detail':'Dados inválidos ou pasta incompatível. Verifique sua seleção.'},400)
 
     # Pydantic error inputs may contain an API key. Do not return them.
@@ -161,7 +175,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
     async def validation(request,exc):return JSONResponse({'detail':'Preencha os campos com valores válidos.'},422)
 
     @app.get('/api/v1/health')
-    def health():return {'schema_version':'1.0','status':'ok','application':'autoclip-editor'}
+    def health():
+        from .launcher import engine_fingerprint
+        return {'schema_version':'1.0','status':'ok','application':'autoclip-editor','engine_fingerprint':engine_fingerprint()}
     @app.post('/api/v1/shutdown')
     def shutdown():
         if not jobs.request_shutdown(getattr(app.state,'shutdown',None)):raise HTTPException(409,'Cancele ou aguarde a tarefa antes de encerrar o serviço.')
