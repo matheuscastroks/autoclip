@@ -8,93 +8,305 @@
     <style>
       :root {
         color-scheme: dark;
-        font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-        color: #edf1f4;
-        background: #101316;
+        font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --color-canvas: #101316;
+        --color-surface: #171d22;
+        --color-surface-raised: #202930;
+        --color-surface-hover: #283540;
+        --color-border-subtle: #34434e;
+        --color-border-strong: #657e8e;
+        --color-text-primary: #edf1f4;
+        --color-text-secondary: #a5b5be;
+        --color-text-muted: #9fb0ba;
+        --color-action-primary: #afc6d5;
+        --color-brand-blue: #315fc5;
+        --color-success: #34d399;
+        --color-danger: #f87171;
       }
+
       * {
         box-sizing: border-box;
       }
+
       body {
         min-height: 100vh;
         margin: 0;
         display: grid;
         place-items: center;
-        background: #101316;
+        background: radial-gradient(ellipse 550px 320px at 50% 30%, rgba(49, 95, 197, 0.12), transparent 70%), var(--color-canvas);
+        color: var(--color-text-primary);
+        user-select: none;
+        overflow: hidden;
       }
+
       main {
-        width: min(100% - 48px, 440px);
-        padding: 28px;
-        border: 1px solid #34434e;
-        border-radius: 8px;
-        background: #171d22;
+        width: min(100% - 48px, 480px);
+        padding: 30px 32px;
+        border: 1px solid var(--color-border-subtle);
+        border-top: 1px solid rgba(175, 198, 213, 0.22);
+        border-radius: 14px;
+        background: var(--color-surface);
+        box-shadow:
+          0 20px 48px -12px rgba(0, 0, 0, 0.65),
+          0 1px 0 rgba(255, 255, 255, 0.05) inset;
       }
-      .brand {
+
+      .brand-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 22px;
+        gap: 16px;
       }
-      .mark {
-        display: grid;
-        width: 36px;
-        height: 36px;
-        place-items: center;
-        border-radius: 7px;
-        color: #16232d;
-        background: #afc6d5;
-        font-size: 20px;
-        font-weight: 700;
+
+      .brand-icon {
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 11px;
+        filter: drop-shadow(0 4px 12px rgba(49, 95, 197, 0.35));
       }
+
+      .brand-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .brand-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       h1 {
         margin: 0;
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 600;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.025em;
+        color: var(--color-text-primary);
+        line-height: 1.2;
       }
-      p {
-        margin: 0;
-        color: #a5b5be;
+
+      .badge {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-action-primary);
+        background: rgba(175, 198, 213, 0.1);
+        border: 1px solid rgba(175, 198, 213, 0.22);
+        border-radius: 4px;
+        padding: 2px 7px;
+        letter-spacing: 0.01em;
+      }
+
+      .tagline {
+        margin: 4px 0 0;
+        color: var(--color-text-secondary);
         font-size: 13px;
-        line-height: 1.5;
+        line-height: 1.4;
       }
-      .progress {
-        height: 3px;
-        margin-top: 24px;
+
+      .status-box {
+        margin-top: 26px;
+        padding: 14px 16px;
+        border-radius: 8px;
+        background: var(--color-surface-raised);
+        border: 1px solid rgba(52, 67, 78, 0.65);
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-dot {
+        flex-shrink: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color-action-primary);
+        box-shadow: 0 0 8px rgba(175, 198, 213, 0.6);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .status-text {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        line-height: 1.4;
+        word-break: break-word;
+      }
+
+      .progress-track {
+        height: 4px;
+        margin-top: 12px;
         overflow: hidden;
-        border-radius: 3px;
-        background: #283540;
+        border-radius: 9999px;
+        background: rgba(16, 19, 22, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        position: relative;
       }
-      .progress::after {
-        display: block;
-        width: 35%;
+
+      .progress-bar {
+        position: absolute;
+        top: 0;
+        left: -40%;
+        width: 40%;
         height: 100%;
         border-radius: inherit;
-        background: #afc6d5;
-        content: '';
-        animation: loading 1.4s ease-in-out infinite alternate;
+        background: linear-gradient(90deg, transparent, var(--color-brand-blue), var(--color-action-primary), var(--color-brand-blue), transparent);
+        animation: loading 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
-      @keyframes loading {
-        to {
-          transform: translateX(185%);
+
+      .footer-meta {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(52, 67, 78, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11.5px;
+        color: var(--color-border-strong);
+      }
+
+      .privacy-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .privacy-badge svg {
+        flex-shrink: 0;
+      }
+
+      .footer-note {
+        color: var(--color-text-muted);
+      }
+
+      /* Error state styles */
+      .status-box.has-error {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(239, 68, 68, 0.08);
+      }
+
+      .status-box.has-error .status-dot {
+        background: var(--color-danger);
+        box-shadow: 0 0 8px rgba(248, 113, 113, 0.6);
+        animation: none;
+      }
+
+      .status-box.has-error .status-text {
+        color: var(--color-danger);
+      }
+
+      .status-box.has-error .progress-bar {
+        animation: none;
+        background: var(--color-danger);
+        width: 100%;
+        left: 0;
+        opacity: 0.5;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.45;
+          transform: scale(0.85);
         }
       }
+
+      @keyframes loading {
+        0% {
+          left: -40%;
+          width: 35%;
+        }
+        50% {
+          width: 50%;
+        }
+        100% {
+          left: 100%;
+          width: 35%;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
-        .progress::after {
+        .progress-bar {
           animation: none;
+          left: 0;
           width: 100%;
+          opacity: 0.7;
+        }
+        .status-dot {
+          animation: none;
         }
       }
     </style>
   </head>
   <body>
     <main aria-labelledby="title">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">A</span>
-        <h1 id="title">AutoClip</h1>
+      <div class="brand-header">
+        <svg class="brand-icon" viewBox="0 0 64 64" aria-hidden="true">
+          <defs>
+            <linearGradient id="brandGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#3b72e8"/>
+              <stop offset="100%" stop-color="#244ab3"/>
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="14" fill="url(#brandGrad)"/>
+          <g fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="22" cy="21" r="6"/>
+            <circle cx="22" cy="43" r="6"/>
+            <path d="m27 25 19 19M27 39l19-19"/>
+          </g>
+        </svg>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 id="title">AutoClip</h1>
+            <span class="badge">Desktop</span>
+          </div>
+          <p class="tagline">Editor inteligente de cortes e legendas</p>
+        </div>
       </div>
-      <p id="status" role="status" aria-live="polite">Iniciando o motor local…</p>
-      <div class="progress" aria-hidden="true"></div>
+
+      <div class="status-box" id="status-container">
+        <div class="status-row">
+          <span class="status-dot" aria-hidden="true"></span>
+          <p id="status" class="status-text" role="status" aria-live="polite">Iniciando o motor local…</p>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="footer-meta">
+        <div class="privacy-badge">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true">
+            <path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z"/>
+          </svg>
+          <span>100% Local-First</span>
+        </div>
+        <span class="footer-note">Seus vídeos não saem do PC</span>
+      </div>
     </main>
+
+    <script>
+      (function() {
+        var statusEl = document.getElementById('status');
+        var container = document.getElementById('status-container');
+        if (!statusEl || !container || !window.MutationObserver) return;
+        var observer = new MutationObserver(function() {
+          var text = (statusEl.textContent || '').toLowerCase();
+          if (text.includes('não foi possível') || text.includes('erro') || text.includes('falha') || text.includes('error')) {
+            container.classList.add('has-error');
+          } else {
+            container.classList.remove('has-error');
+          }
+        });
+        observer.observe(statusEl, { childList: true, characterData: true, subtree: true });
+      })();
+    </script>
   </body>
 </html>
