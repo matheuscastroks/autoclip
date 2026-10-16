@@ -217,6 +217,10 @@ class CaptionWord(Interval):
     display_text: str
 
 
+PresetId = Literal['karaoke_yellow','editorial_sober','documentary','impact']
+LegacyPresetId = Literal['karaoke_yellow','editorial_sober','documentary','impact','bold-uppercase-v1','karaoke']
+
+
 class CaptionArtifact(Contract):
     transcript_id: UUID
     edl_revision_id: UUID
@@ -225,7 +229,7 @@ class CaptionArtifact(Contract):
     ass_path: Path
     srt_path: Path
     font: str
-    style_id: str = 'karaoke'
+    style_id: LegacyPresetId = 'karaoke_yellow'
     opening_text: str = ''
     opening_duration_us: int = Field(default=0,ge=0)
 
@@ -370,15 +374,38 @@ class PauseVerification(Contract):
 class CaptionConfig(Contract):
     font_path: Path | None = None
     font_name: str = 'Montserrat ExtraBold'
-    style_id: Literal['karaoke','bold-uppercase-v1'] = 'bold-uppercase-v1'
+    preset_id: PresetId = 'karaoke_yellow'
+    style_id: LegacyPresetId = 'karaoke_yellow'
     uppercase: bool = True
-    max_words: int = Field(default=3,ge=2,le=3)
+    max_words: int = Field(default=3,ge=2,le=7)
     font_color: str = Field(default='#FFFFFF',pattern=r'^#[0-9A-Fa-f]{6}$')
     highlight_color: str = Field(default='#FFCC00',pattern=r'^#[0-9A-Fa-f]{6}$')
     border_color: str = Field(default='#000000',pattern=r'^#[0-9A-Fa-f]{6}$')
     border_width: int = Field(default=3,ge=1,le=10)
     opening_text: str = Field(default='',max_length=100)
     opening_seconds: int = Field(default=7,ge=5,le=10)
+
+    @model_validator(mode='before')
+    @classmethod
+    def _apply_preset(cls, value):
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        raw = data.get('preset_id') or data.get('style_id') or data.get('style') or 'karaoke_yellow'
+        data.pop('style', None)
+        from engine.render.presets import get_preset
+        preset = get_preset(raw)
+        spec = preset.caption
+        data['preset_id'] = preset.id
+        data['style_id'] = preset.id
+        data['font_name'] = spec.font_name
+        data['uppercase'] = spec.uppercase
+        data['max_words'] = spec.max_words
+        data['font_color'] = spec.font_color
+        data['highlight_color'] = spec.highlight_color
+        data['border_color'] = spec.border_color
+        data['border_width'] = spec.border_width
+        return data
 
 
 class RenderProfile(Contract):

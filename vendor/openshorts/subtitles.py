@@ -352,8 +352,9 @@ def generate_ass_from_captions(captions, output_path, max_chars=20, max_duration
                                highlight_color="#FFD700", bg_color="#000000", bg_opacity=0.0,
                                effect="none", base_opacity=1.0, uppercase=False,
                                margin_v=43, word_gap=8, letter_spacing=0,
-                               marginV=None, wordGap=None, letterSpacing=None, max_words=4):
-    """Karaoke ASS directly from edited captions."""
+                               marginV=None, wordGap=None, letterSpacing=None, max_words=4,
+                               mode="karaoke", bold=1, shadow=0, fade_ms=0, accent_prefix=""):
+    """ASS subtitle generation supporting karaoke, static, lower_third, and kinetic_impact modes."""
     # Normalize aliases (camelCase from frontend styleOptions vs snake_case direct calls)
     if marginV is not None:
         margin_v = marginV
@@ -384,15 +385,18 @@ def generate_ass_from_captions(captions, output_path, max_chars=20, max_duration
     if bg_opacity > 0:
         border_style = 3
         outline_colour = hex_to_ass_color(bg_color, bg_opacity, fallback="000000")
-        outline_width = 1
+        outline_width = max(1, int(border_width))
     else:
         border_style = 1
         outline_colour = hex_to_ass_color(border_color, 1.0, fallback="000000")
         outline_width = max(1, int(border_width))
     back_colour = hex_to_ass_color("#000000", 0.0)
     highlight_inline = _hex_to_ass_inline_color(highlight_color, fallback="FFD700")
+    bold_flag = 1 if bold else 0
+    shadow_val = int(_clamp_number(shadow, 0, 10, 0))
+    fade_val = int(_clamp_number(fade_ms, 0, 1000, 0))
 
-    # Build ASS content from blocks with karaoke per-word highlight
+    # Build ASS content from blocks
     ass = f"""[Script Info]
 Title: Karaoke Captions
 ScriptType: v4.00+
@@ -403,7 +407,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{safe_font},{final_fontsize},{primary_colour},&H00FFFFFF,{outline_colour},{back_colour},1,0,0,0,100,100,{spacing},0,{border_style},{outline_width},0,{ass_alignment},10,10,{margin_v},1
+Style: Default,{safe_font},{final_fontsize},{primary_colour},&H00FFFFFF,{outline_colour},{back_colour},{bold_flag},0,0,0,100,100,{spacing},0,{border_style},{outline_width},{shadow_val},{ass_alignment},10,10,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -411,7 +415,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     ordered_words=[word for block in blocks for word in block]
     next_starts={id(word):ordered_words[i+1]['start'] for i,word in enumerate(ordered_words[:-1])}
     for block in blocks:
-        # One dialogue per word for karaoke highlight
+        if mode in ("static", "lower_third"):
+            block_start = block[0]['start']
+            last_word = block[-1]
+            block_end = min(last_word['end'], next_starts.get(id(last_word), last_word['end']))
+            if _ass_time(block_end) == _ass_time(block_start):
+                continue
+            parts = [_wrap_emoji_ass(ow['word'].upper() if uppercase else ow['word'], safe_font) for ow in block]
+            prefix = f"{{\\fad({fade_val},{fade_val})}}" if fade_val > 0 else ""
+            if accent_prefix:
+                prefix = f"{prefix}{accent_prefix}"
+            line = f"{prefix}{' '.join(parts)}"
+            ass += f"Dialogue: 0,{_ass_time(block_start)},{_ass_time(block_end)},Default,,0,0,0,,{line}\n"
+            continue
+
+        # One dialogue per word for karaoke / kinetic_impact highlight
         for idx, w in enumerate(block):
             # Presentation only: overlapping ASR intervals must not paint two
             # groups/highlights simultaneously. Keep the source timestamps intact.
@@ -424,7 +442,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 ot = _wrap_emoji_ass(ow['word'].upper() if uppercase else ow['word'], safe_font)
                 if j == idx:
                     # Active word: highlight color + optional effect
-                    if effect == "glow":
+                    if effect == "kinetic" or mode == "kinetic_impact":
+                        parts.append(f"{{\\c{highlight_inline}\\fscx94\\fscy94\\t(0,95,\\fscx112\\fscy112)}}{ot}{{\\c&HFFFFFF&\\fscx100\\fscy100}}")
+                    elif effect == "glow":
                         parts.append(f"{{\\c{highlight_inline}\\blur2}}{ot}{{\\c&HFFFFFF&\\blur0}}")
                     elif effect == "pop":
                         parts.append(f"{{\\c{highlight_inline}\\fs{int(final_fontsize*1.2)}}}{ot}{{\\c&HFFFFFF&\\fs{final_fontsize}}}")
