@@ -5,12 +5,10 @@ import TopicNavigation from './analysis/TopicNavigation.vue';
 import ProposalList from './analysis/ProposalList.vue';
 import ProposalInspectorDrawer from './analysis/ProposalInspectorDrawer.vue';
 import SelectionDock from './analysis/SelectionDock.vue';
-import TechnicalDetails from './ui/TechnicalDetails.vue';
 import { useProposalSelection } from '../composables/useProposalSelection';
 import type { AnalysisView, AnalysisSelection, Job, Proposal } from '../types';
 import { analysisLabels } from '../format';
 import { notify } from '../notifications';
-import AnalysisFeedback from './AnalysisFeedback.vue';
 import { useDiscardedProposals } from '../composables/useDiscardedProposals';
 
 const props = defineProps<{
@@ -391,9 +389,6 @@ watch(current, value => {
         @clear-selection="clearSelection"
       />
     </div>
-    <TechnicalDetails title="Diagnóstico do motor"
-      ><AnalysisFeedback :jobs="jobs"
-    /></TechnicalDetails>
     <SelectionDock
       :count="validSelection.length"
       :duration-us="totalSelectedDurationUs"
