@@ -22,7 +22,7 @@ it('opens a single Drawer only from a row, preserving checkbox selection', async
         can_render_final: true,
       })),
     },
-    global: { stubs: { teleport: true } },
+    global: { stubs: { teleport: true, AppSelect: true } },
   });
   expect(w.find('video').exists()).toBe(false);
   expect(loadMedia).not.toHaveBeenCalled();

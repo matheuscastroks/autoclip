@@ -49,8 +49,8 @@ describe('settings navigation', () => {
     const { wrapper, saveConfig } = setup();
     await wrapper.get('.local-resources input').setValue('updated-model');
     await wrapper.get('[role=tablist]').trigger('keydown', { key: 'End' });
-    expect(wrapper.get('#settings-tab-2').attributes('aria-selected')).toBe('true');
-    expect(document.activeElement?.id).toBe('settings-tab-2');
+    expect(wrapper.get('#settings-tab-3').attributes('aria-selected')).toBe('true');
+    expect(document.activeElement?.id).toBe('settings-tab-3');
     await wrapper.get('[role=tablist]').trigger('keydown', { key: 'Home' });
     expect((wrapper.get('.local-resources input').element as HTMLInputElement).value).toBe(
       'updated-model'
@@ -66,6 +66,26 @@ describe('settings navigation', () => {
     await flushPromises();
     expect(saveConfig).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).toContain('Modelo local não encontrado');
+    wrapper.unmount();
+  });
+
+  it('groups provider choices as one native radio control', () => {
+    const { wrapper } = setup();
+    const choices = wrapper.findAll('.provider-choice-group input[type="radio"]');
+    expect(choices.length).toBeGreaterThanOrEqual(2);
+    expect(choices.map(choice => choice.attributes('name'))).toEqual(
+      choices.map(() => 'ai-provider')
+    );
+    const presets = wrapper.findAll('.preset-choice-group input[type="radio"]');
+    expect(presets.length).toBe(4);
+    expect(presets.map(choice => choice.attributes('name'))).toEqual(
+      presets.map(() => 'video-preset')
+    );
+    const speeds = wrapper.findAll('.speed-choice-group input[type="radio"]');
+    expect(speeds.length).toBe(3);
+    expect(speeds.map(choice => choice.attributes('name'))).toEqual(
+      speeds.map(() => 'playback-speed')
+    );
     wrapper.unmount();
   });
 });

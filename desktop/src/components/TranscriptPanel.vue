@@ -39,12 +39,15 @@ const activeSegmentId = computed(
     filtered.value.find(s => positionUs.value >= s.start_us && positionUs.value < s.end_us)?.id ||
     ''
 );
+const escapeSelector = (val: string) =>
+  typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(val) : val.replace(/["\\]/g, '\\$&');
+
 watch(activeSegmentId, async id => {
   if (!id || followPaused) return;
   await Promise.resolve();
   passageList.value
-    ?.querySelector<HTMLElement>(`[data-segment="${CSS.escape(id)}"]`)
-    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    ?.querySelector<HTMLElement>(`[data-segment="${escapeSelector(id)}"]`)
+    ?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
 });
 function pauseFollow() {
   followPaused = true;
@@ -54,8 +57,8 @@ function pauseFollow() {
     const id = activeSegmentId.value;
     if (id)
       passageList.value
-        ?.querySelector<HTMLElement>(`[data-segment="${CSS.escape(id)}"]`)
-        ?.scrollIntoView({ block: 'nearest' });
+        ?.querySelector<HTMLElement>(`[data-segment="${escapeSelector(id)}"]`)
+        ?.scrollIntoView?.({ block: 'nearest' });
   }, 4000);
 }
 async function seek(us: number) {

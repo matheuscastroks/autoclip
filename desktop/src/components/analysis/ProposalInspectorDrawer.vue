@@ -187,32 +187,50 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="opening-copy">
-        <h4>Frase de abertura · primeiros 7 segundos</h4>
-        <p>{{ proposal.opening_text || 'Nenhuma frase de abertura sugerida.' }}</p>
+        <div class="opening-header">
+          <span class="opening-badge">Frase de abertura · Primeiros 7 segundos</span>
+        </div>
+        <p class="opening-quote">{{ proposal.opening_text || 'Nenhuma frase de abertura sugerida.' }}</p>
       </div>
-      <section>
-        <h4>Justificativa editorial</h4>
-        <p>{{ proposal.rationale }}</p>
-        <dl class="inspector-criteria">
-          <template
-            v-for="(label, key) in {
-              completeness: 'Raciocínio completo',
-              standalone_context: 'Contexto suficiente',
-              qualification_preserved: 'Ressalvas preservadas',
-            }"
-            :key="key"
-            ><dt>{{ label }}</dt>
-            <dd>
-              {{
-                proposal.editorial[key] === 'yes'
-                  ? 'Sim'
-                  : proposal.editorial[key] === 'no'
-                    ? 'Não'
-                    : 'Incerto'
-              }}
-            </dd></template
-          >
-        </dl>
+      <section class="editorial-section">
+        <div class="editorial-header">
+          <h4>Justificativa editorial</h4>
+        </div>
+        <p class="rationale-text">{{ proposal.rationale }}</p>
+        <div class="criteria-card">
+          <div class="criteria-card-title">Critérios editoriais</div>
+          <dl class="inspector-criteria">
+            <template
+              v-for="(label, key) in {
+                completeness: 'Raciocínio completo',
+                standalone_context: 'Contexto suficiente',
+                qualification_preserved: 'Ressalvas preservadas',
+              }"
+              :key="key"
+            >
+              <dt>{{ label }}</dt>
+              <dd>
+                <span
+                  class="criterion-pill"
+                  :class="{
+                    'pill-yes': proposal.editorial[key] === 'yes',
+                    'pill-no': proposal.editorial[key] === 'no',
+                    'pill-uncertain': proposal.editorial[key] !== 'yes' && proposal.editorial[key] !== 'no',
+                  }"
+                >
+                  <span class="pill-dot" aria-hidden="true"></span>
+                  {{
+                    proposal.editorial[key] === 'yes'
+                      ? 'Sim'
+                      : proposal.editorial[key] === 'no'
+                        ? 'Não'
+                        : 'Incerto'
+                  }}
+                </span>
+              </dd>
+            </template>
+          </dl>
+        </div>
       </section>
       <p v-if="!proposal.eligible" class="inspector-warning">
         Não elegível: {{ proposal.reasons.join(' ') }}
@@ -331,20 +349,119 @@ summary {
   margin-top: 12px;
 }
 .opening-copy {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+  padding: 16px;
+  background: var(--color-surface, #1e2227);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-left: 3px solid var(--color-primary, #ffd700);
+  border-radius: var(--radius-card, 8px);
+}
+.opening-header {
+  margin-bottom: 8px;
+}
+.opening-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-primary, #ffd700);
+}
+.opening-quote {
+  font-size: var(--font-size-body, 14px);
+  line-height: 1.6;
+  color: var(--ink, #fff);
+  font-style: italic;
+  margin: 0;
+}
+.editorial-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface, #1e2227);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-card, 8px);
+}
+.editorial-header h4 {
+  font-size: var(--font-size-body, 14px);
+  font-weight: 600;
+  color: var(--ink, #fff);
+  margin: 0;
+}
+.rationale-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #d1d5db);
+  margin: 0;
+}
+.criteria-card {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+}
+.criteria-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary, #9ca3af);
+  margin-bottom: 10px;
 }
 .inspector-criteria {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 16px;
-  margin: 16px 0 0;
-  font-size: var(--font-size-control);
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0;
+  font-size: var(--font-size-control, 13px);
+}
+.inspector-criteria dt {
+  color: var(--ink, #e5e7eb);
+  font-weight: 500;
 }
 .inspector-criteria dd {
   margin: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.criterion-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.pill-yes {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+.pill-yes .pill-dot {
+  background: #22c55e;
+}
+.pill-no {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.pill-no .pill-dot {
+  background: #ef4444;
+}
+.pill-uncertain {
+  background: rgba(156, 163, 175, 0.12);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.2);
+}
+.pill-uncertain .pill-dot {
+  background: #9ca3af;
 }
 .context-text,
 small {

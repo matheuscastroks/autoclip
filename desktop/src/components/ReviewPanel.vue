@@ -198,6 +198,7 @@ function finalLabel(r: Revision) {
     </header>
     <div class="cuts-list-toolbar">
       <div class="cuts-filters" role="group" aria-label="Filtrar cortes">
+        <span class="cuts-filter-label" aria-hidden="true">Filtrar</span>
         <ElTooltip v-for="item in filters" :key="item.id" :content="item.label" placement="top">
           <button
             type="button"
@@ -279,7 +280,10 @@ function finalLabel(r: Revision) {
                 {{ r.title }}
               </button>
             </td>
-            <td>{{ time(r.duration_us) }}</td>
+            <td>
+              <span>{{ time(r.duration_us) }}</span>
+              <small v-if="r.playback_speed && r.playback_speed !== '1x'" class="clip-speed-tag"> · {{ r.playback_speed }}</small>
+            </td>
             <td>
               {{
                 r.preview?.state === 'available'
@@ -415,12 +419,19 @@ function finalLabel(r: Revision) {
 }
 .cuts-filters {
   display: flex;
+  align-items: center;
   flex: none;
   gap: 4px;
-  padding: 3px;
+  padding: 3px 6px 3px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--color-surface, var(--panel));
+}
+.cuts-filter-label {
+  margin-inline-end: 2px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-meta);
+  white-space: nowrap;
 }
 .cuts-filter-chip {
   border: 1px solid transparent;

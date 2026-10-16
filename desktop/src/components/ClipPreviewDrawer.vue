@@ -213,6 +213,30 @@ function decide(decision: 'approved' | 'rejected') {
     content_hash: props.revision.content_hash || '',
   });
 }
+
+function presetLabel(id?: string | null) {
+  switch (id) {
+    case 'editorial_sober':
+    case 'subtle_formal':
+      return 'Editorial Sóbrio';
+    case 'documentary':
+    case 'dark_blue':
+      return 'Documental';
+    case 'impact':
+    case 'bold_yellow':
+      return 'Impacto';
+    case 'karaoke_yellow':
+    default:
+      return 'Karaokê Amarelo';
+  }
+}
+
+function speedLabel(speed?: string | null) {
+  if (speed === '1.25x') return '1,25×';
+  if (speed === '1.5x') return '1,5×';
+  return '1×';
+}
+
 onBeforeUnmount(() => {
   ++request;
   releasePlayer();
@@ -234,10 +258,16 @@ onBeforeUnmount(() => {
     <template #header="{ titleId }">
       <div class="clip-drawer-heading">
         <h2 :id="titleId" class="preview-label">{{ revision?.title || 'Visualizar corte' }}</h2>
-        <p>
-          {{ time(revision?.duration_us) }} ·
-          {{ finalRunning ? 'Versão final em processamento' : availability }}
-        </p>
+        <div class="clip-drawer-meta-row">
+          <p>
+            {{ time(revision?.duration_us) }} ·
+            {{ finalRunning ? 'Versão final em processamento' : availability }}
+          </p>
+          <div v-if="revision" class="clip-meta-badges">
+            <span class="clip-badge-pill" data-meta="preset">{{ presetLabel(revision.preset_id || revision.style_id) }}</span>
+            <span class="clip-badge-pill" data-meta="speed">{{ speedLabel(revision.playback_speed) }}</span>
+          </div>
+        </div>
       </div>
     </template>
     <div v-if="modelValue && !closing && revision" class="clip-drawer-content clip-information">
@@ -329,6 +359,10 @@ onBeforeUnmount(() => {
               <dd>{{ time(revision.duration_us) }}</dd>
               <dt>Silêncios removidos</dt>
               <dd>{{ time(revision.removed_silence_us) }}</dd>
+              <dt>Estilo visual</dt>
+              <dd>{{ presetLabel(revision.preset_id || revision.style_id) }}</dd>
+              <dt>Velocidade do vídeo</dt>
+              <dd>{{ speedLabel(revision.playback_speed) }}</dd>
             </dl>
             <p v-if="revision.opening_text">
               <strong>Título de abertura</strong><br />{{ revision.opening_text }}
@@ -598,5 +632,28 @@ onBeforeUnmount(() => {
   .clip-preview-drawer .el-drawer__body {
     padding: 16px;
   }
+}
+.clip-drawer-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.clip-meta-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.clip-badge-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.12));
+  color: var(--ink, #fff);
 }
 </style>
