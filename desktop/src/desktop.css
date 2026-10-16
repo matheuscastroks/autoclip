@@ -4,6 +4,10 @@
   font-optical-sizing: auto;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

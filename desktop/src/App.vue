@@ -29,6 +29,8 @@ import ptBr from 'element-plus/es/locale/lang/pt-br';
 import { notify, createJobNotifier } from './notifications';
 import { usePolling } from './composables/usePolling';
 import { useOperations } from './composables/useOperations';
+import { useTheme } from './composables/useTheme';
+const { theme, toggleTheme } = useTheme();
 const { run: action, pending, isPending, anyPending } = useOperations();
 const projects = ref<Project[]>([]),
   config = ref<Config | null>(null),
@@ -549,8 +551,10 @@ onUnmounted(() => {
         :active-page="page"
         :active-jobs-count="activeJobsCount"
         :engine-state="initial ? 'checking' : offline ? 'offline' : 'online'"
+        :theme="theme"
         @navigate="navigate"
         @open-queue="showGlobalQueue = true"
+        @toggle-theme="toggleTheme"
       >
         <template #engine>
           <details ref="engineMenu" class="engine-menu" @keydown.esc.prevent="closeEngineMenu">
@@ -1039,6 +1043,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 24px;
 }
 .delete-warning-text {
   font-size: 0.88rem;

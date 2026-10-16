@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ElTooltip } from 'element-plus';
 import AppIcon from '../ui/AppIcon.vue';
+import type { AppTheme } from '../../composables/useTheme';
 
-defineProps<{
-  activePage: 'projects' | 'settings';
-  activeJobsCount: number;
-  engineState: 'online' | 'offline' | 'checking';
-}>();
+withDefaults(
+  defineProps<{
+    activePage: 'projects' | 'settings';
+    activeJobsCount: number;
+    engineState: 'online' | 'offline' | 'checking';
+    theme?: AppTheme;
+  }>(),
+  { theme: 'dark' }
+);
 defineEmits<{
   navigate: [page: 'projects' | 'settings'];
   openQueue: [];
   openEngineStatus: [];
+  toggleTheme: [];
 }>();
 </script>
 
@@ -49,6 +55,19 @@ defineEmits<{
       </ElTooltip>
     </nav>
     <div class="rail-bottom">
+      <ElTooltip
+        :content="theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
+        placement="right"
+      >
+        <button
+          class="rail-command"
+          :aria-label="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          type="button"
+          @click="$emit('toggleTheme')"
+        >
+          <AppIcon :name="theme === 'dark' ? 'sun' : 'moon'" />
+        </button>
+      </ElTooltip>
       <ElTooltip content="Configurações" placement="right">
         <button
           class="rail-command"

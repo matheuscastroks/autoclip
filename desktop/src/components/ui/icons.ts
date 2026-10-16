@@ -35,6 +35,8 @@ import OpenExternal from '~icons/fluent/open-24-regular';
 import Spinner from '~icons/fluent/spinner-ios-20-regular';
 import Download from '~icons/fluent/arrow-download-24-regular';
 import Globe from '~icons/fluent/globe-24-regular';
+import WeatherSunny from '~icons/fluent/weather-sunny-24-regular';
+import WeatherMoon from '~icons/fluent/weather-moon-24-regular';
 import type { Component } from 'vue';
 
 interface IconDefinition {
@@ -79,6 +81,8 @@ export const icons = {
   spinner: { regular: Spinner, label: 'Em andamento' },
   download: { regular: Download, label: 'Baixar' },
   globe: { regular: Globe, label: 'Provedor remoto' },
+  sun: { regular: WeatherSunny, label: 'Tema claro' },
+  moon: { regular: WeatherMoon, label: 'Tema escuro' },
 } satisfies Record<string, IconDefinition>;
 
 export type IconName = keyof typeof icons;

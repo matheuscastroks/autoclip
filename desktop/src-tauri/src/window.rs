@@ -24,7 +24,7 @@ fn background_notice() {
 }
 pub fn run() {
     tauri::Builder::default().setup(|app|{
-        let loading=WebviewWindowBuilder::new(app,"startup",WebviewUrl::App("startup.html".into())).title("AutoClip — Iniciando").inner_size(720.,440.).build()?;
+        let loading=WebviewWindowBuilder::new(app,"startup",WebviewUrl::App("startup.html".into())).title("AutoClip — Iniciando").inner_size(720.,440.).background_color(tauri::window::Color(16,19,22,255)).build()?;
         let handle=app.handle().clone();
         std::thread::spawn(move||{
             let result=workspace().and_then(|root|Supervisor::start(&root));
@@ -36,6 +36,7 @@ pub fn run() {
                     let closing=Arc::new(AtomicBool::new(false));
                     let main=WebviewWindowBuilder::new(&handle,"main",WebviewUrl::External(session.origin.parse().unwrap()))
                         .title("AutoClip").inner_size(1440.,900.).min_inner_size(1000.,680.)
+                        .background_color(tauri::window::Color(16,19,22,255))
                         .initialization_script(format!("if(location.origin==={}){{location.hash={};}}",serde_json::to_string(&origin).unwrap(),token))
                         .on_navigation(move|url|url.origin().ascii_serialization()==origin)
                         .on_new_window(|_,_|tauri::webview::NewWindowResponse::Deny)

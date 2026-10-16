@@ -78,6 +78,7 @@ textarea:focus-visible,
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  background: var(--color-canvas);
 }
 .global-queue-banner {
   display: flex;
@@ -523,8 +524,8 @@ time {
   font-size: 11px;
 }
 .status-pill {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
   color: var(--ink);
   border-radius: 999px;
   font-size: 11px;
@@ -539,9 +540,9 @@ time {
 .status-pill[data-status='approved'],
 .status-pill[data-status='exported'],
 .status-pill[data-status='ready'] {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.25);
+  color: var(--color-success-text);
+  background: var(--color-success-soft);
+  border-color: var(--color-success-border);
   font-weight: 600;
 }
 .status-pill[data-status='needs_review'],
@@ -554,17 +555,17 @@ time {
 .status-pill[data-status='failed'],
 .status-pill[data-status='rejected'],
 .status-pill[data-status='interrupted'] {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.25);
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger-border);
   font-weight: 600;
 }
 .status-pill[data-status='running'],
 .status-pill[data-status='processing'],
 .status-pill[data-status='cancelling'] {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.25);
+  color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+  border-color: var(--color-warning-border);
   font-weight: 600;
 }
 .el-tag {
@@ -1186,9 +1187,6 @@ time {
   }
   .compact-project-heading h1 {
     font-size: 18px;
-  }
-  .cuts-table .clip-item td:first-child {
-    min-width: 180px;
   }
   .engine-popover {
     width: 270px;
