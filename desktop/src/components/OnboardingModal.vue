@@ -2,7 +2,7 @@
 import AppIcon from './ui/AppIcon.vue';
 import ProcessProgress from './ui/ProcessProgress.vue';
 import { ref, computed, onUnmounted, watch } from 'vue';
-import { ElSteps, ElStep, ElTag, ElAlert } from 'element-plus';
+import { ElSteps, ElStep } from 'element-plus';
 import type { HardwareProfile, ProvisionStatus } from '../types';
 import { api } from '../api';
 import { usePolling } from '../composables/usePolling';
@@ -63,23 +63,23 @@ const tiers = [
   {
     tier: 1,
     id: 'Systran/faster-whisper-base',
-    title: 'Tier 1 (Leve)',
-    desc: 'Whisper Base · ~140 MB · Baixo consumo de RAM e CPU',
-    speed: 'Menor consumo',
+    title: 'Leve',
+    desc: 'Usa menos memória e funciona melhor em computadores mais simples.',
+    speed: 'Mais rápido',
   },
   {
     tier: 2,
     id: 'Systran/faster-whisper-small',
-    title: 'Tier 2 (Equilibrado)',
-    desc: 'Whisper Small · ~460 MB · Modelo intermediário para uso geral',
-    speed: 'Padrão',
+    title: 'Equilibrado',
+    desc: 'Boa relação entre velocidade e precisão para a maioria dos vídeos.',
+    speed: 'Recomendado',
   },
   {
     tier: 3,
     id: 'Systran/faster-whisper-large-v3-turbo',
-    title: 'Tier 3 (Alta Performance)',
-    desc: 'Whisper Large v3 Turbo · ~800 MB · Modelo de maior porte; requer mais memória',
-    speed: 'Maior capacidade',
+    title: 'Mais preciso',
+    desc: 'Pode reconhecer melhor falas difíceis, mas exige mais memória e processamento.',
+    speed: 'Maior consumo',
   },
 ];
 
@@ -116,7 +116,7 @@ async function pollStatus() {
       stopPolling();
       error.value = st.error || 'A instalação foi interrompida.';
     }
-  } catch (e) {
+  } catch {
     // keep polling
   }
 }
@@ -208,54 +208,55 @@ onUnmounted(() => {
 
       <div class="steps-wrapper" style="margin-bottom: 24px; padding: 0 16px">
         <el-steps :active="stepIndex" finish-status="success" align-center>
-          <el-step title="Diagnóstico" description="Hardware e Modelo" />
-          <el-step title="Instalação" description="Baixar recursos" />
-          <el-step title="Curadoria IA" description="Chave de API" />
+          <el-step title="Transcrição" description="Escolher qualidade" />
+          <el-step title="Preparação" description="Recursos locais" />
+          <el-step title="Análise" description="Serviço de IA" />
         </el-steps>
       </div>
 
       <!-- Step 1: Diagnosis & Model Selection -->
       <section v-if="step === 'diagnosis'" class="onboarding-step">
-        <div v-if="profile" class="hardware-diagnosis-card">
-          <div class="diagnosis-header">
-            <AppIcon name="cpu" size="md" />
-            <strong>Diagnóstico de Hardware</strong>
+        <details v-if="profile" class="hardware-details">
+          <summary>Detalhes de desempenho do computador</summary>
+          <div class="hardware-diagnosis-card">
+            <div class="diagnosis-header">
+              <AppIcon name="cpu" size="md" />
+              <strong>Diagnóstico de Hardware</strong>
+            </div>
+            <div class="diagnosis-grid">
+              <div class="diag-item">
+                <span class="diag-label">Processador (CPU)</span>
+                <span class="diag-val"
+                  >{{ profile.cpu_physical_cores }} núcleos físicos ({{
+                    profile.cpu_logical_cores
+                  }}
+                  threads)</span
+                >
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Memória RAM</span>
+                <span class="diag-val"
+                  >{{ profile.ram_total_gb }} GB ({{ profile.ram_available_gb }} GB livres)</span
+                >
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Aceleração Gráfica (GPU)</span>
+                <span class="diag-val">{{
+                  profile.gpu_name
+                    ? profile.gpu_name + ' (' + profile.vram_gb + ' GB VRAM)'
+                    : profile.has_cuda
+                      ? 'GPU NVIDIA CUDA detectada'
+                      : 'Modo CPU otimizado'
+                }}</span>
+              </div>
+            </div>
           </div>
-          <div class="diagnosis-grid">
-            <div class="diag-item">
-              <span class="diag-label">Processador (CPU)</span>
-              <span class="diag-val"
-                >{{ profile.cpu_physical_cores }} núcleos físicos ({{
-                  profile.cpu_logical_cores
-                }}
-                threads)</span
-              >
-            </div>
-            <div class="diag-item">
-              <span class="diag-label">Memória RAM</span>
-              <span class="diag-val"
-                >{{ profile.ram_total_gb }} GB ({{ profile.ram_available_gb }} GB livres)</span
-              >
-            </div>
-            <div class="diag-item">
-              <span class="diag-label">Aceleração Gráfica (GPU)</span>
-              <span class="diag-val">{{
-                profile.gpu_name
-                  ? profile.gpu_name + ' (' + profile.vram_gb + ' GB VRAM)'
-                  : profile.has_cuda
-                    ? 'GPU NVIDIA CUDA detectada'
-                    : 'Modo CPU otimizado'
-              }}</span>
-            </div>
-          </div>
-        </div>
+        </details>
 
         <div class="tiers-selection-section">
           <div class="section-heading">
-            <strong>Escolha o modelo de transcrição Whisper:</strong>
-            <span class="hint"
-              >O tier recomendado foi pré-selecionado de acordo com seu hardware.</span
-            >
+            <strong>Escolha a qualidade da transcrição:</strong>
+            <span class="hint">A opção recomendada já está selecionada para este computador.</span>
           </div>
 
           <div class="tiers-grid">
@@ -290,10 +291,10 @@ onUnmounted(() => {
           <label class="checkbox-label">
             <input v-model="installFfmpeg" type="checkbox" data-action="toggle-ffmpeg" />
             <div class="checkbox-info">
-              <strong>Instalar ferramentas multimídia FFmpeg & ffprobe</strong>
+              <strong>Instalar ferramentas para processar vídeo</strong>
               <span
-                >Baixa automaticamente a distribuição oficial Gyan FFmpeg para processar vídeos e
-                extrair áudio com alta fidelidade.</span
+                >Necessárias para preparar os cortes e extrair o áudio. A instalação baixa os
+                componentes para este computador.</span
               >
             </div>
           </label>
@@ -313,7 +314,7 @@ onUnmounted(() => {
             @click="startProvision"
           >
             <AppIcon name="download" size="md" />
-            <span>Instalar Dependências Automaticamente</span>
+            <span>Instalar e continuar</span>
           </button>
         </div>
       </section>
@@ -555,6 +556,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.hardware-details {
+  margin-bottom: 16px;
+}
+.hardware-details > summary {
+  width: fit-content;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-meta);
+  cursor: pointer;
+}
+.hardware-details[open] .hardware-diagnosis-card {
+  margin-top: 10px;
 }
 
 .diagnosis-header {

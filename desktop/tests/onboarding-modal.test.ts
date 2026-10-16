@@ -152,7 +152,7 @@ describe('OnboardingModal', () => {
     tier_description: 'Recomendado para o seu setup com GPU dedicada',
   };
 
-  it('renders hardware specs and recommended tier badge', () => {
+  it('keeps detailed hardware diagnostics optional and recommends a model in plain language', () => {
     const wrapper = mount(OnboardingModal, {
       props: {
         profile: mockProfile,
@@ -160,8 +160,10 @@ describe('OnboardingModal', () => {
         asrMissing: true,
       },
     });
-    expect(wrapper.text()).toContain('RTX 3060');
-    expect(wrapper.text()).toContain('Tier 3');
+    expect(wrapper.get('details.hardware-details').attributes('open')).toBeUndefined();
+    expect(wrapper.text()).toContain('Mais preciso');
+    (wrapper.get('details.hardware-details').element as HTMLDetailsElement).open = true;
+    expect(wrapper.get('details.hardware-details').text()).toContain('RTX 3060');
     expect(wrapper.find('[data-tier="3"]').classes()).toContain('recommended');
   });
 
