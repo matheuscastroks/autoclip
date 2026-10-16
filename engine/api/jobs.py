@@ -99,8 +99,8 @@ class JobManager:
             settings=Settings(self.workspace).get()
             if operation in ('render','preview') and options.get('candidate_ids') is not None:
                 from .analysis_view import save_selection,validate_selection
-                (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',300))
                 if not options['candidate_ids']:raise ValueError('Selecione pelo menos um trecho.')
+                (save_selection if persist_selection else validate_selection)(Path(row['path']),options.get('analysis_hash'),options['candidate_ids'],settings.get('clip_max_seconds',300))
             if operation=='render_final':
                 from engine.pipeline.outputs import load_preparation
                 ids=options.get('revision_ids')

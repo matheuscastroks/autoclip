@@ -148,7 +148,12 @@ def create_app(workspace:Path,token:str)->FastAPI:
     async def missing(request,exc):return JSONResponse({'detail':'Projeto ou tarefa não encontrado.'},404)
 
     @app.exception_handler(ValueError)
-    async def invalid(request,exc):return JSONResponse({'detail':'Dados inválidos ou pasta incompatível. Verifique sua seleção.'},400)
+    async def invalid(request,exc):
+        if str(exc)=='Selecione pelo menos um trecho.':
+            return JSONResponse({'detail':str(exc)},422)
+        if str(exc)=='Projeto manual disponível apenas para consulta nesta fase.':
+            return JSONResponse({'detail':str(exc)},409)
+        return JSONResponse({'detail':'Dados inválidos ou pasta incompatível. Verifique sua seleção.'},400)
 
     # Pydantic error inputs may contain an API key. Do not return them.
     from fastapi.exceptions import RequestValidationError
