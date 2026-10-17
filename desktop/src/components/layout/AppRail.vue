@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { ElTooltip } from 'element-plus';
 import AppIcon from '../ui/AppIcon.vue';
 import type { AppTheme } from '../../composables/useTheme';
@@ -18,13 +19,81 @@ defineEmits<{
   openEngineStatus: [];
   toggleTheme: [];
 }>();
+
+const collapsed = ref(false);
+
+function toggleCollapse() {
+  collapsed.value = !collapsed.value;
+  try {
+    localStorage.setItem('autoclip-rail-collapsed', String(collapsed.value));
+  } catch {
+    // localStorage may not be available in all desktop contexts
+  }
+}
+
+try {
+  const saved = localStorage.getItem('autoclip-rail-collapsed');
+  if (saved !== null) {
+    collapsed.value = saved === 'true';
+  }
+} catch {
+  // safe fallback
+}
 </script>
 
 <template>
-  <aside class="app-rail" aria-label="AutoClip">
-    <span class="rail-brand" title="AutoClip"><AppIcon name="scissors" /></span>
+  <aside
+    class="app-rail"
+    :class="{ 'app-rail--collapsed': collapsed, 'app-rail--expanded': !collapsed }"
+    aria-label="AutoClip"
+  >
+    <!-- Header: Logo, Nome do App e Botão de Recolher -->
+    <div class="rail-header">
+      <div
+        class="rail-brand"
+        title="AutoClip"
+        :role="collapsed ? 'button' : undefined"
+        :aria-label="collapsed ? 'Expandir barra lateral' : undefined"
+        @click="collapsed ? toggleCollapse() : undefined"
+      >
+        <div class="brand-badge-icon">
+          <AppIcon name="scissors" size="sm" />
+        </div>
+        <div v-if="!collapsed" class="brand-text">
+          <span class="brand-title">AutoClip</span>
+          <span class="brand-edition">Studio</span>
+        </div>
+      </div>
+      <button
+        v-if="!collapsed"
+        class="rail-toggle-btn"
+        title="Recolher barra lateral"
+        aria-label="Recolher barra lateral"
+        type="button"
+        @click="toggleCollapse"
+      >
+        <svg
+          class="toggle-chevron"
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
+          <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10 3.5L5.5 8l4.5 4.5"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Navegação Principal -->
     <nav aria-label="Navegação principal" class="rail-navigation">
-      <ElTooltip content="Projetos" placement="right">
+      <ElTooltip content="Projetos" placement="right" :disabled="!collapsed">
         <button
           class="rail-command"
           aria-label="Projetos"
@@ -33,9 +102,11 @@ defineEmits<{
           @click="$emit('navigate', 'projects')"
         >
           <AppIcon name="projects" :variant="activePage === 'projects' ? 'filled' : 'regular'" />
+          <span v-if="!collapsed" class="rail-label">Projetos</span>
         </button>
       </ElTooltip>
-      <ElTooltip content="Fila global de tarefas" placement="right">
+
+      <ElTooltip content="Fila global de tarefas" placement="right" :disabled="!collapsed">
         <button
           class="rail-command"
           :aria-label="
@@ -48,16 +119,20 @@ defineEmits<{
           @click="$emit('openQueue')"
         >
           <AppIcon name="queue" />
+          <span v-if="!collapsed" class="rail-label">Fila de tarefas</span>
           <span v-if="activeJobsCount > 0" class="rail-count" aria-hidden="true">{{
             activeJobsCount
           }}</span>
         </button>
       </ElTooltip>
     </nav>
+
+    <!-- Rodapé: Tema, Configurações e Motor Local -->
     <div class="rail-bottom">
       <ElTooltip
         :content="theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
         placement="right"
+        :disabled="!collapsed"
       >
         <button
           class="rail-command"
@@ -66,9 +141,13 @@ defineEmits<{
           @click="$emit('toggleTheme')"
         >
           <AppIcon :name="theme === 'dark' ? 'sun' : 'moon'" />
+          <span v-if="!collapsed" class="rail-label">{{
+            theme === 'dark' ? 'Modo claro' : 'Modo escuro'
+          }}</span>
         </button>
       </ElTooltip>
-      <ElTooltip content="Configurações" placement="right">
+
+      <ElTooltip content="Configurações" placement="right" :disabled="!collapsed">
         <button
           class="rail-command"
           aria-label="Configurações"
@@ -77,9 +156,11 @@ defineEmits<{
           @click="$emit('navigate', 'settings')"
         >
           <AppIcon name="settings" :variant="activePage === 'settings' ? 'filled' : 'regular'" />
+          <span v-if="!collapsed" class="rail-label">Configurações</span>
         </button>
       </ElTooltip>
-      <slot name="engine">
+
+      <slot name="engine" :collapsed="collapsed">
         <button
           class="rail-command"
           type="button"
@@ -87,6 +168,7 @@ defineEmits<{
           @click="$emit('openEngineStatus')"
         >
           <AppIcon name="engine" />
+          <span v-if="!collapsed" class="rail-label">Motor local</span>
         </button>
       </slot>
     </div>
@@ -95,66 +177,214 @@ defineEmits<{
 
 <style scoped>
 .app-rail {
-  width: 64px;
-  flex: 0 0 64px;
+  width: 220px;
+  flex: 0 0 220px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 16px;
-  padding: 12px 8px;
+  padding: 14px 12px;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border-subtle);
   z-index: 20;
+  transition: width 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+              flex-basis 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+              padding 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+  user-select: none;
 }
+
+.app-rail--collapsed {
+  width: 64px;
+  flex: 0 0 64px;
+  padding: 14px 8px;
+  align-items: center;
+}
+
+.rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 2px 4px 6px;
+  min-height: 36px;
+}
+
+.app-rail--collapsed .rail-header {
+  justify-content: center;
+  padding: 2px 0 6px;
+}
+
 .rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.brand-badge-icon {
+  width: 32px;
   height: 32px;
-  display: grid;
-  place-items: center;
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-action-primary);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.rail-brand:hover .brand-badge-icon {
+  border-color: var(--color-border-strong);
+  transform: scale(1.04);
+}
+
+.brand-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.brand-edition {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(175, 198, 213, 0.12);
+  color: var(--color-action-primary);
+  border: 1px solid rgba(175, 198, 213, 0.25);
+  line-height: 1;
+}
+
+.rail-toggle-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.rail-toggle-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-subtle);
   color: var(--color-text-primary);
 }
+
+.app-rail--collapsed .rail-toggle-btn {
+  display: none;
+}
+
+.app-rail--collapsed .rail-brand {
+  cursor: pointer;
+}
+
+.toggle-chevron {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 .rail-navigation,
 .rail-bottom {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
+  width: 100%;
 }
+
 .rail-bottom {
   margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle);
 }
+
 .rail-command {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 40px;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
+
+.app-rail--collapsed .rail-command {
+  width: 44px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
 .rail-command:hover {
   background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
+
 .rail-command[aria-current] {
   background: var(--color-surface-selected);
   color: var(--color-text-primary);
-  border-left-color: var(--color-action-primary);
+  border-color: rgba(175, 198, 213, 0.25);
+  font-weight: 600;
 }
+
+.rail-label {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .rail-count {
-  position: absolute;
-  top: -2px;
-  right: -3px;
   min-width: 18px;
-  padding: 0 3px;
-  border-radius: 6px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
   background: var(--color-action-primary);
   color: var(--color-action-primary-text);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 18px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.app-rail--collapsed .rail-count {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+}
+
 @media (forced-colors: active) {
   .rail-command[aria-current] {
     border-color: Highlight;

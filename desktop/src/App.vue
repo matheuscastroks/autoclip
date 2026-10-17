@@ -264,6 +264,10 @@ const projectJobs = computed(() => jobs.value.filter(j => j.project_id === proje
   running = computed(() => jobs.value.some(j => active(j.status)));
 function navigate(destination: 'projects' | 'settings') {
   if (engineMenu.value) engineMenu.value.open = false;
+  if (destination === 'projects' && page.value === 'projects' && project.value) {
+    backToLibrary();
+    return;
+  }
   ++navigationGeneration;
   page.value = destination;
 }
@@ -593,6 +597,7 @@ onUnmounted(() => {
               "
             >
               <AppIcon name="engine" />
+              <span class="engine-summary-label">Motor local</span>
               <span class="local-dot" :class="{ offline, checking: initial }"></span>
             </summary>
             <div class="engine-popover">

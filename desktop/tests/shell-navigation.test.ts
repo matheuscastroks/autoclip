@@ -226,3 +226,29 @@ it('keeps Settings active when an export operation completes in the background',
     w.unmount();
   }
 });
+
+it('returns to the project library when clicking the Projects rail button while inside an open project', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const w = mount(App, { attachTo: document.body });
+  try {
+    await flushPromises();
+    // Open project
+    await w.get('[data-project-id=p]').trigger('click');
+    await flushPromises();
+    expect(w.findComponent({ name: 'ProjectWorkspace' }).exists()).toBe(true);
+
+    // Click on Projects icon in the sidebar rail
+    await w.get('[aria-label="Projetos"]').trigger('click');
+    await flushPromises();
+
+    // Verify it navigated back to the project library list
+    expect(w.findComponent({ name: 'ProjectWorkspace' }).exists()).toBe(false);
+    expect(w.findComponent({ name: 'ProjectLibrary' }).exists()).toBe(true);
+  } finally {
+    w.unmount();
+  }
+});

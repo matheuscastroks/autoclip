@@ -69,7 +69,7 @@
   --line-strong: var(--color-border-strong);
   --line-soft: var(--color-border-subtle);
   --warning: var(--color-warning-text);
-  --heading: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --heading: 'Plus Jakarta Sans', 'Segoe UI Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --body: var(--heading);
   --scrollbar-thumb: #657e8e;
   --scrollbar-thumb-hover: #91a3af;

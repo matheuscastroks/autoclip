@@ -28,12 +28,23 @@ defineEmits<{ action: [value: PipelineAction] }>();
       :data-state="step.state"
       :class="technical ? 'technical-item' : 'milestone-item'"
     >
-      <div v-if="!technical" class="milestone-marker">
-        <AppIcon v-if="step.state === 'completed'" name="check" size="sm" class="step-icon" />
-        <span v-else class="milestone-number">{{ index + 1 }}</span>
+      <div v-if="!technical" class="milestone-left">
+        <div class="milestone-marker">
+          <AppIcon v-if="step.state === 'completed'" name="check" size="sm" class="step-icon" />
+          <span v-else class="milestone-number">{{ index + 1 }}</span>
+        </div>
+        <strong class="step-title">{{ step.title }}</strong>
       </div>
+      <span
+        v-if="!technical"
+        class="step-state-badge"
+        :data-state="step.state"
+      >
+        {{ step.state === 'waiting' ? 'Aguardando seleção' : labels[step.state] || step.state }}
+      </span>
+
       <AppIcon
-        v-else
+        v-if="technical"
         :name="
           step.state === 'completed'
             ? 'check'
@@ -45,13 +56,10 @@ defineEmits<{ action: [value: PipelineAction] }>();
         class="step-icon"
       />
 
-      <div class="pipeline-step-body">
+      <div v-if="technical" class="pipeline-step-body">
         <div class="pipeline-step-heading">
           <strong class="step-title">{{ step.title }}</strong>
-          <span
-            :class="!technical ? 'step-state-badge' : 'step-state-text'"
-            :data-state="step.state"
-          >
+          <span class="step-state-text" :data-state="step.state">
             {{ step.state === 'waiting' ? 'Aguardando seleção' : labels[step.state] || step.state }}
           </span>
         </div>
@@ -94,20 +102,24 @@ defineEmits<{ action: [value: PipelineAction] }>();
   flex-direction: column;
 }
 
-/* Overview Milestones List */
+/* Overview Milestones List (Vertical inside subgrid card) */
 .pipeline-step-list--overview {
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .milestone-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
   border-radius: var(--radius-control);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-subtle);
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  min-width: 0;
 }
 
 .milestone-item:hover {
@@ -124,9 +136,16 @@ defineEmits<{ action: [value: PipelineAction] }>();
   background: rgba(52, 211, 153, 0.03);
 }
 
+.milestone-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .milestone-marker {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -163,6 +182,7 @@ defineEmits<{ action: [value: PipelineAction] }>();
   background: var(--color-canvas);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
 }
 
 .milestone-item[data-state='completed'] .step-state-badge {
@@ -177,31 +197,56 @@ defineEmits<{ action: [value: PipelineAction] }>();
   background: rgba(175, 198, 213, 0.12);
 }
 
-/* Technical Items Styling */
+.milestone-item .step-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Technical Engine Stages - Full Column Vertical List */
 .pipeline-step-list--technical {
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .technical-item {
   display: flex;
-  align-items: start;
-  gap: 10px;
-  padding: 6px 8px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: var(--radius-control);
-  background: transparent;
-  transition: background-color 0.15s ease;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
   min-width: 0;
   color: var(--color-text-secondary);
 }
 
 .technical-item:hover {
   background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.technical-item[data-state='completed'] {
+  border-color: rgba(52, 211, 153, 0.2);
+  background: rgba(52, 211, 153, 0.04);
+}
+
+.technical-item[data-state='running'] {
+  border-color: rgba(175, 198, 213, 0.4);
+  background: rgba(175, 198, 213, 0.08);
 }
 
 .technical-item > svg,
 .technical-item > .step-icon {
-  margin-top: 3px;
+  margin-top: 2px;
   flex-shrink: 0;
+  width: 13px;
+  height: 13px;
 }
 
 .technical-item[data-state='completed'] > svg,
@@ -228,7 +273,7 @@ defineEmits<{ action: [value: PipelineAction] }>();
 .technical-item[data-state='pending'] > .step-icon,
 .technical-item[data-state='waiting'] > .step-icon {
   color: var(--color-text-muted);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .pipeline-step-body {
@@ -238,37 +283,56 @@ defineEmits<{ action: [value: PipelineAction] }>();
 
 .pipeline-step-heading {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 6px;
   justify-content: space-between;
-  flex-wrap: wrap;
 }
 
-strong {
-  font-size: var(--font-size-body);
+.step-title {
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.technical-item strong {
-  font-size: 13px;
-}
-
-.step-state-text {
+.technical-item .step-title {
   font-size: 11px;
-  color: var(--color-text-secondary);
+}
+
+.technical-item .step-state-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.technical-item[data-state='completed'] .step-state-text {
+  color: var(--color-success);
+}
+
+.technical-item[data-state='running'] .step-state-text {
+  color: var(--color-action-primary);
 }
 
 .pipeline-step-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.pipeline-step-actions :deep(.button),
+.pipeline-step-actions button {
+  padding: 2px 8px;
+  font-size: 11px;
+  height: auto;
 }
 
 .stage-progress {
-  height: 3px;
-  margin-top: 6px;
+  height: 2px;
+  margin-top: 4px;
   max-width: 100%;
   background: var(--color-canvas);
   border-radius: 999px;
@@ -296,5 +360,11 @@ strong {
 @keyframes indeterminate-shimmer {
   0% { transform: translateX(0%); }
   100% { transform: translateX(150%); }
+}
+
+@media (max-width: 900px) {
+  .pipeline-step-list--technical {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

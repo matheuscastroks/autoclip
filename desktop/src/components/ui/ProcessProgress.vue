@@ -65,7 +65,7 @@ const estimate = computed(() => {
   if (typeof p?.eta_seconds === 'number') return `~${duration(p.eta_seconds)} restante`;
   if (typeof p?.stage_eta_seconds === 'number')
     return `~${duration(p.stage_eta_seconds)} restante nesta etapa`;
-  return 'Estimando conclusão';
+  return '';
 });
 const warning = computed(() => {
   if (!['running', 'cancelling'].includes(props.status)) return '';
@@ -84,8 +84,8 @@ const warning = computed(() => {
 <template>
   <div class="process-progress" :data-status="status">
     <div class="progress-heading">
-      <span>{{ phase }}</span>
-      <span v-if="stagePercent !== undefined">{{ stagePercent }}% da etapa</span>
+      <span class="phase-title">{{ phase }}</span>
+      <span v-if="stagePercent !== undefined" class="stage-pct">{{ stagePercent }}% da etapa</span>
     </div>
     <progress
       role="progressbar"
@@ -119,7 +119,7 @@ const warning = computed(() => {
 <style scoped>
 .process-progress {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }
@@ -132,16 +132,60 @@ const warning = computed(() => {
 }
 .progress-heading {
   font-size: var(--font-size-control);
+  font-weight: 500;
+}
+.phase-title {
+  color: var(--color-text-primary);
+}
+.stage-pct {
+  color: var(--color-action-primary);
+  font-weight: 600;
 }
 .progress-details,
 .progress-warning {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-caption);
+  font-size: var(--font-size-meta);
 }
 progress {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
-  height: 6px;
-  accent-color: var(--color-action-primary);
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+progress::-webkit-progress-bar {
+  background: var(--color-surface-raised);
+  border-radius: 999px;
+}
+progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 0 10px rgba(175, 198, 213, 0.45);
+}
+progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  border-radius: 999px;
+}
+progress:indeterminate {
+  background: var(--color-surface-raised);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(175, 198, 213, 0.25) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.8s infinite linear;
+}
+@keyframes progress-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 .progress-warning {
   margin: 0;

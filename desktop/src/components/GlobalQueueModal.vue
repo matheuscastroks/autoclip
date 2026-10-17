@@ -182,11 +182,7 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
                   :started-at="job.started_at"
                   :finished-at="job.finished_at"
                 />
-                <small v-if="job.progress?.total_items"
-                  >{{ job.progress.completed_items || 0 }} de {{ job.progress.total_items }} itens
-                  prontos</small
-                >
-                <small v-else-if="job.requests_used"
+                <small v-if="!job.progress?.total_items && job.requests_used"
                   >{{ job.requests_used }} chamadas realizadas</small
                 >
               </div>
@@ -337,13 +333,24 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 }
 .queue-job-row,
 .queue-job-card {
-  padding: 14px 4px;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  background: transparent;
+  padding: 16px 18px;
+  border-radius: var(--radius-panel, 8px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
 }
 .queue-job-row:last-child,
 .queue-job-card:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+.queue-job-row:hover {
+  border-color: var(--color-border-strong);
+}
+.queue-job-row[data-status='running'] {
+  border-color: rgba(175, 198, 213, 0.4);
+  background: rgba(175, 198, 213, 0.04);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
 .queue-clear-action {
   margin-left: 8px;
@@ -353,23 +360,27 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .project-jump-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 0;
-  color: var(--color-text-primary, var(--ink));
-  font-size: 0.88rem;
+  gap: 8px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control, 6px);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  padding: 5px 12px;
+  transition: all 0.15s ease;
 }
 .project-jump-btn:hover {
-  color: var(--color-text-primary);
-  text-decoration: underline;
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-action-primary);
 }
 .job-status-tags {
   display: flex;
@@ -389,28 +400,37 @@ function tagType(status: string): 'primary' | 'success' | 'warning' | 'danger' |
 .job-card-details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 0.82rem;
+  gap: 10px;
+  font-size: 0.85rem;
 }
 .job-op-title {
   display: flex;
-  gap: 6px;
+  align-items: baseline;
+  gap: 8px;
 }
 .job-op-title span {
-  color: var(--color-text-secondary, var(--muted));
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
 }
 .job-op-title strong {
-  color: var(--color-text-primary, var(--ink));
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 .job-pending-note small {
   color: var(--color-text-secondary, var(--muted));
+  font-size: 12px;
 }
 .job-error-note small {
   color: var(--color-danger-text, #f87171);
+  font-size: 12px;
 }
 .job-card-footer {
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--color-border-subtle, var(--line));
   display: flex;
   justify-content: flex-end;

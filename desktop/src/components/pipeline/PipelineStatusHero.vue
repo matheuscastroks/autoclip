@@ -81,9 +81,9 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
   display: flex;
   flex-direction: column;
   align-items: start;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  padding: 24px;
+  padding: 20px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-panel);
@@ -177,10 +177,29 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
 }
 
 progress {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
   overflow: hidden;
-  accent-color: var(--color-action-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+progress::-webkit-progress-bar {
+  background: var(--color-surface-raised);
+  border-radius: 999px;
+}
+progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 0 10px rgba(175, 198, 213, 0.45);
+}
+progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  border-radius: 999px;
 }
 </style>
