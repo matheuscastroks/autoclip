@@ -117,6 +117,7 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 # Presentation identity excludes encoder quality; both profiles share this revision.
                 edl=edl.model_copy(update={'revision_id':uuid.uuid5(edl.revision_id,object_hash(recipe))})
                 revision_dir=root/'revisions'/str(edl.revision_id);revision_dir.mkdir(parents=True,exist_ok=True)
+                (revision_dir/'deleted.json').unlink(missing_ok=True)
                 atomic_json(revision_dir/'edl.json',edl);atomic_json(revision_dir/'candidate.json',candidate)
                 caption_config=config.captions.model_copy(update={'font_path':resolve_font(config.captions.font_path,config.captions.font_name),'opening_text':config.captions.opening_text or opening_for(candidate)})
                 font=font_fingerprint(caption_config.font_path,caption_config.font_name)

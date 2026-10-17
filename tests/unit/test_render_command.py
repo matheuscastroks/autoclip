@@ -21,7 +21,7 @@ def test_render_uses_cpu_and_no_shell(tmp_path):
     graph=seen[0][0][seen[0][0].index('-filter_complex')+1]
     assert 'boxblur' not in graph and 'overlay' not in graph and 'split=2' not in graph
     assert 'crop=1080:1920' in graph and 'ass=' in graph
-    assert 'fade=t=in' in graph and 'fade=t=out' in graph
+    assert 'fade=t=out' in graph and 'fade=t=in' not in graph
     assert 'afade' not in graph
 
 def test_partial_render_is_never_completed(tmp_path):

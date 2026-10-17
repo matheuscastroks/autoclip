@@ -37,7 +37,9 @@ class FFmpegRenderer:
             if crop.points and crop.points[-1].output_us > edl.duration_us + 100_000:raise PipelineError('UNSAFE_EDIT','render','Crop path exceeds output timeline.')
             x="'"+crop_expression(crop.points,width=width)+"'"
         duration=edl.duration_us/1e6
-        fades=f',fade=t=in:st=0:d={min(.2,duration/3):.6f},fade=t=out:st={max(0,duration-min(.3,duration/3)):.6f}:d={min(.3,duration/3):.6f}'
+        fade_out_dur=min(.3,duration/3)
+        fade_out_st=max(0,duration-fade_out_dur)
+        fades=f',fade=t=out:st={fade_out_st:.6f}:d={fade_out_dur:.6f}'
         filters.append(f'[vbase]scale={width}:{height}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={width}:{height}:{x}:(ih-{height})/2,setsar=1,ass=filename=captions.ass:fontsdir=fonts{fades},fps={fps},format=yuv420p[vout]')
         with tempfile.TemporaryDirectory(prefix='.render-',dir=root) as stage:
             stage=Path(stage);shutil.copyfile(captions.ass_path,stage/'captions.ass')

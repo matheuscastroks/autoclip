@@ -51,7 +51,7 @@ def load_preparation(root, revision_id, *, verify_source=True):
     folder = revision_path(root, revision_id)
     try:
         if (folder / 'deleted.json').exists():
-            raise ValueError('Revision is in trash')
+            raise PipelineError('REVISION_DELETED', 'prepare', 'Este corte está na lixeira. Restaure-o para utilizá-lo.')
         prepared = PreparationArtifact.model_validate_json((folder / 'prepared.json').read_bytes())
         values = prepared.model_dump(exclude={'schema_version', 'fingerprint'})
         # UUIDs serialize identically in object_hash's canonical encoder.
@@ -69,6 +69,8 @@ def load_preparation(root, revision_id, *, verify_source=True):
         if candidate.id != prepared.candidate_id or edl.revision_id != prepared.revision_id or edl.source_id != source.id:
             raise ValueError('Revision provenance mismatch')
         return folder, prepared, source, edl, caps, crop
+    except PipelineError:
+        raise
     except (OSError, ValueError) as exc:
         raise PipelineError('PREPARATION_CHANGED', 'prepare', 'Shared preparation unavailable or changed; generate a new preview.') from exc
 
