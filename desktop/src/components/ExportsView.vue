@@ -30,9 +30,11 @@ function formatDuration(us: number): string {
 }
 
 function generateCopyText(item: ExportedCutItem): string {
+  if (item.revision.description && item.revision.description.trim()) {
+    return item.revision.description.trim();
+  }
   const title = item.revision.title || item.project.title || 'Corte em Destaque';
-  const hashtags = '#shorts #cortes #viral #podcast #reels #tiktok #autoclip';
-  return `${title}\n\nAssista ao episódio completo no canal!\n\n${hashtags}`;
+  return `${title}\n\nAssista ao episódio completo no canal!\n\n#shorts #cortes #podcast #reels`;
 }
 
 async function copyPostCopy(item: ExportedCutItem) {

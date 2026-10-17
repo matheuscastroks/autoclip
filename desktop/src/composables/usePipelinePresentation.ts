@@ -1,9 +1,16 @@
 import { computed, toRef } from 'vue';
 import type { AnalysisView, Job, Project, Revision } from '../types';
 import { active, latestJob, stages } from '../format';
-import { PIPELINE_STEPS, usePipelineSteps } from './usePipelineSteps';
+import { PIPELINE_STEPS, usePipelineSteps, type StepId, type StepState } from './usePipelineSteps';
 import { useRenderFailures } from './useRenderFailures';
 import { isFinalAvailable as validFinal } from '../domain/revisionPresentation';
+
+export interface PipelineStep {
+  id: StepId;
+  title: string;
+  state: StepState;
+  actions: PipelineAction[];
+}
 
 export interface PipelineInput {
   project: Project;

@@ -23,3 +23,24 @@ it('moves focus and selection with arrows, Home and End without submitting', asy
     w.unmount();
   }
 });
+
+it('renders completed checkmark badges for completed stages', () => {
+  const w = mount(ProjectTabs, {
+    props: {
+      modelValue: 'overview',
+      completed: {
+        overview: true,
+        transcript: true,
+        analysis: false,
+        cuts: false,
+      },
+    },
+  });
+
+  const completedBadges = w.findAll('[data-tab-completed]');
+  expect(completedBadges).toHaveLength(2);
+  expect(w.find('#tab-overview [data-tab-completed]').exists()).toBe(true);
+  expect(w.find('#tab-transcript [data-tab-completed]').exists()).toBe(true);
+  expect(w.find('#tab-analysis [data-tab-completed]').exists()).toBe(false);
+  expect(w.find('#tab-cuts [data-tab-completed]').exists()).toBe(false);
+});

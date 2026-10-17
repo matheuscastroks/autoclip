@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import type { EnrichedCut } from './AllCutsView.vue';
+import type { Checks } from '../types';
 import AppButton from './AppButton.vue';
 import AppIcon from './ui/AppIcon.vue';
 import StatusTag from './StatusTag.vue';
@@ -14,12 +15,30 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
-  approve: [cut: EnrichedCut];
+  approve: [cut: EnrichedCut, checks: Checks];
   reject: [cut: EnrichedCut];
   renderFinal: [cut: EnrichedCut];
   export: [cut: EnrichedCut];
   openProject: [projectId: string];
 }>();
+
+const criteria: { key: keyof Checks; label: string }[] = [
+  { key: 'completeness', label: 'O pensamento está completo' },
+  { key: 'context', label: 'O trecho funciona fora do vídeo original' },
+  { key: 'qualifications', label: 'Negações, números e ressalvas foram preservados' },
+  { key: 'words_and_boundaries', label: 'Nenhuma palavra ou argumento foi cortado' },
+  { key: 'audiovisual', label: 'Áudio, quadro e legendas foram revisados' },
+];
+
+const checks = ref<Checks>({
+  completeness: false,
+  context: false,
+  qualifications: false,
+  words_and_boundaries: false,
+  audiovisual: false,
+});
+
+const allChecksConfirmed = computed(() => criteria.every(c => checks.value[c.key]));
 
 const selectedVersion = ref<'preview' | 'final'>('preview');
 const mediaUrl = ref<string>('');
@@ -72,6 +91,13 @@ watch(
   () => props.cut.revision.revision_id,
   () => {
     selectedVersion.value = hasFinal.value ? 'final' : 'preview';
+    checks.value = {
+      completeness: props.cut.revision.review_status === 'approved',
+      context: props.cut.revision.review_status === 'approved',
+      qualifications: props.cut.revision.review_status === 'approved',
+      words_and_boundaries: props.cut.revision.review_status === 'approved',
+      audiovisual: props.cut.revision.review_status === 'approved',
+    };
     void loadCutMedia();
   },
   { immediate: true }
@@ -181,12 +207,53 @@ watch(selectedVersion, () => {
               </div>
             </div>
 
-            <!-- Passo 2: Avaliação Editorial do Editor Humano -->
+            <!-- Passo 2: Versão Final em Alta Resolução (1080×1920) -->
+            <div
+              class="check-step"
+              :class="{
+                completed: hasFinal,
+                pending: !hasFinal,
+              }"
+            >
+              <div class="step-indicator">
+                <AppIcon
+                  :name="hasFinal ? 'check' : 'sparkle'"
+                  size="sm"
+                />
+              </div>
+              <div class="step-body">
+                <div class="step-title">2. Versão Final em Alta Resolução (1080×1920)</div>
+                <p class="step-desc">
+                  {{
+                    hasFinal
+                      ? 'Vídeo renderizado com reenquadramento inteligente (face tracking) e nitidez máxima.'
+                      : 'Renderize a versão final em alta resolução para habilitar a inspeção e os critérios de aprovação editorial.'
+                  }}
+                </p>
+
+                <div
+                  v-if="!hasFinal"
+                  class="step-action-row"
+                >
+                  <AppButton
+                    class="button small primary"
+                    :disabled="busy"
+                    @click="$emit('renderFinal', cut)"
+                  >
+                    <AppIcon name="sparkle" size="sm" />
+                    Gerar Versão Final 1080×1920
+                  </AppButton>
+                </div>
+              </div>
+            </div>
+
+            <!-- Passo 3: Avaliação Editorial do Editor Humano (5 Critérios) -->
             <div
               class="check-step"
               :class="{
                 completed: cut.revision.review_status === 'approved',
-                pending: cut.revision.review_status !== 'approved',
+                pending: hasFinal && cut.revision.review_status !== 'approved',
+                locked: !hasFinal,
               }"
             >
               <div class="step-indicator">
@@ -196,20 +263,39 @@ watch(selectedVersion, () => {
                 />
               </div>
               <div class="step-body">
-                <div class="step-title">2. Aprovação Editorial</div>
+                <div class="step-title">3. Aprovação Editorial Humana</div>
                 <p class="step-desc">
                   {{
                     cut.revision.review_status === 'approved'
-                      ? 'Corte aprovado para geração da versão final em alta resolução.'
-                      : 'Avalie se a narrativa funciona fora do contexto original e se o corte está pronto.'
+                      ? 'Corte aprovado editorialmente após confirmação dos 5 critérios.'
+                      : hasFinal
+                        ? 'Confirme os 5 critérios editoriais após assistir à versão final renderizada:'
+                        : 'Aguardando geração da versão final para inspeção editorial.'
                   }}
                 </p>
 
-                <div v-if="cut.revision.review_status !== 'approved'" class="step-action-row">
+                <!-- Checklist dos 5 Critérios Editoriais Obrigatórios -->
+                <div v-if="hasFinal && cut.revision.review_status !== 'approved'" class="editorial-checklist">
+                  <label
+                    v-for="criterion in criteria"
+                    :key="criterion.key"
+                    class="criterion-check-item"
+                  >
+                    <input
+                      v-model="checks[criterion.key]"
+                      type="checkbox"
+                      class="criterion-checkbox"
+                    />
+                    <span class="criterion-label">{{ criterion.label }}</span>
+                  </label>
+                </div>
+
+                <div v-if="hasFinal && cut.revision.review_status !== 'approved'" class="step-action-row">
                   <AppButton
                     class="button small primary"
-                    :disabled="busy"
-                    @click="$emit('approve', cut)"
+                    :disabled="busy || !allChecksConfirmed"
+                    :title="allChecksConfirmed ? 'Aprovar corte' : 'Marque todos os 5 critérios para aprovar'"
+                    @click="$emit('approve', cut, checks)"
                   >
                     <AppIcon name="check" size="sm" />
                     Aprovar Corte
@@ -220,49 +306,6 @@ watch(selectedVersion, () => {
                     @click="$emit('reject', cut)"
                   >
                     Rejeitar
-                  </AppButton>
-                </div>
-              </div>
-            </div>
-
-            <!-- Passo 3: Versão Final 1080x1920 -->
-            <div
-              class="check-step"
-              :class="{
-                completed: hasFinal,
-                pending: !hasFinal && cut.revision.review_status === 'approved',
-                locked: !hasFinal && cut.revision.review_status !== 'approved',
-              }"
-            >
-              <div class="step-indicator">
-                <AppIcon
-                  :name="hasFinal ? 'check' : 'sparkle'"
-                  size="sm"
-                />
-              </div>
-              <div class="step-body">
-                <div class="step-title">3. Versão Final em Alta Resolução (1080×1920)</div>
-                <p class="step-desc">
-                  {{
-                    hasFinal
-                      ? 'Vídeo renderizado com enquadramento inteligente e nitidez máxima.'
-                      : cut.revision.review_status === 'approved'
-                        ? 'Corte aprovado! Pronto para renderizar o vídeo final.'
-                        : 'Aguardando aprovação editorial para habilitar renderização final.'
-                  }}
-                </p>
-
-                <div
-                  v-if="!hasFinal && cut.revision.review_status === 'approved'"
-                  class="step-action-row"
-                >
-                  <AppButton
-                    class="button small primary"
-                    :disabled="busy"
-                    @click="$emit('renderFinal', cut)"
-                  >
-                    <AppIcon name="sparkle" size="sm" />
-                    Gerar Versão Final 1080×1920
                   </AppButton>
                 </div>
               </div>
@@ -289,9 +332,9 @@ watch(selectedVersion, () => {
                   {{
                     cut.revision.exported
                       ? 'Vídeo exportado e disponível na Central de Exportações e na pasta do projeto.'
-                      : hasFinal
+                      : hasFinal && cut.revision.review_status === 'approved'
                         ? 'Vídeo pronto para exportação para YouTube Shorts, Reels e TikTok.'
-                        : 'Requer versão final gerada.'
+                        : 'Requer aprovação editorial prévia dos 5 critérios.'
                   }}
                 </p>
 
@@ -605,6 +648,38 @@ watch(selectedVersion, () => {
   margin: 0;
   font-size: 12px;
   color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.editorial-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+}
+
+.criterion-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.criterion-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-action-primary);
+  cursor: pointer;
+}
+
+.criterion-label {
   line-height: 1.4;
 }
 

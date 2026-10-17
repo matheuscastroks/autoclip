@@ -159,3 +159,55 @@ def test_thumbnail_is_generated_once_locally(tmp_path,monkeypatch):
     first=thumbnail(root,'ffmpeg')
     assert first.read_bytes()==b'JPEG-fixture'
     assert thumbnail(root,'ffmpeg')==first and len(calls)==1
+
+
+def test_clip_thumbnail_uses_candidate_title_suggestion(tmp_path, monkeypatch):
+    from engine.api.thumbnails import clip_thumbnail
+    from engine.contracts import Candidate, EDLArtifact, Source, EditorialFlags
+    from uuid import uuid4
+
+    root = source_folder(tmp_path)
+    rid = str(uuid4())
+    rev_dir = root / 'revisions' / rid
+    rev_dir.mkdir(parents=True)
+
+    cand = Candidate(
+        topic_id='top1',
+        start_word_id='w1',
+        end_word_id='w2',
+        evidence_word_ids=['w1', 'w2'],
+        rationale='Raciocínio editorial',
+        editorial=EditorialFlags(completeness='yes', standalone_context='yes', qualification_preserved='yes'),
+        title_suggestion='Título do Corte via Sugestão',
+    )
+    (rev_dir / 'candidate.json').write_text(cand.model_dump_json(), encoding='utf-8')
+
+    from engine.contracts import Span
+    edl = EDLArtifact(
+        source_id=uuid4(),
+        transcript_id=uuid4(),
+        revision_id=cand.id,
+        spans=[Span(source_start_us=1000000, source_end_us=5000000, output_start_us=0, output_end_us=4000000)],
+        duration_us=4000000,
+        protected_word_ids=[],
+        removed=[],
+    )
+    (rev_dir / 'edl.json').write_text(edl.model_dump_json(), encoding='utf-8')
+
+    calls = []
+    ass_texts = []
+    def render(cmd, **kwargs):
+        calls.append(cmd)
+        ass_files = list(rev_dir.glob('.thumb-*.ass'))
+        if ass_files:
+            ass_texts.append(ass_files[0].read_text(encoding='utf-8'))
+        Path(cmd[-1]).write_bytes(b'THUMB-fixture')
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr('engine.api.thumbnails.subprocess.run', render)
+
+    thumb_path = clip_thumbnail(root, rid, 'ffmpeg')
+    assert thumb_path.read_bytes() == b'THUMB-fixture'
+    assert len(ass_texts) == 1
+    assert 'Título do Corte' in ass_texts[0]
+

@@ -58,7 +58,7 @@ const speeds = ['1.0x', '1.1x', '1.15x'];
   <section class="dashboard-card output-guidelines-card" aria-labelledby="output-guidelines-heading">
     <header class="card-header">
       <div class="card-header-left">
-        <AppIcon name="palette" size="sm" class="card-icon" />
+        <AppIcon name="sparkle" size="sm" class="card-icon" />
         <h3 id="output-guidelines-heading" class="card-title">Diretrizes de Saída dos Shorts</h3>
       </div>
       <span class="preset-format-tag">9:16 Vertical</span>
@@ -121,7 +121,7 @@ const speeds = ['1.0x', '1.1x', '1.15x'];
       <!-- Seção 3: Enquadramento & Resolução -->
       <div class="framing-notice-box">
         <div class="framing-icon">
-          <AppIcon name="crop" size="md" />
+          <AppIcon name="video" size="md" />
         </div>
         <div class="framing-copy">
           <strong>1080×1920 (9:16) · Auto-Framing Ativo</strong>

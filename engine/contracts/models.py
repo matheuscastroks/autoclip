@@ -110,6 +110,10 @@ class Candidate(Contract):
         if not self.opening_suggestion:value.pop('opening_suggestion',None)
         return value
 
+    @property
+    def title(self) -> str:
+        return self.title_suggestion
+
 
 class Topic(Contract):
     id: str

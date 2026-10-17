@@ -49,7 +49,7 @@ def clip_thumbnail(root, revision_id: str, ffmpeg):
             raise HTTPException(404, 'Dados do corte indisponíveis para gerar miniatura.')
 
         start_seconds = max(0.0, edl.spans[0].source_start_us / 1e6) if edl.spans else 0.0
-        raw_title = (candidate.title or 'Corte em Destaque').strip()
+        raw_title = (candidate.title_suggestion or getattr(candidate, 'title', None) or 'Corte em Destaque').strip()
 
         # Quebra de linhas inteligente para largura 9:16 (~26 caracteres por linha)
         words = raw_title.replace('{', '').replace('}', '').split()

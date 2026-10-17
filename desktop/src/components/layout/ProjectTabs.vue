@@ -6,6 +6,7 @@ export type ProjectTab = 'overview' | 'transcript' | 'analysis' | 'cuts';
 const props = defineProps<{
   modelValue: ProjectTab;
   counts?: Partial<Record<ProjectTab, number>>;
+  completed?: Partial<Record<ProjectTab, boolean>>;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: ProjectTab] }>();
 const tabs: { id: ProjectTab; label: string; icon: IconName }[] = [
@@ -45,11 +46,34 @@ function tabKey(event: KeyboardEvent) {
       aria-controls="project-panel"
       :tabindex="modelValue === t.id ? 0 : -1"
       :aria-selected="modelValue === t.id"
-      :class="{ selected: modelValue === t.id }"
+      :class="{ selected: modelValue === t.id, 'is-completed': completed?.[t.id] }"
       @click="$emit('update:modelValue', t.id)"
     >
-      <AppIcon :name="t.icon" size="sm" />{{ t.label }}
-      <span v-if="counts?.[t.id] !== undefined">{{ counts[t.id]?.toLocaleString('pt-BR') }}</span>
+      <AppIcon :name="t.icon" size="sm" />
+      <span>{{ t.label }}</span>
+      <span v-if="counts?.[t.id] !== undefined" class="tab-count">{{ counts[t.id]?.toLocaleString('pt-BR') }}</span>
+      <span
+        v-if="completed?.[t.id]"
+        class="tab-completed-badge"
+        data-tab-completed
+        :title="`${t.label} concluída`"
+      >
+        <AppIcon name="check" size="sm" />
+      </span>
     </AppButton>
   </div>
 </template>
+
+<style scoped>
+.tab-completed-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-success, #34d399) !important;
+  margin-left: 2px;
+}
+.tab-completed-badge :deep(svg) {
+  width: 13px;
+  height: 13px;
+}
+</style>

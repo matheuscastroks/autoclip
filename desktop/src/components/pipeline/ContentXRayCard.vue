@@ -17,9 +17,15 @@ const emit = defineEmits<{
 
 const topicsList = computed<string[]>(() => {
   if (!props.analysis) return [];
-  const fromTopics = props.analysis.topics?.map(t => t.title).filter(Boolean) || [];
-  if (fromTopics.length) return fromTopics;
-  const titles = props.analysis.proposals?.map(p => p.topic_title).filter(Boolean) || [];
+  const groups = props.analysis.topic_groups?.map(g => g.label).filter((l): l is string => Boolean(l)) || [];
+  if (groups.length) return groups;
+  const legacyTopics = ((props.analysis as any).topics as Array<{ title?: string }> | undefined)
+    ?.map(t => t.title)
+    .filter((t): t is string => Boolean(t)) || [];
+  if (legacyTopics.length) return Array.from(new Set(legacyTopics));
+  const titles = props.analysis.proposals
+    ?.map(p => (p as any).topic_title || p.title)
+    .filter((t): t is string => Boolean(t)) || [];
   return Array.from(new Set(titles));
 });
 
@@ -54,7 +60,7 @@ const proposalsCount = computed(() => props.analysis?.proposals?.length || 0);
 
         <div class="topics-tag-cloud">
           <span v-for="topic in topicsList" :key="topic" class="topic-tag">
-            <AppIcon name="tag" size="sm" class="topic-icon" />
+            <AppIcon name="sparkle" size="sm" class="topic-icon" />
             {{ topic }}
           </span>
         </div>

@@ -131,9 +131,15 @@ def apply_transcript_updates(transcript: TranscriptArtifact, updates: list[Segme
 
     final_words.sort(key=lambda w: (w.start_us, w.end_us))
 
+    has_text_changes = any(
+        seg.id in update_map and update_map[seg.id] != seg.text
+        for seg in transcript.segments
+    )
+    new_transcript_id = uuid.uuid4() if has_text_changes else transcript.transcript_id
+
     return TranscriptArtifact(
         schema_version=transcript.schema_version,
-        transcript_id=transcript.transcript_id,
+        transcript_id=new_transcript_id,
         source_id=transcript.source_id,
         source_sha256=transcript.source_sha256,
         language=transcript.language,

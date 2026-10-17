@@ -15,6 +15,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   action: [value: PipelineAction];
+  errorDetails: [];
 }>();
 
 const showDiagnostics = ref(false);
@@ -29,7 +30,7 @@ const showDiagnostics = ref(false);
       </div>
       <span class="action-state-chip" :data-state="hero.state">
         <span class="chip-dot" />
-        {{ hero.state === 'running' ? 'Processando' : hero.state === 'ready' ? 'Pronto' : hero.state }}
+        {{ hero.state === 'processing' ? 'Processando' : hero.state === 'ready' ? 'Pronto' : 'Atenção' }}
       </span>
     </header>
 
@@ -84,10 +85,20 @@ const showDiagnostics = ref(false);
           v-for="secondary in hero.secondary"
           :key="secondary.id"
           class="button secondary"
+          :data-action="secondary.id === 'replaceSource' ? 'replace-source' : secondary.id === 'resume' ? 'retry-import' : secondary.id"
           :disabled="secondary.disabled || busy"
           @click="emit('action', secondary)"
         >
           {{ secondary.label }}
+        </AppButton>
+
+        <AppButton
+          v-if="hero.errorDetails"
+          class="button secondary"
+          data-action="error-details"
+          @click="emit('errorDetails')"
+        >
+          Ver detalhes técnicos
         </AppButton>
       </div>
 

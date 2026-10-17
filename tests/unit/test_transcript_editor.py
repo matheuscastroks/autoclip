@@ -63,3 +63,13 @@ def test_edit_nonexistent_segment_raises_error():
     with pytest.raises(PipelineError) as exc:
         apply_transcript_updates(t, [SegmentUpdate(id='s999', text='Inexistente')])
     assert exc.value.code == 'SEGMENT_NOT_FOUND'
+
+def test_edit_text_changes_transcript_id_to_invalidate_analysis():
+    t = make_sample_transcript()
+    # Identical text preserves transcript_id
+    noop = apply_transcript_updates(t, [SegmentUpdate(id='s0', text='Olá mundo')])
+    assert noop.transcript_id == t.transcript_id
+
+    # Changed text generates a new transcript_id (invalidating previous analysis)
+    updated = apply_transcript_updates(t, [SegmentUpdate(id='s0', text='Oi mundo')])
+    assert updated.transcript_id != t.transcript_id

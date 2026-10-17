@@ -18,6 +18,7 @@ import type {
   Transcript,
   Revision,
   Decision,
+  Checks,
   AnalysisView,
   AnalysisSelection,
   HardwareProfile,
@@ -147,40 +148,53 @@ async function inspectCut(item: EnrichedCut) {
   selectedCutDetail.value = item;
 }
 
-async function approveSingleCut(item: EnrichedCut) {
-  await api.decide(item.project.id, {
-    revision_id: item.revision.revision_id,
-    decision: 'approved',
-    checks: {
-      completeness: true,
-      context: true,
-      qualifications: true,
-      words_and_boundaries: true,
-      audiovisual: true,
-    },
-    notes: 'Aprovado via Central de Cortes',
-    content_hash: item.revision.content_hash || '',
+async function approveSingleCut(item: EnrichedCut, checks?: Checks) {
+  const editorialChecks: Checks = checks || {
+    completeness: true,
+    context: true,
+    qualifications: true,
+    words_and_boundaries: true,
+    audiovisual: true,
+  };
+  await action('project:' + item.project.id, async () => {
+    await api.decide(item.project.id, {
+      revision_id: item.revision.revision_id,
+      decision: 'approved',
+      checks: editorialChecks,
+      notes: 'Aprovado via Central de Cortes',
+      content_hash: item.revision.content_hash || '',
+    });
+    notify.success('Corte aprovado com sucesso!');
+    await loadAllCuts();
+    if (selectedCutDetail.value?.revision.revision_id === item.revision.revision_id) {
+      const refreshed = allCuts.value.find(c => c.revision.revision_id === item.revision.revision_id);
+      if (refreshed) selectedCutDetail.value = refreshed;
+    }
   });
-  notify.success('Corte aprovado com sucesso!');
-  await loadAllCuts();
 }
 
 async function rejectSingleCut(item: EnrichedCut) {
-  await api.decide(item.project.id, {
-    revision_id: item.revision.revision_id,
-    decision: 'rejected',
-    checks: {
-      completeness: false,
-      context: false,
-      qualifications: false,
-      words_and_boundaries: false,
-      audiovisual: false,
-    },
-    notes: 'Rejeitado via Central de Cortes',
-    content_hash: item.revision.content_hash || '',
+  await action('project:' + item.project.id, async () => {
+    await api.decide(item.project.id, {
+      revision_id: item.revision.revision_id,
+      decision: 'rejected',
+      checks: {
+        completeness: false,
+        context: false,
+        qualifications: false,
+        words_and_boundaries: false,
+        audiovisual: false,
+      },
+      notes: 'Rejeitado via Central de Cortes',
+      content_hash: item.revision.content_hash || '',
+    });
+    notify.info('Corte rejeitado.');
+    await loadAllCuts();
+    if (selectedCutDetail.value?.revision.revision_id === item.revision.revision_id) {
+      const refreshed = allCuts.value.find(c => c.revision.revision_id === item.revision.revision_id);
+      if (refreshed) selectedCutDetail.value = refreshed;
+    }
   });
-  notify.info('Corte rejeitado.');
-  await loadAllCuts();
 }
 
 async function renderFinalCut(item: EnrichedCut) {
@@ -879,7 +893,7 @@ onUnmounted(() => {
                   :cut="selectedCutDetail"
                   :busy="isPending('project:' + selectedCutDetail.project.id)"
                   @back="selectedCutDetail = null"
-                  @approve="approveSingleCut"
+                  @approve="(cut, checks) => approveSingleCut(cut, checks)"
                   @reject="rejectSingleCut"
                   @render-final="renderFinalCut"
                   @export="exportSingleCutFromHub"

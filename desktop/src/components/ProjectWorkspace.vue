@@ -114,6 +114,12 @@ const currentSelection = computed(() =>
         analysis: analysis?.proposals.length,
         cuts: revisions.length,
       }"
+      :completed="{
+        overview: Boolean(sourceUrl || project.duration_us || project.has_transcript),
+        transcript: Boolean(project.has_transcript),
+        analysis: Boolean(analysis?.state === 'completed' || (analysis?.proposals?.length ?? 0) > 0),
+        cuts: revisions.length > 0,
+      }"
     />
 
     <section v-if="previewError" class="preview-failure" data-preview-failure role="alert">

@@ -69,3 +69,21 @@ def test_analysis_view_and_selection_accept_clips_shorter_and_longer_than_prefer
     saved=save_selection(tmp_path,view['analysis_hash'],[str(c_short.id),str(c_long.id)],max_seconds=120)
     assert saved['candidate_ids']==[str(c_short.id),str(c_long.id)]
 
+
+def test_edited_transcript_invalidates_previous_analysis(tmp_path):
+    from engine.editorial.transcript_editor import apply_transcript_updates
+    from engine.contracts.api import SegmentUpdate
+    t, a = fixture(tmp_path)
+    view = analysis_view(tmp_path)
+    assert view['state'] == 'completed'
+
+    # Edit text in the first segment
+    edited = apply_transcript_updates(t, [SegmentUpdate(id=t.segments[0].id, text='Texto alterado pelo editor')])
+    atomic_json(tmp_path / 'transcript.json', edited)
+
+    # Analysis view must now detect that the analysis is stale
+    stale_view = analysis_view(tmp_path)
+    assert stale_view['state'] == 'stale'
+    assert 'A análise salva não corresponde à transcrição atual' in stale_view['diagnostic']
+
+
