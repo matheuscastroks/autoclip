@@ -205,9 +205,9 @@ const isSavedDefault = computed(
 
 <style scoped>
 .caption-presets-view {
-  max-width: 900px;
-  margin: 0 auto;
   width: 100%;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -252,11 +252,17 @@ const isSavedDefault = computed(
 /* Grid de Presets */
 .presets-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1280px) {
+  .presets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .presets-grid {
     grid-template-columns: 1fr;
   }
@@ -293,15 +299,17 @@ const isSavedDefault = computed(
 /* Topo do Card */
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .card-titles {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .preset-name {

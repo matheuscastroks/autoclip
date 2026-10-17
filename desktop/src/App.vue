@@ -211,6 +211,13 @@ async function savePreset(presetId: 'karaoke_yellow' | 'editorial_sober' | 'impa
   await saveConfig(updated);
   notify.success('Estilo de legenda padrão salvo com sucesso!');
 }
+
+async function saveSpeed(speed: '1x' | '1.25x' | '1.5x') {
+  if (!config.value) return;
+  const updated: Config = { ...config.value, playback_speed: speed };
+  await saveConfig(updated);
+  notify.success(`Velocidade de exportação definida para ${speed}.`);
+}
 const selectedRevision = ref(''),
   mediaLoading = ref(false),
   analysis = ref<AnalysisView | null>(null),
@@ -708,9 +715,11 @@ onUnmounted(() => {
         :exported-count="exportedCount"
         :engine-state="initial ? 'checking' : offline ? 'offline' : 'online'"
         :theme="theme"
+        :playback-speed="(config?.playback_speed || '1x') as '1x' | '1.25x' | '1.5x'"
         @navigate="navigate"
         @open-queue="showGlobalQueue = true"
         @toggle-theme="toggleTheme"
+        @change-speed="saveSpeed"
       >
         <template #engine>
           <details ref="engineMenu" class="engine-menu" @keydown.esc.prevent="closeEngineMenu">

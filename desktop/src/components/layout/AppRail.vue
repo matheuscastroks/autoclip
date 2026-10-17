@@ -6,7 +6,7 @@ import type { AppTheme } from '../../composables/useTheme';
 
 export type AppPage = 'projects' | 'all-cuts' | 'caption-styles' | 'exports' | 'settings';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     activePage: AppPage;
     activeJobsCount: number;
@@ -14,16 +14,26 @@ withDefaults(
     exportedCount?: number;
     engineState: 'online' | 'offline' | 'checking';
     theme?: AppTheme;
+    playbackSpeed?: '1x' | '1.25x' | '1.5x';
   }>(),
-  { theme: 'dark', pendingCutsCount: 0, exportedCount: 0 }
+  { theme: 'dark', pendingCutsCount: 0, exportedCount: 0, playbackSpeed: '1x' }
 );
 
-defineEmits<{
+const emit = defineEmits<{
   navigate: [page: AppPage];
   openQueue: [];
   openEngineStatus: [];
   toggleTheme: [];
+  changeSpeed: [speed: '1x' | '1.25x' | '1.5x'];
 }>();
+
+const speeds: ('1x' | '1.25x' | '1.5x')[] = ['1x', '1.25x', '1.5x'];
+
+function cycleSpeed() {
+  const currentIndex = speeds.indexOf(props.playbackSpeed || '1x');
+  const nextIndex = (currentIndex + 1) % speeds.length;
+  emit('changeSpeed', speeds[nextIndex]);
+}
 
 const collapsed = ref(false);
 
@@ -164,6 +174,43 @@ try {
           >
             {{ exportedCount }}
           </span>
+        </button>
+      </ElTooltip>
+
+      <!-- Velocidade dos Vídeos -->
+      <div v-if="!collapsed" class="rail-speed-box">
+        <div class="rail-speed-meta">
+          <span class="rail-speed-title">Velocidade</span>
+          <span class="rail-speed-value">{{ playbackSpeed }}</span>
+        </div>
+        <div class="rail-speed-pills" role="radiogroup" aria-label="Velocidade de exportação">
+          <button
+            v-for="s in speeds"
+            :key="s"
+            type="button"
+            role="radio"
+            :aria-checked="playbackSpeed === s"
+            class="rail-speed-pill"
+            :class="{ 'is-active': playbackSpeed === s }"
+            :title="`Exportar em velocidade ${s}`"
+            @click="$emit('changeSpeed', s)"
+          >
+            {{ s }}
+          </button>
+        </div>
+      </div>
+      <ElTooltip
+        v-else
+        :content="`Velocidade de exportação: ${playbackSpeed} (clique para alternar)`"
+        placement="right"
+      >
+        <button
+          class="rail-command rail-command--speed"
+          :aria-label="`Velocidade de exportação: ${playbackSpeed}`"
+          type="button"
+          @click="cycleSpeed"
+        >
+          <span class="rail-speed-mini-badge">{{ playbackSpeed }}</span>
         </button>
       </ElTooltip>
     </nav>
@@ -475,6 +522,84 @@ try {
   position: absolute;
   top: 1px;
   right: 2px;
+}
+
+/* Widget de Velocidade na Barra Lateral */
+.rail-speed-box {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--color-surface-raised, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rail-speed-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rail-speed-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rail-speed-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-action-primary);
+  font-feature-settings: 'tnum';
+}
+
+.rail-speed-pills {
+  display: flex;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.rail-speed-pill {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s ease;
+  outline: none;
+}
+
+.rail-speed-pill:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+}
+
+.rail-speed-pill.is-active {
+  background: var(--color-action-primary);
+  color: var(--color-action-primary-text, #ffffff);
+}
+
+.rail-speed-mini-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-feature-settings: 'tnum';
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: var(--color-surface-raised);
 }
 
 @media (forced-colors: active) {

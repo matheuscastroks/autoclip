@@ -38,7 +38,7 @@ const settingsCategories = [
   { title: 'Recursos locais', sub: 'Whisper, FFmpeg e aceleração' },
   { title: 'IA e modelos', sub: 'Gemini, OpenRouter e chaves' },
   { title: 'Duração dos cortes', sub: 'Tempo alvo e limite máximo' },
-  { title: 'Aparência dos vídeos', sub: 'Estilo visual e velocidade' },
+  { title: 'Velocidade dos cortes', sub: 'Aceleração do vídeo exportado' },
 ];
 
 let invalidHandled = false;
@@ -788,137 +788,8 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
             </section>
           </div>
 
-          <!-- Etapa 3: Aparência dos vídeos -->
+          <!-- Etapa 3: Velocidade dos cortes -->
           <div v-show="settingsStep === 3" data-settings-step="3" class="step-appearance-wrap">
-            <section class="setting-section">
-              <div class="section-title-wrap">
-                <div>
-                  <h2 id="settings-preset-heading">Estilo visual dos cortes</h2>
-                  <p>
-                    Escolha um dos quatro estilos predefinidos para títulos de abertura e legendas.
-                    As cores e tipografia são cuidadosamente calibradas para máxima legibilidade.
-                  </p>
-                </div>
-              </div>
-
-              <fieldset class="preset-choice-group" aria-labelledby="settings-preset-heading">
-                <div class="preset-cards-grid">
-                  <!-- Karaokê Amarelo -->
-                  <label
-                    class="preset-card"
-                    :class="{ selected: values.video_preset === 'karaoke_yellow' }"
-                    @click="values.video_preset = 'karaoke_yellow'"
-                  >
-                    <input
-                      v-model="values.video_preset"
-                      type="radio"
-                      name="video-preset"
-                      value="karaoke_yellow"
-                      data-field="preset-karaoke_yellow"
-                      @change="values.video_preset = 'karaoke_yellow'"
-                    />
-                    <div class="preset-card-content">
-                      <div class="preset-card-header">
-                        <div class="preset-title-wrap">
-                          <strong>Karaokê Amarelo</strong>
-                          <span class="preset-default-badge">Padrão</span>
-                        </div>
-                        <div class="preset-sample sample-karaoke" aria-hidden="true">
-                          <span class="sample-title-card sample-yellow">TÍTULO INICIAL</span>
-                          <span class="sample-caption">palavra <b class="highlight-yellow">ativa</b> em vídeo</span>
-                        </div>
-                      </div>
-                      <small>Palavras ativas amarelas com destaque dinâmico e título de abertura em faixa amarela com texto preto.</small>
-                    </div>
-                  </label>
-
-                  <!-- Editorial Sóbrio -->
-                  <label
-                    class="preset-card"
-                    :class="{ selected: values.video_preset === 'editorial_sober' }"
-                    @click="values.video_preset = 'editorial_sober'"
-                  >
-                    <input
-                      v-model="values.video_preset"
-                      type="radio"
-                      name="video-preset"
-                      value="editorial_sober"
-                      data-field="preset-editorial_sober"
-                      @change="values.video_preset = 'editorial_sober'"
-                    />
-                    <div class="preset-card-content">
-                      <div class="preset-card-header">
-                        <div class="preset-title-wrap">
-                          <strong>Editorial Sóbrio</strong>
-                        </div>
-                        <div class="preset-sample sample-editorial" aria-hidden="true">
-                          <span class="sample-title-card sample-sober">TÍTULO INICIAL</span>
-                          <span class="sample-caption">legendas estáticas e discretas</span>
-                        </div>
-                      </div>
-                      <small>Legendas estáticas e discretas com tipografia limpa, tons neutros e composição formal minimalista.</small>
-                    </div>
-                  </label>
-
-                  <!-- Documental -->
-                  <label
-                    class="preset-card"
-                    :class="{ selected: values.video_preset === 'documentary' }"
-                    @click="values.video_preset = 'documentary'"
-                  >
-                    <input
-                      v-model="values.video_preset"
-                      type="radio"
-                      name="video-preset"
-                      value="documentary"
-                      data-field="preset-documentary"
-                      @change="values.video_preset = 'documentary'"
-                    />
-                    <div class="preset-card-content">
-                      <div class="preset-card-header">
-                        <div class="preset-title-wrap">
-                          <strong>Documental</strong>
-                        </div>
-                        <div class="preset-sample sample-documentary" aria-hidden="true">
-                          <span class="sample-title-card sample-blue">TÍTULO INICIAL</span>
-                          <span class="sample-caption sample-bar">faixa inferior escura · azul-aço</span>
-                        </div>
-                      </div>
-                      <small>Legendas em faixa inferior sombreada com paleta escura cinematográfica e detalhes em azul-aço.</small>
-                    </div>
-                  </label>
-
-                  <!-- Impacto -->
-                  <label
-                    class="preset-card"
-                    :class="{ selected: values.video_preset === 'impact' }"
-                    @click="values.video_preset = 'impact'"
-                  >
-                    <input
-                      v-model="values.video_preset"
-                      type="radio"
-                      name="video-preset"
-                      value="impact"
-                      data-field="preset-impact"
-                      @change="values.video_preset = 'impact'"
-                    />
-                    <div class="preset-card-content">
-                      <div class="preset-card-header">
-                        <div class="preset-title-wrap">
-                          <strong>Impacto</strong>
-                        </div>
-                        <div class="preset-sample sample-impact" aria-hidden="true">
-                          <span class="sample-title-card sample-coral">TÍTULO INICIAL</span>
-                          <span class="sample-caption"><b class="highlight-coral">impacto cinético</b></span>
-                        </div>
-                      </div>
-                      <small>Destaque cinético em tom coral vibrante com animações sutis de entrada e visual de alto contraste.</small>
-                    </div>
-                  </label>
-                </div>
-              </fieldset>
-            </section>
-
             <section class="setting-section speed-section">
               <div class="section-title-wrap">
                 <div>
@@ -1436,141 +1307,16 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   flex-direction: column;
   gap: 32px;
 }
-.preset-choice-group,
 .speed-choice-group {
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
 }
-.preset-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-.preset-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-card, 8px);
-  background: var(--color-surface, #1e2227);
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-.preset-card:hover {
-  border-color: var(--color-border-hover, rgba(255, 255, 255, 0.25));
-  background: var(--color-surface-hover, #242930);
-}
-.preset-card.selected {
-  border-color: var(--color-primary, #ffd700);
-  background: var(--color-surface-selected, rgba(255, 215, 0, 0.05));
-  box-shadow: 0 0 0 1px var(--color-primary, #ffd700);
-}
-.preset-card input[type="radio"] {
-  margin-top: 3px;
-  accent-color: var(--color-primary, #ffd700);
-}
-.preset-card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-.preset-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.preset-title-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.preset-title-wrap strong {
-  font-size: var(--font-size-body, 14px);
-  font-weight: 600;
-  color: var(--ink, #fff);
-}
-.preset-default-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--color-primary, #ffd700);
-  color: #000;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.preset-sample {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 10px;
-  border-radius: 6px;
-  background: #101316;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  min-height: 64px;
-}
-.sample-title-card {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  padding: 2px 8px;
-  border-radius: 3px;
-}
-.sample-yellow {
-  background: #ffd700;
-  color: #000;
-}
-.sample-sober {
-  background: #2a2e35;
-  color: #f0f0f0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-.sample-blue {
-  background: #1e3a5f;
-  color: #b0c4de;
-  border-left: 3px solid #4682b4;
-}
-.sample-coral {
-  background: #ff6b6b;
-  color: #fff;
-  font-style: italic;
-}
-.sample-caption {
-  font-size: 11px;
-  color: #d1d5db;
-}
-.highlight-yellow {
-  color: #ffd700;
-  font-weight: 700;
-}
-.highlight-coral {
-  color: #ff6b6b;
-  font-weight: 700;
-}
-.sample-bar {
-  background: rgba(0, 0, 0, 0.6);
-  padding: 1px 6px;
-  border-radius: 2px;
-  border-bottom: 2px solid #4682b4;
-}
-.preset-card small {
-  font-size: 12px;
-  color: var(--color-text-secondary, #9ca3af);
-  line-height: 1.4;
-}
 
 /* Seletor de Velocidade */
 .speed-section {
-  margin-top: 16px;
+  margin-top: 0;
 }
 .speed-selector-row {
   display: grid;
@@ -1627,7 +1373,6 @@ async function handlePick(kind: string, field: 'asr_model_path' | 'ffmpeg' | 'ff
   line-height: 1.3;
 }
 @media (max-width: 800px) {
-  .preset-cards-grid,
   .speed-selector-row {
     grid-template-columns: 1fr;
   }

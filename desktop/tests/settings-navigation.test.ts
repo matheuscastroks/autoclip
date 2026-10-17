@@ -76,11 +76,6 @@ describe('settings navigation', () => {
     expect(choices.map(choice => choice.attributes('name'))).toEqual(
       choices.map(() => 'ai-provider')
     );
-    const presets = wrapper.findAll('.preset-choice-group input[type="radio"]');
-    expect(presets.length).toBe(4);
-    expect(presets.map(choice => choice.attributes('name'))).toEqual(
-      presets.map(() => 'video-preset')
-    );
     const speeds = wrapper.findAll('.speed-choice-group input[type="radio"]');
     expect(speeds.length).toBe(3);
     expect(speeds.map(choice => choice.attributes('name'))).toEqual(
