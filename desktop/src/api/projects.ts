@@ -24,6 +24,8 @@ export const projectsApi = {
   restore: (id: string) => post<void>(`/trash/${id}/restore`),
   openFolder: (id: string) => post<void>(`/projects/${id}/open-folder`),
   transcript: (id: string) => request<Transcript>(`/projects/${id}/transcript`),
+  updateTranscript: (id: string, payload: { segments: { id: string; text: string }[] }) =>
+    put<Transcript>(`/projects/${id}/transcript`, payload),
   analysis: (id: string) => request<AnalysisView>(`/projects/${id}/analysis`),
   selection: (id: string) => request<AnalysisSelection>(`/projects/${id}/analysis-selection`),
   saveSelection: (id: string, value: AnalysisSelection) =>

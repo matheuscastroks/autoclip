@@ -25,6 +25,7 @@ export const api = {
 
   // Mídia e Revisões
   transcript: projectsApi.transcript,
+  updateTranscript: projectsApi.updateTranscript,
   analysis: projectsApi.analysis,
   selection: projectsApi.selection,
   saveSelection: projectsApi.saveSelection,

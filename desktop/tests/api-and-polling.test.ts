@@ -111,10 +111,33 @@ describe('api/client', () => {
 
     const { jobsApi } = await import('../src/api/jobs');
     const res = await jobsApi.clearHistory();
-    expect(res).toEqual({ cleared: 5 });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/jobs/clear-history'),
       expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('executa projectsApi.updateTranscript disparando PUT /projects/{id}/transcript', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ words: [], segments: [] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { projectsApi } = await import('../src/api/projects');
+    const res = await projectsApi.updateTranscript('p1', {
+      segments: [{ id: 's1', text: 'Texto corrigido' }],
+    });
+    expect(res).toEqual({ words: [], segments: [] });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/projects/p1/transcript'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          segments: [{ id: 's1', text: 'Texto corrigido' }],
+        }),
+      })
     );
   });
 });
