@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import { computed, ref, onBeforeUnmount, watch } from 'vue';
+import { computed, ref, onBeforeUnmount, watch, nextTick } from 'vue';
 import type { Transcript } from '../types';
 import { time } from '../format';
 import { vRecoverMedia } from '../directives/recoverMedia';
+import { api } from '../api';
+import { notify } from '../notifications';
 import AppIcon from './ui/AppIcon.vue';
+import AppButton from './AppButton.vue';
+
 const props = defineProps<{
+  projectId?: string;
   transcript: Transcript | null;
   sourceUrl: string;
   wordCount: number;
 }>();
+
+const emit = defineEmits<{
+  'update:transcript': [value: Transcript];
+  'save': [value: Transcript];
+}>();
+
 const query = defineModel<string>('query', { default: '' });
 const player = ref<HTMLVideoElement>();
 const passageList = ref<HTMLElement>();
@@ -16,6 +27,65 @@ const positionUs = ref(0);
 const mediaError = ref('');
 const followPauseTimer = ref<ReturnType<typeof setTimeout>>();
 let followPaused = false;
+
+// Editing state
+const editingSegmentId = ref<string | null>(null);
+const editingText = ref('');
+const saving = ref(false);
+const editorTextarea = ref<HTMLTextAreaElement>();
+
+function startEdit(segment: { id: string; text: string }) {
+  editingSegmentId.value = segment.id;
+  editingText.value = segment.text;
+  followPaused = true;
+  nextTick(() => {
+    if (editorTextarea.value && typeof editorTextarea.value.focus === 'function') {
+      editorTextarea.value.focus();
+    }
+    if (editorTextarea.value && typeof editorTextarea.value.select === 'function') {
+      editorTextarea.value.select();
+    }
+  });
+}
+
+function cancelEdit() {
+  editingSegmentId.value = null;
+  editingText.value = '';
+}
+
+async function saveEdit(segmentId: string) {
+  const newText = editingText.value.trim();
+  if (!newText) {
+    notify.error('O texto da legenda não pode ficar vazio.');
+    return;
+  }
+  
+  if (props.projectId) {
+    try {
+      saving.value = true;
+      const updated = await api.updateTranscript(props.projectId, {
+        segments: [{ id: segmentId, text: newText }],
+      });
+      emit('update:transcript', updated);
+      emit('save', updated);
+      notify.success('Legenda atualizada com sucesso.');
+      editingSegmentId.value = null;
+    } catch (err: unknown) {
+      notify.error(err instanceof Error ? err.message : 'Falha ao salvar legenda.');
+    } finally {
+      saving.value = false;
+    }
+  } else {
+    // When used in test/isolated props mode
+    if (props.transcript) {
+      const seg = props.transcript.segments.find(s => s.id === segmentId);
+      if (seg) seg.text = newText;
+    }
+    emit('update:transcript', props.transcript!);
+    emit('save', props.transcript!);
+    editingSegmentId.value = null;
+  }
+}
 const segments = computed(() =>
   props.transcript?.segments.length
     ? props.transcript.segments
@@ -147,17 +217,69 @@ onBeforeUnmount(() => {
           :key="segment.id"
           type="button"
           class="transcript-segment-row"
-          :class="{ current: positionUs >= segment.start_us && positionUs < segment.end_us }"
+          :class="{
+            current: positionUs >= segment.start_us && positionUs < segment.end_us,
+            editing: editingSegmentId === segment.id,
+          }"
           :aria-current="
             positionUs >= segment.start_us && positionUs < segment.end_us ? 'true' : undefined
           "
           :data-segment="segment.id"
           :disabled="!sourceUrl"
           :aria-label="'Reproduzir trecho iniciado em ' + time(segment.start_us)"
-          @click="seekUnlessSelectingText(segment.start_us)"
+          @click="editingSegmentId !== segment.id && seekUnlessSelectingText(segment.start_us)"
         >
           <time>{{ time(segment.start_us) }}</time>
-          <p>{{ segment.text }}</p>
+
+          <!-- Normal Display Mode -->
+          <div v-if="editingSegmentId !== segment.id" class="segment-display-wrap">
+            <p>{{ segment.text }}</p>
+            <span
+              role="button"
+              tabindex="0"
+              class="edit-segment-btn"
+              data-action="edit-segment"
+              title="Editar legenda deste trecho"
+              aria-label="Editar legenda deste trecho"
+              @click.stop="startEdit(segment)"
+              @keydown.enter.stop="startEdit(segment)"
+            >
+              <AppIcon name="pencil" size="sm" />
+            </span>
+          </div>
+
+          <!-- Inline Edit Mode -->
+          <div v-else class="segment-editor-wrap" @click.stop>
+            <textarea
+              ref="editorTextarea"
+              v-model="editingText"
+              class="segment-editor-input"
+              rows="2"
+              aria-label="Texto corrigido da legenda"
+              :disabled="saving"
+              @keydown.enter.exact.prevent="saveEdit(segment.id)"
+              @keydown.esc.stop="cancelEdit"
+            />
+            <div class="segment-editor-actions">
+              <AppButton
+                class="button primary small"
+                data-action="save-segment"
+                :loading="saving"
+                :disabled="saving"
+                @click.stop="saveEdit(segment.id)"
+              >
+                Salvar
+              </AppButton>
+              <AppButton
+                class="button secondary small"
+                data-action="cancel-segment"
+                :disabled="saving"
+                @click.stop="cancelEdit"
+              >
+                Cancelar
+              </AppButton>
+            </div>
+          </div>
         </button>
         <p v-if="!filtered.length" class="transcript-empty">
           {{
@@ -270,15 +392,84 @@ small {
   align-self: start;
   color: var(--color-action-primary);
   font-size: var(--font-size-meta);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-subtle, 4px);
+  user-select: none;
+}
+.transcript-segment-row time:hover {
+  text-decoration: underline;
+  background: var(--color-surface-hover);
 }
 .transcript-segment-row:disabled {
   cursor: default;
 }
-.transcript-segment-row p {
+.segment-display-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.segment-display-wrap p {
   user-select: text;
   margin: 0;
   font-size: var(--font-size-body);
   overflow-wrap: anywhere;
+  flex: 1;
+}
+.edit-segment-btn {
+  opacity: 0;
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  padding: 4px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.transcript-segment-row:hover .edit-segment-btn,
+.transcript-segment-row:focus-within .edit-segment-btn {
+  opacity: 1;
+}
+.edit-segment-btn:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-action-primary);
+  border-color: var(--color-border-strong);
+}
+.segment-editor-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.segment-editor-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(175, 198, 213, 0.2);
+}
+.segment-editor-input:focus {
+  border-color: var(--color-action-primary);
+  box-shadow: 0 0 0 2px rgba(175, 198, 213, 0.35);
+}
+.segment-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .transcript-empty {
   padding: 24px 0;

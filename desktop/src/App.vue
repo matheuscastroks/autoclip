@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import AppButton from './components/AppButton.vue';
 import NewProjectDialog, { type NewProjectInput } from './components/dialogs/NewProjectDialog.vue';
-import AppRail from './components/layout/AppRail.vue';
+import AppRail, { type AppPage } from './components/layout/AppRail.vue';
 import WorkspaceHeader from './components/layout/WorkspaceHeader.vue';
 import type { ProjectTab } from './components/layout/ProjectTabs.vue';
 import AppIcon from './components/ui/AppIcon.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { api } from './api';
+import AllCutsView, { type EnrichedCut } from './components/AllCutsView.vue';
+import CaptionStylesView from './components/CaptionStylesView.vue';
+import ExportsView, { type ExportedCutItem } from './components/ExportsView.vue';
 import type {
   Project,
   Config,
@@ -77,13 +80,79 @@ function closeEngineMenu() {
   }
 }
 const projectTab = ref<ProjectTab>('overview');
-const page = ref<'projects' | 'settings'>('projects'),
+const page = ref<AppPage>('projects'),
   sourceUrl = ref(''),
   previewUrl = ref(''),
   initial = ref(true),
   offline = ref(false),
   newProjectOpen = ref(false),
   analysisDialog = ref<HTMLDialogElement>();
+
+const allCuts = ref<EnrichedCut[]>([]);
+const allCutsLoading = ref(false);
+
+const pendingCutsCount = computed(() => {
+  return allCuts.value.filter(
+    c => c.revision.review_status !== 'approved' && !c.revision.exported
+  ).length;
+});
+
+const exportedCuts = computed<ExportedCutItem[]>(() => {
+  return allCuts.value.filter(c => c.revision.exported);
+});
+
+const exportedCount = computed(() => exportedCuts.value.length);
+
+async function loadAllCuts() {
+  allCutsLoading.value = true;
+  try {
+    const list: EnrichedCut[] = [];
+    await Promise.all(
+      projects.value.map(async p => {
+        try {
+          const revs = await api.revisions(p.id);
+          for (const r of revs) {
+            list.push({
+              revision: r,
+              project: p,
+            });
+          }
+        } catch {
+          // Ignore individual project errors
+        }
+      })
+    );
+    allCuts.value = list;
+  } catch (err) {
+    console.error('Falha ao carregar cortes globais', err);
+  } finally {
+    allCutsLoading.value = false;
+  }
+}
+
+async function inspectCut(item: EnrichedCut) {
+  await openProject(item.project.id);
+  selectedRevision.value = item.revision.revision_id;
+}
+
+async function exportSingleCutFromHub(item: EnrichedCut) {
+  await action('project:' + item.project.id, async () => {
+    await api.bulkExportClips(item.project.id, [item.revision.revision_id]);
+    notify.success(`Corte "${item.revision.title}" exportado.`);
+    await loadAllCuts();
+  });
+}
+
+async function openFolderByProjectId(projectId: string) {
+  await api.openFolder(projectId);
+}
+
+async function savePreset(presetId: 'karaoke_yellow' | 'editorial_sober' | 'impact' | 'documentary') {
+  if (!config.value) return;
+  const updated: Config = { ...config.value, video_preset: presetId };
+  await saveConfig(updated);
+  notify.success('Estilo de legenda padrão salvo com sucesso!');
+}
 const selectedRevision = ref(''),
   mediaLoading = ref(false),
   analysis = ref<AnalysisView | null>(null),
@@ -262,11 +331,14 @@ let generation = 0;
 let navigationGeneration = 0;
 const projectJobs = computed(() => jobs.value.filter(j => j.project_id === project.value?.id)),
   running = computed(() => jobs.value.some(j => active(j.status)));
-function navigate(destination: 'projects' | 'settings') {
+function navigate(destination: AppPage) {
   if (engineMenu.value) engineMenu.value.open = false;
   if (destination === 'projects' && page.value === 'projects' && project.value) {
     backToLibrary();
     return;
+  }
+  if (destination === 'all-cuts' || destination === 'exports') {
+    void loadAllCuts();
   }
   ++navigationGeneration;
   page.value = destination;
@@ -284,6 +356,7 @@ async function refresh() {
     const [rows, tasks] = await Promise.all([api.projects(), api.jobs()]);
     projects.value = rows;
     for (const row of rows) void loadCover(row);
+    void loadAllCuts();
     const previous = jobs.value;
     jobs.value = tasks;
     reportJobs(tasks);
@@ -572,6 +645,8 @@ onUnmounted(() => {
       <AppRail
         :active-page="page"
         :active-jobs-count="activeJobsCount"
+        :pending-cuts-count="pendingCutsCount"
+        :exported-count="exportedCount"
         :engine-state="initial ? 'checking' : offline ? 'offline' : 'online'"
         :theme="theme"
         @navigate="navigate"
@@ -726,6 +801,27 @@ onUnmounted(() => {
                   :test-connection="api.testGemini"
                   :pick="api.pick"
                 />
+                <CaptionStylesView
+                  v-else-if="page === 'caption-styles'"
+                  :config="config"
+                  @save-preset="savePreset"
+                />
+                <AllCutsView
+                  v-else-if="page === 'all-cuts'"
+                  :cuts="allCuts"
+                  :loading="allCutsLoading"
+                  @inspect="inspectCut"
+                  @export="exportSingleCutFromHub"
+                  @open-project="openProject"
+                />
+                <ExportsView
+                  v-else-if="page === 'exports'"
+                  :exported-cuts="exportedCuts"
+                  :loading="allCutsLoading"
+                  @open-folder="openFolderByProjectId"
+                  @open-project="openProject"
+                  @play="inspectCut"
+                />
                 <ProjectWorkspace
                   v-else-if="project"
                   :key="project.id"
@@ -750,6 +846,7 @@ onUnmounted(() => {
                   @folder="openFolder"
                   @transcribe="start('transcribe')"
                   @analyze="showAnalysis"
+                  @update:transcript="transcript = $event; if (project) project.word_count = $event.words.length"
                   @resume-analysis="start('analyze')"
                   @render="generateSelected"
                   @cancel="cancelJob($event)"

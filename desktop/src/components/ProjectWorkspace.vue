@@ -43,6 +43,7 @@ defineEmits<{
   render: [value: { analysis_hash: string; candidate_ids: string[] }];
   renderFinal: [id: string];
   selection: [value: AnalysisSelection];
+  'update:transcript': [value: Transcript];
   cancel: [id: string];
   resume: [id: string];
   replaceSource: [id: string];
@@ -188,9 +189,11 @@ const currentSelection = computed(() =>
         <TranscriptPanel
           v-else-if="tab === 'transcript'"
           v-model:query="transcriptQuery"
+          :project-id="project.id"
           :transcript="transcript"
           :source-url="sourceUrl"
           :word-count="project.word_count"
+          @update:transcript="$emit('update:transcript', $event)"
         />
 
         <!-- ABA 3: CURADORIA EDITORIAL DE ANÁLISE -->
