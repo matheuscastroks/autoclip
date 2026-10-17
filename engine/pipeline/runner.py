@@ -122,7 +122,10 @@ def run_project(source:Source,config:PipelineConfig,project_root:Path,cancelled=
                 font=font_fingerprint(caption_config.font_path,caption_config.font_name)
                 caps=stage('captions',{'edl':object_hash(edl),'transcript':object_hash(transcript),'config':caption_config.model_dump(mode='json'),'font':font,'runtime':stage_dependencies('captions')},lambda:OpenShortsCaptionBuilder(root/'captions').build(transcript,edl,CaptionRevision(),caption_config),CaptionArtifact)
                 atomic_json(revision_dir/'captions.json',caps)
-                crop=stage('reframe',{'source':source.sha256,'edl':object_hash(edl),'config':config.reframe,'runtime':stage_dependencies('reframe'),'model':recipe['face_model'],'ffmpeg':ffmpeg_identity},lambda:track_faces(source,edl,config.reframe,config.ffmpeg,cancelled=cancelled,progress=lambda done,total:report('reframe',done,total)),CropArtifact)
+                if stop_after=='preview':
+                    crop=CropArtifact(source_id=source.id,edl_revision_id=edl.revision_id,mode='center-crop',fallback_reason='Preview uses fast central crop; face tracking is computed for final render.')
+                else:
+                    crop=stage('reframe',{'source':source.sha256,'edl':object_hash(edl),'config':config.reframe,'runtime':stage_dependencies('reframe'),'model':recipe['face_model'],'ffmpeg':ffmpeg_identity},lambda:track_faces(source,edl,config.reframe,config.ffmpeg,cancelled=cancelled,progress=lambda done,total:report('reframe',done,total)),CropArtifact)
                 atomic_json(revision_dir/'crop.json',crop)
                 from engine.pipeline.outputs import save_preparation,render_output
                 save_preparation(root,revision_dir,analysis_hash=object_hash(analysis),plan_hash=plan_hash)
@@ -201,6 +204,23 @@ def render_final(project_root, revision_ids, ffmpeg, ffprobe, *, cancelled=lambd
     for item in items:
         set_work_item(item['revision_id'])
         rid=item['revision_id'];report(item)
+        folder,prepared,source,edl,caps,crop=load_preparation(root,rid)
+        from engine.contracts import ReframeConfig
+        from engine.media.face_tracking import track_faces,model_path as face_model_path
+        from engine.pipeline.outputs import save_preparation
+        reframe_cfg=ReframeConfig()
+        cfg_path=root/'config.json'
+        reframe_enabled=True
+        if cfg_path.is_file():
+            try:
+                cdata=json.loads(cfg_path.read_text(encoding='utf-8'))
+                reframe_enabled=cdata.get('reframe',{}).get('enabled',True)
+            except Exception:pass
+        if reframe_enabled and crop.mode!='face-track' and Path(ffmpeg).is_file() and face_model_path(reframe_cfg).is_file():
+            report(item,0,edl.duration_us,'reframe')
+            crop=track_faces(source,edl,reframe_cfg,Path(ffmpeg),cancelled=cancelled,progress=lambda done,total:report(item,done,total,'reframe'))
+            atomic_json(folder/'crop.json',crop)
+            save_preparation(root,folder,analysis_hash=prepared.analysis_hash,plan_hash=prepared.plan_hash)
         try:
             rendered,reused=render_output(root,rid,FINAL_PROFILE,ffmpeg,ffprobe,cancelled=cancelled,progress=lambda done,total,phase='render_final':report(item,done,total,phase))
         except (PipelineError,OSError,ValueError):

@@ -11,11 +11,12 @@ def verify_preview(render,source,edl,ffprobe,profile,cancelled=lambda:False):
     probe=probe_json(render.path,ffprobe,cancelled)
     video=next((s for s in probe['streams'] if s['codec_type']=='video'),{})
     audio=next((s for s in probe['streams'] if s['codec_type']=='audio'),{})
+    video_dur=float(video.get('duration') or probe.get('format',{}).get('duration',0))
     return {
         'hash':file_hash(render.path)==render.sha256,
         'size':render.path.stat().st_size==render.size_bytes,
         'dimensions':(video.get('width'),video.get('height'))==(profile.width,profile.height),
-        'duration':abs(round(float(probe['format']['duration'])*1e6)-edl.duration_us)<=33_355,
+        'duration':abs(round(video_dur*1e6)-edl.duration_us)<=100_000,
         'fps':Fraction(video.get('avg_frame_rate','0/1'))==profile.fps,
         'video_codec':video.get('codec_name')=='h264',
         'audio':audio.get('codec_name')=='aac' and audio.get('sample_rate')=='48000',

@@ -125,6 +125,13 @@ def _main(folder:Path):
             if state.status=='failed':raise PipelineError('RENDER_FAILED','job','One or more previews failed technical QA.')
         stage(operation,'completed');atomic_json(folder/'result.json',{'status':'completed','finished_at':now()})
     except BaseException as exc:
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            (folder / 'error.log').write_text(tb, encoding='utf-8')
+            print(f'Job error:\n{tb}', flush=True)
+        except Exception:
+            pass
         code=getattr(exc,'code','JOB_FAILED')
         if operation=='analyze' or operation=='prepare' and progress['steps'].get('analyze')=='running':EventWriter(folder/'analysis-events.jsonl').emit('analysis_stopped','Análise interrompida; os resumos já recebidos são parciais e não aprovam cortes.',error_code=code)
         stage(progress['stage'],'cancelled' if cancelled() or code=='CANCELLED' else 'failed')
@@ -138,7 +145,7 @@ def _main(folder:Path):
             'PROVIDER_AUTH':f'O {provider_name} recusou a autenticação. Verifique a chave e o acesso ao modelo.'}
         from engine.media.source_errors import MESSAGES
         messages.update(MESSAGES)
-        atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.')}})
+        atomic_json(folder/'result.json',{'status':'cancelled' if cancelled() or code=='CANCELLED' else 'failed','finished_at':now(),'error':{'code':code,'message':messages.get(code,'A tarefa não foi concluída. Verifique a fonte, o modelo e as configurações.'),'detail':str(exc)[:1000] if not isinstance(exc, PipelineError) else None}})
         return 1
     return 0
 

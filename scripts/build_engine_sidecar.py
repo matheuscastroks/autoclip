@@ -39,6 +39,7 @@ def build():
         "--workpath", str(ROOT_DIR / "build" / "engine-build"),
         "--collect-all=engine",
         "--collect-all=mediapipe",
+        "--collect-all=onnxruntime",
         "--collect-all=uvicorn",
         "--collect-all=starlette",
         "--collect-data=faster_whisper",

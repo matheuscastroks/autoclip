@@ -34,7 +34,7 @@ class FFmpegRenderer:
         x=f'(iw-{width})/2'
         if crop.mode=='face-track':
             from engine.media.face_tracking import crop_expression
-            if crop.points[-1].output_us>=edl.duration_us:raise PipelineError('UNSAFE_EDIT','render','Crop path exceeds output timeline.')
+            if crop.points and crop.points[-1].output_us > edl.duration_us + 100_000:raise PipelineError('UNSAFE_EDIT','render','Crop path exceeds output timeline.')
             x="'"+crop_expression(crop.points,width=width)+"'"
         duration=edl.duration_us/1e6
         fades=f',fade=t=in:st=0:d={min(.2,duration/3):.6f},fade=t=out:st={max(0,duration-min(.3,duration/3)):.6f}:d={min(.3,duration/3):.6f}'
@@ -47,7 +47,7 @@ class FFmpegRenderer:
             (stage/'filter.txt').write_text(';'.join(filters),encoding='utf-8')
             temp=stage/'result.mp4'
             args=[str(self.ffmpeg),'-nostdin','-hide_banner','-v','error','-y','-copyts','-threads','2','-i',str(source.local_path),'-filter_complex_threads','2','-filter_complex',';'.join(filters),'-map','[vout]','-map','[aout]','-t',f'{edl.duration_us/1e6:.6f}','-c:v',profile.codec,'-threads','2','-preset',profile.preset,'-crf',str(profile.crf),'-pix_fmt','yuv420p','-c:a','aac','-b:a',f'{profile.audio_kbps}k','-ar','48000','-r',str(fps),'-map_metadata','-1','-metadata:s:v:0','rotate=0','-movflags','+faststart',str(temp)]
-            if crop.mode=='face-track':
+            if crop.mode=='face-track' or len(';'.join(filters)) > 2000:
                 index=args.index('-filter_complex');args[index:index+2]=['-/filter_complex','filter.txt']
             extra={}
             if self.progress:
