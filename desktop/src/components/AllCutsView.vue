@@ -27,6 +27,7 @@ const emit = defineEmits<{
 const filterTab = ref<'all' | 'pending' | 'approved' | 'exported'>('all');
 const searchQuery = ref('');
 const selectedProjectId = ref<string>('all');
+const viewMode = ref<'list' | 'grid'>('list');
 
 const uniqueProjects = computed(() => {
   const map = new Map<string, Project>();
@@ -178,11 +179,98 @@ function formatDuration(us: number): string {
           label="Filtrar por projeto"
           class="project-filter-select"
         />
+
+        <div class="view-mode-toggle" role="group" aria-label="Modo de visualização">
+          <button
+            type="button"
+            class="view-mode-btn"
+            :class="{ active: viewMode === 'list' }"
+            aria-label="Visualização em lista"
+            title="Lista com detalhes e ação"
+            @click="viewMode = 'list'"
+          >
+            <AppIcon name="list" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="view-mode-btn"
+            :class="{ active: viewMode === 'grid' }"
+            aria-label="Visualização em grade"
+            title="Grade de miniaturas"
+            @click="viewMode = 'grid'"
+          >
+            <AppIcon name="grid" size="sm" />
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Lista / Grade de Cortes -->
-    <div v-if="filteredCuts.length" class="cuts-grid">
+    <!-- Modo 1: Lista de Trabalho (Padrão Desktop) -->
+    <div v-if="filteredCuts.length && viewMode === 'list'" class="cuts-list-container">
+      <table class="cuts-table">
+        <thead>
+          <tr>
+            <th class="th-thumb">Miniatura</th>
+            <th class="th-title">Corte & Projeto</th>
+            <th class="th-duration">Duração</th>
+            <th class="th-status">Estado</th>
+            <th class="th-action">Próxima Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="item in filteredCuts"
+            :key="item.revision.revision_id"
+            class="cut-table-row"
+            :class="{
+              'row--approved': item.revision.review_status === 'approved',
+              'row--exported': item.revision.exported,
+            }"
+            @click="$emit('inspect', item)"
+          >
+            <td class="td-thumb">
+              <div class="table-thumb-box">
+                <img v-if="item.previewUrl" :src="item.previewUrl" alt="" class="table-thumb-img" />
+                <div v-else class="table-thumb-placeholder">
+                  <AppIcon name="video" size="sm" />
+                </div>
+              </div>
+            </td>
+            <td class="td-title">
+              <div class="cut-titles-cell">
+                <strong class="cut-main-title">{{ item.revision.title || 'Corte sem título' }}</strong>
+                <span class="cut-project-subtitle">{{ item.project.title || item.project.name }}</span>
+              </div>
+            </td>
+            <td class="td-duration">
+              <span class="cut-duration-pill">{{ formatDuration(item.revision.duration_us ?? 0) }}</span>
+            </td>
+            <td class="td-status">
+              <StatusTag :status="item.revision.review_status || 'needs_review'" />
+            </td>
+            <td class="td-action" @click.stop>
+              <AppButton
+                class="button small primary action-table-btn"
+                @click="$emit('inspect', item)"
+              >
+                {{
+                  item.revision.exported
+                    ? 'Consultar'
+                    : item.revision.review_status === 'approved'
+                      ? 'Exportar'
+                      : isFinalAvailable(item.revision)
+                        ? 'Revisar 5 critérios'
+                        : 'Avaliar prévia'
+                }}
+              </AppButton>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modo 2: Grade de Miniaturas 9:16 -->
+    <div v-else-if="filteredCuts.length && viewMode === 'grid'" class="cuts-grid">
       <article
         v-for="item in filteredCuts"
         :key="item.revision.revision_id"
@@ -662,5 +750,144 @@ function formatDuration(us: number): string {
   color: var(--color-text-secondary);
   max-width: 420px;
   margin: 0;
+}
+
+/* View Mode Toggle */
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-raised, #202226);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-control, 8px);
+  padding: 2px;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-mode-btn:hover {
+  color: var(--color-text-primary, #f8fafc);
+}
+
+.view-mode-btn.active {
+  background: var(--color-surface, #18191c);
+  color: var(--color-action-primary, #60a5fa);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Cuts Table List View */
+.cuts-list-container {
+  width: 100%;
+  background: var(--color-surface, #18191c);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-panel, 12px);
+  overflow: hidden;
+}
+
+.cuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cuts-table th {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-raised, #202226);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.cut-table-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  transition: background 0.15s ease;
+}
+
+.cut-table-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cut-table-row td {
+  padding: 10px 16px;
+  vertical-align: middle;
+}
+
+.th-thumb, .td-thumb {
+  width: 52px;
+  padding-right: 8px;
+}
+
+.table-thumb-box {
+  width: 36px;
+  height: 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.table-thumb-placeholder {
+  color: var(--color-text-muted, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cut-titles-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cut-main-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #f8fafc);
+  line-height: 1.3;
+}
+
+.cut-project-subtitle {
+  font-size: 12px;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.cut-duration-pill {
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-canvas, #0f1012);
+  color: var(--color-text-secondary, #94a3b8);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.th-action, .td-action {
+  text-align: right;
+  width: 170px;
 }
 </style>

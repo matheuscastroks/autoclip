@@ -35,7 +35,7 @@ function cycleSpeed() {
   emit('changeSpeed', speeds[nextIndex]);
 }
 
-const collapsed = ref(false);
+const collapsed = ref(true);
 
 function toggleCollapse() {
   collapsed.value = !collapsed.value;
@@ -48,8 +48,12 @@ try {
   const saved = localStorage.getItem('autoclip-rail-collapsed');
   if (saved !== null) {
     collapsed.value = saved === 'true';
+  } else {
+    collapsed.value = true;
   }
-} catch {}
+} catch {
+  collapsed.value = true;
+}
 </script>
 
 <template>
@@ -60,12 +64,12 @@ try {
   >
     <!-- Header: Logo, Nome do App e Botão de Recolher -->
     <div class="rail-header">
-      <div
+      <button
         class="rail-brand"
-        title="AutoClip"
-        :role="collapsed ? 'button' : undefined"
-        :aria-label="collapsed ? 'Expandir barra lateral' : undefined"
-        @click="collapsed ? toggleCollapse() : undefined"
+        title="AutoClip Studio"
+        type="button"
+        :aria-label="collapsed ? 'Expandir barra lateral' : 'AutoClip Studio'"
+        @click="toggleCollapse"
       >
         <div class="brand-badge-icon">
           <AppIcon name="scissors" size="sm" />
@@ -74,7 +78,7 @@ try {
           <span class="brand-title">AutoClip</span>
           <span class="brand-edition">Studio</span>
         </div>
-      </div>
+      </button>
       <button
         v-if="!collapsed"
         class="rail-toggle-btn"
@@ -102,9 +106,9 @@ try {
       </button>
     </div>
 
-    <!-- Navegação: Seção CRIAÇÃO -->
-    <nav aria-label="Navegação de criação" class="rail-navigation">
-      <div v-if="!collapsed" class="rail-section-header">Criação</div>
+    <!-- Navegação Principal: 4 Destinos Essenciais de Trabalho -->
+    <nav aria-label="Navegação principal" class="rail-navigation">
+      <div v-if="!collapsed" class="rail-section-header">Fluxo</div>
 
       <ElTooltip content="Projetos" placement="right" :disabled="!collapsed">
         <button
@@ -128,7 +132,7 @@ try {
           @click="$emit('navigate', 'all-cuts')"
         >
           <AppIcon name="scissors" />
-          <span v-if="!collapsed" class="rail-label">Todos os Cortes</span>
+          <span v-if="!collapsed" class="rail-label">Cortes</span>
           <span
             v-if="pendingCutsCount > 0"
             class="rail-count rail-count--pending"
@@ -136,24 +140,6 @@ try {
           >
             {{ pendingCutsCount }}
           </span>
-        </button>
-      </ElTooltip>
-    </nav>
-
-    <!-- Navegação: Seção ESTÚDIO -->
-    <nav aria-label="Navegação de estúdio" class="rail-navigation rail-navigation--studio">
-      <div v-if="!collapsed" class="rail-section-header">Estúdio</div>
-
-      <ElTooltip content="Estilos de Legenda" placement="right" :disabled="!collapsed">
-        <button
-          class="rail-command"
-          aria-label="Estilos de Legenda"
-          type="button"
-          :aria-current="activePage === 'caption-styles' ? 'page' : undefined"
-          @click="$emit('navigate', 'caption-styles')"
-        >
-          <AppIcon name="sparkle" />
-          <span v-if="!collapsed" class="rail-label">Estilos de Legenda</span>
         </button>
       </ElTooltip>
 
@@ -177,45 +163,21 @@ try {
         </button>
       </ElTooltip>
 
-      <!-- Velocidade dos Vídeos -->
-      <div v-if="!collapsed" class="rail-speed-box">
-        <div class="rail-speed-meta">
-          <span class="rail-speed-title">Velocidade</span>
-          <span class="rail-speed-value">{{ playbackSpeed }}</span>
-        </div>
-        <div class="rail-speed-pills" role="radiogroup" aria-label="Velocidade de exportação">
-          <button
-            v-for="s in speeds"
-            :key="s"
-            type="button"
-            role="radio"
-            :aria-checked="playbackSpeed === s"
-            class="rail-speed-pill"
-            :class="{ 'is-active': playbackSpeed === s }"
-            :title="`Exportar em velocidade ${s}`"
-            @click="$emit('changeSpeed', s)"
-          >
-            {{ s }}
-          </button>
-        </div>
-      </div>
-      <ElTooltip
-        v-else
-        :content="`Velocidade de exportação: ${playbackSpeed} (clique para alternar)`"
-        placement="right"
-      >
+      <ElTooltip content="Configurações" placement="right" :disabled="!collapsed">
         <button
-          class="rail-command rail-command--speed"
-          :aria-label="`Velocidade de exportação: ${playbackSpeed}`"
+          class="rail-command"
+          aria-label="Configurações"
           type="button"
-          @click="cycleSpeed"
+          :aria-current="activePage === 'settings' ? 'page' : undefined"
+          @click="$emit('navigate', 'settings')"
         >
-          <span class="rail-speed-mini-badge">{{ playbackSpeed }}</span>
+          <AppIcon name="settings" :variant="activePage === 'settings' ? 'filled' : 'regular'" />
+          <span v-if="!collapsed" class="rail-label">Configurações</span>
         </button>
       </ElTooltip>
     </nav>
 
-    <!-- Rodapé: Seção SISTEMA -->
+    <!-- Rodapé: Utilitários do Sistema -->
     <div class="rail-bottom">
       <div v-if="!collapsed" class="rail-section-header">Sistema</div>
 
@@ -254,19 +216,6 @@ try {
           <span v-if="!collapsed" class="rail-label">{{
             theme === 'dark' ? 'Modo claro' : 'Modo escuro'
           }}</span>
-        </button>
-      </ElTooltip>
-
-      <ElTooltip content="Configurações" placement="right" :disabled="!collapsed">
-        <button
-          class="rail-command"
-          aria-label="Configurações"
-          type="button"
-          :aria-current="activePage === 'settings' ? 'page' : undefined"
-          @click="$emit('navigate', 'settings')"
-        >
-          <AppIcon name="settings" :variant="activePage === 'settings' ? 'filled' : 'regular'" />
-          <span v-if="!collapsed" class="rail-label">Configurações</span>
         </button>
       </ElTooltip>
 
@@ -332,6 +281,12 @@ try {
   color: var(--color-text-primary);
   text-decoration: none;
   min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .brand-badge-icon {
