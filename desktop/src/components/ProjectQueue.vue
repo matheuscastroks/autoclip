@@ -37,10 +37,7 @@ const { activeJobs: queue, runningCount, pendingCount } = useJobQueue(toRef(prop
           <small v-if="job.status === 'pending'">{{
             job.queue_reason || 'Aguardando despacho.'
           }}</small>
-          <small v-else-if="job.progress?.total_items && job.status === 'pending'"
-            >{{ job.progress.completed_items || 0 }}/{{ job.progress.total_items }} prévias
-            prontas</small
-          >
+
         </div>
         <ProcessProgress
           v-if="job.status !== 'pending'"
