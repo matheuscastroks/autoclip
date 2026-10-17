@@ -31,9 +31,17 @@ let followPaused = false;
 const editingSegmentId = ref<string | null>(null);
 const editingText = ref('');
 const saving = ref(false);
-const editorTextarea = ref<HTMLTextAreaElement>();
+const editorTextarea = ref<HTMLTextAreaElement | HTMLTextAreaElement[]>();
 
-function adjustHeight(el: HTMLTextAreaElement | undefined) {
+function getEditorEl(): HTMLTextAreaElement | null {
+  if (!editorTextarea.value) return null;
+  if (Array.isArray(editorTextarea.value)) {
+    return editorTextarea.value[0] || null;
+  }
+  return editorTextarea.value;
+}
+
+function adjustHeight(el: HTMLTextAreaElement | null | undefined) {
   if (!el || !el.style) return;
   el.style.height = 'auto';
   if (typeof el.scrollHeight === 'number') {
@@ -50,7 +58,7 @@ function startEdit(segment: { id: string; text: string }) {
   editingText.value = segment.text;
   followPaused = true;
   nextTick(() => {
-    const el = editorTextarea.value;
+    const el = getEditorEl();
     if (el) {
       adjustHeight(el);
       if (typeof el.focus === 'function') el.focus();
