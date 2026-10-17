@@ -3,7 +3,7 @@ import { it, expect, vi } from 'vitest';
 import TranscriptPanel from '../src/components/TranscriptPanel.vue';
 import { api } from '../src/api';
 
-it('enters edit mode on segment action, saves change and emits update', async () => {
+it('enters edit mode on double-clicking segment text, saves on enter, cancels on esc', async () => {
   vi.spyOn(api, 'updateTranscript').mockResolvedValue({
     words: [{ id: 'w1', text: 'Texto', start_us: 1000, end_us: 2000 }],
     segments: [{ id: 's1', text: 'Texto modificado final', start_us: 1000, end_us: 2000 }],
@@ -26,12 +26,17 @@ it('enters edit mode on segment action, saves change and emits update', async ()
     },
   });
 
-  // Verify edit button exists on row
-  const editBtn = w.get('[data-action=edit-segment]');
-  await editBtn.trigger('click');
+  // Verify there are no edit or save buttons
+  expect(w.find('[data-action=edit-segment]').exists()).toBe(false);
+  expect(w.find('[data-action=save-segment]').exists()).toBe(false);
+  expect(w.find('[data-action=cancel-segment]').exists()).toBe(false);
 
-  // Verify textarea appears with current text
-  const textarea = w.get('textarea.segment-editor-input');
+  // Double click the segment text to enter editing mode
+  const textEl = w.get('.transcript-segment-row p');
+  await textEl.trigger('dblclick');
+
+  // Verify seamless textarea appears with current text
+  const textarea = w.get('textarea.segment-editor-seamless');
   expect((textarea.element as HTMLTextAreaElement).value).toBe('Texto original');
 
   // Modify text
@@ -39,17 +44,21 @@ it('enters edit mode on segment action, saves change and emits update', async ()
 
   // Cancel with Esc
   await textarea.trigger('keydown', { key: 'Escape' });
-  expect(w.find('textarea.segment-editor-input').exists()).toBe(false);
+  expect(w.find('textarea.segment-editor-seamless').exists()).toBe(false);
+  expect(w.get('.transcript-segment-row p').text()).toBe('Texto original');
 
-  // Open edit mode again
-  await w.get('[data-action=edit-segment]').trigger('click');
-  const textarea2 = w.get('textarea.segment-editor-input');
+  // Double click again to edit
+  await w.get('.transcript-segment-row p').trigger('dblclick');
+  const textarea2 = w.get('textarea.segment-editor-seamless');
   await textarea2.setValue('Texto modificado final');
 
-  // Click save
-  await w.get('[data-action=save-segment]').trigger('click');
+  // Press Enter to save immediately
+  await textarea2.trigger('keydown.enter');
   await flushPromises();
 
   // Emitted transcript-updated or called update
-  expect(w.emitted('update:transcript') || w.emitted('save') || w.emitted('update')).toBeTruthy();
+  expect(w.emitted('update:transcript') || w.emitted('save')).toBeTruthy();
+  expect(api.updateTranscript).toHaveBeenCalledWith('p1', {
+    segments: [{ id: 's1', text: 'Texto modificado final' }],
+  });
 });

@@ -6,7 +6,6 @@ import { vRecoverMedia } from '../directives/recoverMedia';
 import { api } from '../api';
 import { notify } from '../notifications';
 import AppIcon from './ui/AppIcon.vue';
-import AppButton from './AppButton.vue';
 
 const props = defineProps<{
   projectId?: string;
@@ -34,16 +33,28 @@ const editingText = ref('');
 const saving = ref(false);
 const editorTextarea = ref<HTMLTextAreaElement>();
 
+function adjustHeight(el: HTMLTextAreaElement | undefined) {
+  if (!el || !el.style) return;
+  el.style.height = 'auto';
+  if (typeof el.scrollHeight === 'number') {
+    el.style.height = `${el.scrollHeight}px`;
+  }
+}
+
+function handleInput(e: Event) {
+  adjustHeight(e.target as HTMLTextAreaElement);
+}
+
 function startEdit(segment: { id: string; text: string }) {
   editingSegmentId.value = segment.id;
   editingText.value = segment.text;
   followPaused = true;
   nextTick(() => {
-    if (editorTextarea.value && typeof editorTextarea.value.focus === 'function') {
-      editorTextarea.value.focus();
-    }
-    if (editorTextarea.value && typeof editorTextarea.value.select === 'function') {
-      editorTextarea.value.select();
+    const el = editorTextarea.value;
+    if (el) {
+      adjustHeight(el);
+      if (typeof el.focus === 'function') el.focus();
+      if (typeof el.select === 'function') el.select();
     }
   });
 }
@@ -51,6 +62,17 @@ function startEdit(segment: { id: string; text: string }) {
 function cancelEdit() {
   editingSegmentId.value = null;
   editingText.value = '';
+}
+
+function handleBlur(segmentId: string) {
+  if (editingSegmentId.value !== segmentId || saving.value) return;
+  const original = segments.value.find(s => s.id === segmentId)?.text ?? '';
+  const trimmed = editingText.value.trim();
+  if (trimmed && trimmed !== original) {
+    void saveEdit(segmentId);
+  } else {
+    cancelEdit();
+  }
 }
 
 async function saveEdit(segmentId: string) {
@@ -232,53 +254,29 @@ onBeforeUnmount(() => {
           <time>{{ time(segment.start_us) }}</time>
 
           <!-- Normal Display Mode -->
-          <div v-if="editingSegmentId !== segment.id" class="segment-display-wrap">
-            <p>{{ segment.text }}</p>
-            <span
-              role="button"
-              tabindex="0"
-              class="edit-segment-btn"
-              data-action="edit-segment"
-              title="Editar legenda deste trecho"
-              aria-label="Editar legenda deste trecho"
-              @click.stop="startEdit(segment)"
-              @keydown.enter.stop="startEdit(segment)"
-            >
-              <AppIcon name="edit" size="sm" />
-            </span>
-          </div>
+          <p
+            v-if="editingSegmentId !== segment.id"
+            class="segment-text"
+            title="Clique duas vezes para editar a legenda"
+            @dblclick.stop.prevent="startEdit(segment)"
+          >
+            {{ segment.text }}
+          </p>
 
-          <!-- Inline Edit Mode -->
+          <!-- Seamless Inline Edit Mode -->
           <div v-else class="segment-editor-wrap" @click.stop>
             <textarea
               ref="editorTextarea"
               v-model="editingText"
-              class="segment-editor-input"
-              rows="2"
+              class="segment-editor-seamless"
+              rows="1"
               aria-label="Texto corrigido da legenda"
               :disabled="saving"
+              @input="handleInput"
               @keydown.enter.exact.prevent="saveEdit(segment.id)"
               @keydown.esc.stop="cancelEdit"
+              @blur="handleBlur(segment.id)"
             />
-            <div class="segment-editor-actions">
-              <AppButton
-                class="button primary small"
-                data-action="save-segment"
-                :loading="saving"
-                :disabled="saving"
-                @click.stop="saveEdit(segment.id)"
-              >
-                Salvar
-              </AppButton>
-              <AppButton
-                class="button secondary small"
-                data-action="cancel-segment"
-                :disabled="saving"
-                @click.stop="cancelEdit"
-              >
-                Cancelar
-              </AppButton>
-            </div>
           </div>
         </button>
         <p v-if="!filtered.length" class="transcript-empty">
@@ -404,72 +402,40 @@ small {
 .transcript-segment-row:disabled {
   cursor: default;
 }
-.segment-display-wrap {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-}
-.segment-display-wrap p {
+.segment-text {
   user-select: text;
   margin: 0;
   font-size: var(--font-size-body);
+  line-height: 1.5;
   overflow-wrap: anywhere;
   flex: 1;
-}
-.edit-segment-btn {
-  opacity: 0;
-  background: transparent;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  color: var(--color-text-secondary);
-  padding: 4px 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
-  flex-shrink: 0;
-}
-.transcript-segment-row:hover .edit-segment-btn,
-.transcript-segment-row:focus-within .edit-segment-btn {
-  opacity: 1;
-}
-.edit-segment-btn:hover {
-  background: var(--color-surface-raised);
-  color: var(--color-action-primary);
-  border-color: var(--color-border-strong);
+  cursor: text;
 }
 .segment-editor-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
   width: 100%;
+  min-width: 0;
 }
-.segment-editor-input {
+.segment-editor-seamless {
   width: 100%;
-  padding: 8px 10px;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dashed var(--color-action-primary);
+  border-radius: 0;
   color: var(--color-text-primary);
   font: inherit;
   font-size: var(--font-size-body);
   line-height: 1.5;
-  resize: vertical;
-  min-height: 60px;
+  resize: none;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(175, 198, 213, 0.2);
+  box-shadow: none;
+  overflow: hidden;
+  box-sizing: border-box;
 }
-.segment-editor-input:focus {
-  border-color: var(--color-action-primary);
-  box-shadow: 0 0 0 2px rgba(175, 198, 213, 0.35);
-}
-.segment-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.segment-editor-seamless:focus {
+  border-bottom-style: solid;
 }
 .transcript-empty {
   padding: 24px 0;
