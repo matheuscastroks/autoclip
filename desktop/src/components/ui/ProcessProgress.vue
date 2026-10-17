@@ -132,44 +132,51 @@ const warning = computed(() => {
 }
 .progress-heading {
   font-size: var(--font-size-control);
-  font-weight: 500;
+  font-weight: 600;
+  align-items: center;
 }
 .phase-title {
   color: var(--color-text-primary);
+  letter-spacing: -0.01em;
 }
 .stage-pct {
   color: var(--color-action-primary);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 12px;
+  background: rgba(175, 198, 213, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 .progress-details,
 .progress-warning {
   color: var(--color-text-secondary);
   font-size: var(--font-size-meta);
+  line-height: 1.4;
 }
 progress {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 8px;
+  height: 10px;
   border-radius: 999px;
   overflow: hidden;
-  background: var(--color-surface-raised);
+  background: var(--color-canvas);
   border: 1px solid var(--color-border-subtle);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
   display: block;
 }
 progress::-webkit-progress-bar {
-  background: var(--color-surface-raised);
+  background: var(--color-canvas);
   border-radius: 999px;
 }
 progress::-webkit-progress-value {
-  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  background: linear-gradient(90deg, #52758e 0%, #afc6d5 100%);
   border-radius: 999px;
   transition: width 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  box-shadow: 0 0 10px rgba(175, 198, 213, 0.45);
+  box-shadow: 0 0 12px rgba(175, 198, 213, 0.5);
 }
 progress::-moz-progress-bar {
-  background: linear-gradient(90deg, #6c8a9e 0%, #afc6d5 100%);
+  background: linear-gradient(90deg, #52758e 0%, #afc6d5 100%);
   border-radius: 999px;
 }
 progress:indeterminate {
@@ -177,7 +184,7 @@ progress:indeterminate {
   background-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(175, 198, 213, 0.25) 50%,
+    rgba(175, 198, 213, 0.3) 50%,
     transparent 100%
   );
   background-size: 200% 100%;

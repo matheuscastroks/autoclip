@@ -50,7 +50,7 @@ const cancelLabel = computed(() =>
       <small v-if="job.status === 'pending'" class="job-subtle-info">
         {{ job.queue_reason || 'Aguardando despacho.' }}
       </small>
-      <small v-else-if="job.progress?.total_items" class="job-subtle-info">
+      <small v-else-if="job.progress?.total_items && !['running', 'cancelling'].includes(job.status)" class="job-subtle-info">
         {{ job.progress.completed_items || 0 }}/{{ job.progress.total_items }} prévias prontas
       </small>
       <ProcessProgress

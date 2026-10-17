@@ -8,6 +8,7 @@ import AppIcon from './components/ui/AppIcon.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { api } from './api';
 import AllCutsView, { type EnrichedCut } from './components/AllCutsView.vue';
+import SingleCutDetailView from './components/SingleCutDetailView.vue';
 import CaptionStylesView from './components/CaptionStylesView.vue';
 import ExportsView, { type ExportedCutItem } from './components/ExportsView.vue';
 import type {
@@ -102,6 +103,7 @@ const exportedCuts = computed<ExportedCutItem[]>(() => {
 });
 
 const exportedCount = computed(() => exportedCuts.value.length);
+const selectedCutDetail = ref<EnrichedCut | null>(null);
 
 async function loadAllCuts() {
   allCutsLoading.value = true;
@@ -112,9 +114,16 @@ async function loadAllCuts() {
         try {
           const revs = await api.revisions(p.id);
           for (const r of revs) {
+            let thumb = '';
+            try {
+              thumb = await api.media(p.id, 'thumbnail-' + r.revision_id);
+            } catch {
+              // thumbnail fallback
+            }
             list.push({
               revision: r,
               project: p,
+              previewUrl: thumb || undefined,
             });
           }
         } catch {
@@ -123,6 +132,10 @@ async function loadAllCuts() {
       })
     );
     allCuts.value = list;
+    if (selectedCutDetail.value) {
+      const updated = list.find(c => c.revision.revision_id === selectedCutDetail.value?.revision.revision_id);
+      if (updated) selectedCutDetail.value = updated;
+    }
   } catch (err) {
     console.error('Falha ao carregar cortes globais', err);
   } finally {
@@ -131,8 +144,53 @@ async function loadAllCuts() {
 }
 
 async function inspectCut(item: EnrichedCut) {
-  await openProject(item.project.id);
-  selectedRevision.value = item.revision.revision_id;
+  selectedCutDetail.value = item;
+}
+
+async function approveSingleCut(item: EnrichedCut) {
+  await api.decide(item.project.id, {
+    revision_id: item.revision.revision_id,
+    decision: 'approved',
+    checks: {
+      completeness: true,
+      context: true,
+      qualifications: true,
+      words_and_boundaries: true,
+      audiovisual: true,
+    },
+    notes: 'Aprovado via Central de Cortes',
+    content_hash: item.revision.content_hash || '',
+  });
+  notify.success('Corte aprovado com sucesso!');
+  await loadAllCuts();
+}
+
+async function rejectSingleCut(item: EnrichedCut) {
+  await api.decide(item.project.id, {
+    revision_id: item.revision.revision_id,
+    decision: 'rejected',
+    checks: {
+      completeness: false,
+      context: false,
+      qualifications: false,
+      words_and_boundaries: false,
+      audiovisual: false,
+    },
+    notes: 'Rejeitado via Central de Cortes',
+    content_hash: item.revision.content_hash || '',
+  });
+  notify.info('Corte rejeitado.');
+  await loadAllCuts();
+}
+
+async function renderFinalCut(item: EnrichedCut) {
+  await action('project:' + item.project.id, async () => {
+    await api.start(item.project.id, 'render_final', {
+      revision_ids: [item.revision.revision_id],
+    });
+    notify.success('Geração da versão final 1080×1920 iniciada.');
+    await refresh();
+  });
 }
 
 async function exportSingleCutFromHub(item: EnrichedCut) {
@@ -333,6 +391,7 @@ const projectJobs = computed(() => jobs.value.filter(j => j.project_id === proje
   running = computed(() => jobs.value.some(j => active(j.status)));
 function navigate(destination: AppPage) {
   if (engineMenu.value) engineMenu.value.open = false;
+  selectedCutDetail.value = null;
   if (destination === 'projects' && page.value === 'projects' && project.value) {
     backToLibrary();
     return;
@@ -805,6 +864,17 @@ onUnmounted(() => {
                   v-else-if="page === 'caption-styles'"
                   :config="config"
                   @save-preset="savePreset"
+                />
+                <SingleCutDetailView
+                  v-else-if="page === 'all-cuts' && selectedCutDetail"
+                  :cut="selectedCutDetail"
+                  :busy="isPending('project:' + selectedCutDetail.project.id)"
+                  @back="selectedCutDetail = null"
+                  @approve="approveSingleCut"
+                  @reject="rejectSingleCut"
+                  @render-final="renderFinalCut"
+                  @export="exportSingleCutFromHub"
+                  @open-project="openProject"
                 />
                 <AllCutsView
                   v-else-if="page === 'all-cuts'"

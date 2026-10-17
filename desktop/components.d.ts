@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AllCutsView: typeof import('./src/components/AllCutsView.vue')['default']
     AnalysisFeedback: typeof import('./src/components/AnalysisFeedback.vue')['default']
     AnalysisPanel: typeof import('./src/components/AnalysisPanel.vue')['default']
     ApiKeyField: typeof import('./src/components/ApiKeyField.vue')['default']
@@ -16,10 +17,12 @@ declare module 'vue' {
     AppRail: typeof import('./src/components/layout/AppRail.vue')['default']
     AppSelect: typeof import('./src/components/AppSelect.vue')['default']
     BaseModal: typeof import('./src/components/BaseModal.vue')['default']
+    CaptionStylesView: typeof import('./src/components/CaptionStylesView.vue')['default']
     ClipPreviewDrawer: typeof import('./src/components/ClipPreviewDrawer.vue')['default']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
+    ExportsView: typeof import('./src/components/ExportsView.vue')['default']
     GenerationQueue: typeof import('./src/components/GenerationQueue.vue')['default']
     GlobalQueueModal: typeof import('./src/components/GlobalQueueModal.vue')['default']
     JobPanel: typeof import('./src/components/JobPanel.vue')['default']
@@ -42,6 +45,7 @@ declare module 'vue' {
     ReviewPanel: typeof import('./src/components/ReviewPanel.vue')['default']
     SelectionDock: typeof import('./src/components/analysis/SelectionDock.vue')['default']
     SettingsPanel: typeof import('./src/components/SettingsPanel.vue')['default']
+    SingleCutDetailView: typeof import('./src/components/SingleCutDetailView.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
     TechnicalDetails: typeof import('./src/components/ui/TechnicalDetails.vue')['default']
     TopicNavigation: typeof import('./src/components/analysis/TopicNavigation.vue')['default']

@@ -274,14 +274,30 @@ function errorDetails() {
     <aside ref="asidePanel" class="pipeline-aside dashboard-column" aria-label="Detalhes do processamento">
       <!-- Card 4: Fases do Motor Local (Ocupa toda a coluna da direita) -->
       <section class="dashboard-card stages-card full-column-card" aria-labelledby="stages-heading">
-        <header class="card-header">
-          <div class="card-header-left">
-            <AppIcon name="engine" size="sm" class="card-icon" />
-            <h3 id="stages-heading" class="card-title">Fases do Motor Local</h3>
+        <header class="card-header stages-header">
+          <div class="stages-header-top">
+            <div class="card-header-left">
+              <AppIcon name="engine" size="sm" class="card-icon" />
+              <h3 id="stages-heading" class="card-title">Fases do Motor Local</h3>
+            </div>
+            <span class="card-badge">
+              {{ technicalCompletedCount }}/{{ technicalSteps.length }} etapas
+            </span>
           </div>
-          <span class="card-badge">
-            {{ technicalCompletedCount }}/{{ technicalSteps.length }} etapas
-          </span>
+          <!-- Overall technical progress track -->
+          <div
+            class="overall-progress-track"
+            role="progressbar"
+            aria-label="Progresso das fases do motor"
+            :aria-valuenow="Math.round((technicalCompletedCount / (technicalSteps.length || 1)) * 100)"
+            :aria-valuemin="0"
+            :aria-valuemax="100"
+          >
+            <div
+              class="overall-progress-fill"
+              :style="{ width: `${(technicalCompletedCount / (technicalSteps.length || 1)) * 100}%` }"
+            />
+          </div>
         </header>
 
         <div class="card-body stages-body">
@@ -351,6 +367,33 @@ function errorDetails() {
   padding: 12px 16px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.stages-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.stages-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.overall-progress-track {
+  height: 3px;
+  width: 100%;
+  background: var(--color-canvas);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.overall-progress-fill {
+  height: 100%;
+  background: var(--color-action-primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .card-header-left {

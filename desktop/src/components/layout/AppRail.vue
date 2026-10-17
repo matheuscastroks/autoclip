@@ -4,17 +4,22 @@ import { ElTooltip } from 'element-plus';
 import AppIcon from '../ui/AppIcon.vue';
 import type { AppTheme } from '../../composables/useTheme';
 
+export type AppPage = 'projects' | 'all-cuts' | 'caption-styles' | 'exports' | 'settings';
+
 withDefaults(
   defineProps<{
-    activePage: 'projects' | 'settings';
+    activePage: AppPage;
     activeJobsCount: number;
+    pendingCutsCount?: number;
+    exportedCount?: number;
     engineState: 'online' | 'offline' | 'checking';
     theme?: AppTheme;
   }>(),
-  { theme: 'dark' }
+  { theme: 'dark', pendingCutsCount: 0, exportedCount: 0 }
 );
+
 defineEmits<{
-  navigate: [page: 'projects' | 'settings'];
+  navigate: [page: AppPage];
   openQueue: [];
   openEngineStatus: [];
   toggleTheme: [];
@@ -26,9 +31,7 @@ function toggleCollapse() {
   collapsed.value = !collapsed.value;
   try {
     localStorage.setItem('autoclip-rail-collapsed', String(collapsed.value));
-  } catch {
-    // localStorage may not be available in all desktop contexts
-  }
+  } catch {}
 }
 
 try {
@@ -36,9 +39,7 @@ try {
   if (saved !== null) {
     collapsed.value = saved === 'true';
   }
-} catch {
-  // safe fallback
-}
+} catch {}
 </script>
 
 <template>
@@ -91,8 +92,10 @@ try {
       </button>
     </div>
 
-    <!-- Navegação Principal -->
-    <nav aria-label="Navegação principal" class="rail-navigation">
+    <!-- Navegação: Seção CRIAÇÃO -->
+    <nav aria-label="Navegação de criação" class="rail-navigation">
+      <div v-if="!collapsed" class="rail-section-header">Criação</div>
+
       <ElTooltip content="Projetos" placement="right" :disabled="!collapsed">
         <button
           class="rail-command"
@@ -105,6 +108,69 @@ try {
           <span v-if="!collapsed" class="rail-label">Projetos</span>
         </button>
       </ElTooltip>
+
+      <ElTooltip content="Todos os Cortes" placement="right" :disabled="!collapsed">
+        <button
+          class="rail-command"
+          aria-label="Todos os Cortes"
+          type="button"
+          :aria-current="activePage === 'all-cuts' ? 'page' : undefined"
+          @click="$emit('navigate', 'all-cuts')"
+        >
+          <AppIcon name="scissors" />
+          <span v-if="!collapsed" class="rail-label">Todos os Cortes</span>
+          <span
+            v-if="pendingCutsCount > 0"
+            class="rail-count rail-count--pending"
+            title="Cortes pendentes de revisão"
+          >
+            {{ pendingCutsCount }}
+          </span>
+        </button>
+      </ElTooltip>
+    </nav>
+
+    <!-- Navegação: Seção ESTÚDIO -->
+    <nav aria-label="Navegação de estúdio" class="rail-navigation rail-navigation--studio">
+      <div v-if="!collapsed" class="rail-section-header">Estúdio</div>
+
+      <ElTooltip content="Estilos de Legenda" placement="right" :disabled="!collapsed">
+        <button
+          class="rail-command"
+          aria-label="Estilos de Legenda"
+          type="button"
+          :aria-current="activePage === 'caption-styles' ? 'page' : undefined"
+          @click="$emit('navigate', 'caption-styles')"
+        >
+          <AppIcon name="sparkle" />
+          <span v-if="!collapsed" class="rail-label">Estilos de Legenda</span>
+        </button>
+      </ElTooltip>
+
+      <ElTooltip content="Central de Exportações" placement="right" :disabled="!collapsed">
+        <button
+          class="rail-command"
+          aria-label="Central de Exportações"
+          type="button"
+          :aria-current="activePage === 'exports' ? 'page' : undefined"
+          @click="$emit('navigate', 'exports')"
+        >
+          <AppIcon name="download" />
+          <span v-if="!collapsed" class="rail-label">Exportações</span>
+          <span
+            v-if="exportedCount > 0"
+            class="rail-count rail-count--exported"
+            title="Vídeos exportados"
+          >
+            {{ exportedCount }}
+          </span>
+        </button>
+      </ElTooltip>
+    </nav>
+
+    <!-- Rodapé: Seção SISTEMA -->
+    <div class="rail-bottom">
+      <div v-if="!collapsed" class="rail-section-header">Sistema</div>
 
       <ElTooltip content="Fila global de tarefas" placement="right" :disabled="!collapsed">
         <button
@@ -125,10 +191,7 @@ try {
           }}</span>
         </button>
       </ElTooltip>
-    </nav>
 
-    <!-- Rodapé: Tema, Configurações e Motor Local -->
-    <div class="rail-bottom">
       <ElTooltip
         :content="theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
         placement="right"
@@ -181,7 +244,7 @@ try {
   flex: 0 0 220px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   padding: 14px 12px;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border-subtle);
@@ -189,7 +252,8 @@ try {
   transition: width 0.22s cubic-bezier(0.32, 0.72, 0, 1),
               flex-basis 0.22s cubic-bezier(0.32, 0.72, 0, 1),
               padding 0.22s cubic-bezier(0.32, 0.72, 0, 1);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   user-select: none;
 }
 
@@ -303,18 +367,34 @@ try {
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.rail-navigation,
-.rail-bottom {
+.rail-section-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  padding: 6px 10px 4px;
+}
+
+.rail-navigation {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
+}
+
+.rail-navigation--studio {
+  margin-top: 4px;
 }
 
 .rail-bottom {
   margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
 }
 
 .rail-command {
@@ -377,6 +457,18 @@ try {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.rail-count--pending {
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
+}
+
+.rail-count--exported {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
 }
 
 .app-rail--collapsed .rail-count {
