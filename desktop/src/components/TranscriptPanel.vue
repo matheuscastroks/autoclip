@@ -244,7 +244,7 @@ onBeforeUnmount(() => {
               @click.stop="startEdit(segment)"
               @keydown.enter.stop="startEdit(segment)"
             >
-              <AppIcon name="pencil" size="sm" />
+              <AppIcon name="edit" size="sm" />
             </span>
           </div>
 

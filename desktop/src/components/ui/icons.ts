@@ -37,6 +37,7 @@ import Download from '~icons/fluent/arrow-download-24-regular';
 import Globe from '~icons/fluent/globe-24-regular';
 import WeatherSunny from '~icons/fluent/weather-sunny-24-regular';
 import WeatherMoon from '~icons/fluent/weather-moon-24-regular';
+import Edit from '~icons/fluent/edit-24-regular';
 import type { Component } from 'vue';
 
 interface IconDefinition {
@@ -73,6 +74,7 @@ export const icons = {
   eye: { regular: Eye, label: 'Mostrar' },
   'eye-off': { regular: EyeOff, label: 'Ocultar' },
   save: { regular: Save, label: 'Salvar' },
+  edit: { regular: Edit, label: 'Editar' },
   cpu: { regular: Cpu, label: 'Processamento local' },
   sparkle: { regular: Sparkle, label: 'Análise' },
   'check-circle': { regular: CheckCircle, label: 'Concluído' },
