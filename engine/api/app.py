@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel,ConfigDict,Field,SecretStr,model_validator
 from typing import Literal
 from engine.contracts import PipelineError,EditorialChecks
-from engine.contracts.api import Project as ProjectResponse,Job as JobResponse,Revision as RevisionResponse,AnalysisView,CreatedProject
+from engine.contracts.api import Project as ProjectResponse,Job as JobResponse,Revision as RevisionResponse,AnalysisView,CreatedProject,UpdateTranscriptInput
 from .store import ProjectStore
 from .projects import discover,project_detail
 from .settings import Settings
@@ -282,6 +282,20 @@ def create_app(workspace:Path,token:str)->FastAPI:
         path=Path(store.get(pid)['path'])/'transcript.json'
         if not path.is_file():raise HTTPException(404,'Transcrição ainda não disponível.')
         return TranscriptArtifact.model_validate_json(path.read_bytes()).model_dump(mode='json')
+    @app.put('/api/v1/projects/{pid}/transcript')
+    def update_transcript(pid:str,value:UpdateTranscriptInput):
+        from engine.contracts import TranscriptArtifact
+        from engine.editorial.transcript_editor import apply_transcript_updates
+        from engine.pipeline.artifacts import atomic_json
+        with jobs.lock:
+            editable(pid)
+            root=Path(store.get(pid)['path'])
+            path=root/'transcript.json'
+            if not path.is_file():raise HTTPException(404,'Transcrição ainda não disponível para edição.')
+            current=TranscriptArtifact.model_validate_json(path.read_bytes())
+            updated=apply_transcript_updates(current,value.segments)
+            atomic_json(path,updated)
+            return updated.model_dump(mode='json')
     @app.get('/api/v1/projects/{pid}/analysis',response_model=AnalysisView)
     def analysis(pid:str):
         from .analysis_view import analysis_view
@@ -319,7 +333,7 @@ def create_app(workspace:Path,token:str)->FastAPI:
     @app.get('/api/v1/projects/{pid}/media/{asset}/ticket')
     def ticket(pid:str,asset:str):
         root=Path(store.get(pid)['path'])
-        if asset!='thumbnail':asset_path(root,asset)
+        if asset!='thumbnail' and not asset.startswith('thumbnail-'):asset_path(root,asset)
         return {'url':make_ticket(token,pid,asset)}
     @app.get('/api/v1/projects/{pid}/media/{asset}')
     def media(pid:str,asset:str,download:bool=False):
@@ -327,6 +341,9 @@ def create_app(workspace:Path,token:str)->FastAPI:
         if asset=='thumbnail':
             from .thumbnails import thumbnail
             return FileResponse(thumbnail(root,settings.get()['ffmpeg']),media_type='image/jpeg')
+        if asset.startswith('thumbnail-'):
+            from .thumbnails import clip_thumbnail
+            return FileResponse(clip_thumbnail(root,asset.removeprefix('thumbnail-'),settings.get()['ffmpeg']),media_type='image/jpeg')
         if download:
             from engine.contracts import RenderArtifact,ExportValidation
             from engine.pipeline.artifacts import file_hash
