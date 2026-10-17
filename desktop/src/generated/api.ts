@@ -287,6 +287,13 @@ export interface Revision {
 }
 
 // prettier-ignore
+export interface SegmentUpdate {
+  id: string;
+  text: string;
+  [key: string]: unknown;
+}
+
+// prettier-ignore
 export interface Source {
   schema_version: "1.0";
   id: string;
@@ -309,6 +316,12 @@ export interface TopicGroup {
   topic_ids: Array<string>;
   summaries: Array<string>;
   evidence_word_ids: Array<string>;
+  [key: string]: unknown;
+}
+
+// prettier-ignore
+export interface UpdateTranscriptInput {
+  segments: Array<SegmentUpdate>;
   [key: string]: unknown;
 }
 
