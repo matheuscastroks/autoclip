@@ -275,4 +275,14 @@ class ProvisionStatus(Response):
     ffprobe_path: str | None = None
 
 
-API_MODELS = (Project, Job, Revision, Proposal, AnalysisView, GenerationItem, AnalysisEvent, ProvisionStatus)
+
+class SegmentUpdate(Response):
+    id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+
+
+class UpdateTranscriptInput(Response):
+    segments: list[SegmentUpdate]
+
+
+API_MODELS = (Project, Job, Revision, Proposal, AnalysisView, GenerationItem, AnalysisEvent, ProvisionStatus, SegmentUpdate, UpdateTranscriptInput)
