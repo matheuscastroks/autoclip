@@ -7,14 +7,6 @@ defineEmits<{ back: []; folder: [] }>();
 
 <template>
   <header class="workspace-header" :class="{ 'project-heading': project }">
-    <AppButton
-      v-if="project"
-      class="icon-button"
-      aria-label="Todos os projetos"
-      title="Todos os projetos"
-      @click="$emit('back')"
-      ><AppIcon name="back" size="sm"
-    /></AppButton>
     <h1 :title="title">{{ title }}</h1>
     <div v-if="$slots.metadata" class="workspace-header-meta"><slot name="metadata" /></div>
     <div class="workspace-header-actions">

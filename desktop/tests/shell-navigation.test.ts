@@ -157,7 +157,7 @@ it('returns from Settings to the same project tab and keeps the queue accessible
     expect(w.findComponent({ name: 'ProjectWorkspace' }).props('selection').candidate_ids).toEqual([
       'c1',
     ]);
-    await w.get('[aria-label="Todos os projetos"]').trigger('click');
+    await w.get('[aria-label="Projetos"]').trigger('click');
     await flushPromises();
     expect(w.find('[data-project-id=p]').exists()).toBe(true);
   } finally {
