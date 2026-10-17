@@ -130,7 +130,8 @@ def create_app(workspace:Path,token:str)->FastAPI:
         host=request.url.hostname
         if host not in ('127.0.0.1','localhost'):return JSONResponse({'detail':'Acesso somente local.'},403)
         origin=request.headers.get('origin')
-        if origin and origin!=str(request.base_url).rstrip('/'):return JSONResponse({'detail':'Origem não autorizada.'},403)
+        allowed_origins={str(request.base_url).rstrip('/'),'http://127.0.0.1:5173','http://localhost:5173'}
+        if origin and origin not in allowed_origins:return JSONResponse({'detail':'Origem não autorizada.'},403)
         if request.url.path.startswith('/api/'):
             authorized=secrets.compare_digest(request.headers.get('authorization',''),'Bearer '+token)
             parts=request.url.path.strip('/').split('/')

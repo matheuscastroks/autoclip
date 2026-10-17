@@ -45,7 +45,7 @@ describe('contextual project journey', () => {
     expect(w.get('.state-hero-card').text()).not.toContain('exporte');
     await w.get('.hero-primary-btn').trigger('click');
     expect(w.emitted('review')).toHaveLength(1);
-    expect(w.get('details').attributes('open')).toBeUndefined();
+    expect(w.find('.pipeline-aside').exists()).toBe(true);
     w.unmount();
   });
 

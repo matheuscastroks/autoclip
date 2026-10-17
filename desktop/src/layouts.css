@@ -1548,7 +1548,10 @@ svg {
 }
 .workspace-overview > .pipeline-panel {
   width: 100%;
-  padding: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 .preparation-header {
   display: grid;
@@ -2237,7 +2240,8 @@ svg {
   margin-top: 12px;
 }
 .workspace-overview > .pipeline-panel {
-  padding: 20px;
+  padding: 0;
+  border: none;
 }
 .preparation-header {
   grid-template-columns: minmax(0, 1fr) 160px;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { notify, notifyJob } from '../notifications';
-import { analysisLabels } from '../format';
+import { analysisLabels, labels, stages } from '../format';
 import {
   usePipelinePresentation,
   type PipelineAction,
@@ -9,8 +9,7 @@ import {
 } from '../composables/usePipelinePresentation';
 import PipelineStatusHero from './pipeline/PipelineStatusHero.vue';
 import PipelineStepList from './pipeline/PipelineStepList.vue';
-import TechnicalDetails from './ui/TechnicalDetails.vue';
-import { vRecoverMedia } from '../directives/recoverMedia';
+import AppIcon from './ui/AppIcon.vue';
 
 const props = defineProps<PipelineInput & { sourceUrl?: string }>();
 const emit = defineEmits<{
@@ -27,8 +26,8 @@ const emit = defineEmits<{
 }>();
 const { job, hero, overviewSteps, technicalSteps, lastFailureReason } =
   usePipelinePresentation(props);
-const detailsOpen = ref(false);
-const sourcePlayer = ref<HTMLVideoElement>();
+const asidePanel = ref<HTMLElement | null>(null);
+
 watch(
   job,
   value => {
@@ -36,6 +35,49 @@ watch(
   },
   { immediate: true }
 );
+
+const technicalStatusBadge = computed(() => {
+  if (job.value) {
+    if (['running', 'cancelling'].includes(job.value.status)) {
+      return { text: 'Em execução', type: 'active' as const };
+    }
+    if (job.value.status === 'failed') {
+      return { text: 'Falha técnica', type: 'error' as const };
+    }
+    if (job.value.status === 'completed') {
+      return { text: 'Concluído', type: 'success' as const };
+    }
+  }
+  if (props.analysis?.state === 'running') {
+    return { text: 'Analisando', type: 'active' as const };
+  }
+  const completedCount = technicalSteps.value.filter(s => s.state === 'completed').length;
+  return {
+    text: `${completedCount}/${technicalSteps.value.length} etapas`,
+    type: 'default' as const,
+  };
+});
+
+const overviewCompletedCount = computed(
+  () => overviewSteps.value.filter(s => s.state === 'completed').length
+);
+
+const technicalCompletedCount = computed(
+  () => technicalSteps.value.filter(s => s.state === 'completed').length
+);
+
+const currentStageLabel = computed(() => {
+  const stageKey = job.value?.stage || job.value?.progress?.stage;
+  if (!stageKey) return null;
+  return stages[stageKey] || stageKey;
+});
+
+const currentOperationLabel = computed(() => {
+  if (!job.value?.operation) return null;
+  const op = job.value.operation;
+  return stages[op] || labels[op] || op;
+});
+
 function perform(action: PipelineAction) {
   if (action.disabled) return;
   switch (action.id) {
@@ -68,120 +110,466 @@ function perform(action: PipelineAction) {
       break;
   }
 }
+
 function errorDetails() {
-  if (job.value && ['failed', 'interrupted', 'cancelled'].includes(job.value.status))
+  if (job.value) {
     notifyJob(job.value, true);
-  else notify.error(hero.value.notice || props.project.error?.message || lastFailureReason.value);
+  } else if (lastFailureReason.value) {
+    notify.error(lastFailureReason.value, { force: true });
+  }
+  if (asidePanel.value && typeof asidePanel.value.scrollIntoView === 'function') {
+    asidePanel.value.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
-function releaseSource() {
-  const video = sourcePlayer.value;
-  if (!video) return;
-  video.pause();
-  video.removeAttribute('src');
-  video.load();
-}
-watch(
-  detailsOpen,
-  open => {
-    if (!open) releaseSource();
-  },
-  { flush: 'sync' }
-);
-onBeforeUnmount(releaseSource);
 </script>
 
 <template>
   <section
-    class="pipeline-panel preparation-panel"
-    aria-label="Central de acompanhamento do projeto"
+    class="pipeline-panel preparation-panel preparation-dashboard"
+    data-component="pipeline-panel"
+    :data-status="project.status"
+    :data-job-status="job?.status"
   >
-    <PipelineStatusHero :status="hero" @action="perform" @error-details="errorDetails" />
-    <PipelineStepList :steps="overviewSteps" />
-    <TechnicalDetails v-model="detailsOpen" title="Detalhes do processamento">
-      <dl v-if="job || analysis" class="pipeline-diagnostics">
-        <template v-if="job">
-          <dt>Tarefa</dt>
-          <dd>{{ job.id }}</dd>
-          <dt>Operação</dt>
-          <dd>{{ job.operation }}</dd>
-          <dt v-if="job.stage || job.progress?.stage">Etapa técnica</dt>
-          <dd v-if="job.stage || job.progress?.stage">{{ job.stage || job.progress?.stage }}</dd>
-        </template>
-        <dt v-if="analysis">Análise</dt>
-        <dd v-if="analysis">
-          <span class="analysis-state">{{ analysisLabels[analysis.state] }}</span> ·
-          {{ analysis.completed_windows }}/{{ analysis.total_windows }} janelas ·
-          {{ analysis.proposals.length }} propostas
-        </dd>
-      </dl>
-      <PipelineStepList :steps="technicalSteps" technical @action="perform" />
-      <figure class="pipeline-video">
-        <video
-          v-if="detailsOpen && sourceUrl"
-          ref="sourcePlayer"
-          v-recover-media="sourceUrl"
-          :src="sourceUrl"
-          controls
-          preload="metadata"
-          playsinline
-          aria-label="Vídeo original"
-        />
-        <p v-else-if="!sourceUrl">
-          {{ project.source ? 'Vídeo indisponível' : 'Vídeo ainda não importado' }}
-        </p>
-        <figcaption>
-          Vídeo original · {{ project.source ? 'Fonte preservada' : 'Aguardando fonte' }}
-        </figcaption>
-      </figure>
-    </TechnicalDetails>
+    <!-- Coluna Principal (Ações e Fluxo Editorial) -->
+    <div class="pipeline-main dashboard-column">
+      <!-- Card 1: Herói de Status e Ação Primária -->
+      <PipelineStatusHero :status="hero" @action="perform" @error-details="errorDetails" />
+
+      <!-- Card 2: Etapas do Fluxo (Milestones do Projeto) -->
+      <section class="dashboard-card milestones-card" aria-labelledby="milestones-heading">
+        <header class="card-header">
+          <div class="card-header-left">
+            <AppIcon name="queue" size="sm" class="card-icon" />
+            <h3 id="milestones-heading" class="card-title">Etapas do Fluxo</h3>
+          </div>
+          <span class="card-badge">
+            {{ overviewCompletedCount }} de {{ overviewSteps.length }} concluídas
+          </span>
+        </header>
+        <div class="card-body">
+          <PipelineStepList :steps="overviewSteps" @action="perform" />
+        </div>
+      </section>
+    </div>
+
+    <!-- Coluna Lateral (Telemetria do Motor e Fases Técnicas) -->
+    <aside ref="asidePanel" class="pipeline-aside dashboard-column" aria-label="Detalhes do processamento">
+      <!-- Card 3: Telemetria de Processamento -->
+      <section class="dashboard-card telemetry-card technical-details" data-component="processing-details">
+        <header class="card-header">
+          <div class="card-header-left">
+            <AppIcon name="cpu" size="sm" class="card-icon" />
+            <h3 class="card-title">Telemetria de Processamento</h3>
+          </div>
+          <span class="status-badge" :class="technicalStatusBadge.type">
+            <span v-if="technicalStatusBadge.type === 'active'" class="status-indicator-dot" />
+            {{ technicalStatusBadge.text }}
+          </span>
+        </header>
+
+        <div class="card-body">
+          <dl v-if="job || analysis" class="pipeline-diagnostics">
+            <!-- Tarefa ativa -->
+            <div v-if="job" class="diagnostic-row">
+              <dt class="diagnostic-label">
+                <span class="indicator-dot active" />
+                Tarefa
+              </dt>
+              <dd class="diagnostic-value">
+                <code class="job-id-code" :title="job.id">{{ job.id }}</code>
+              </dd>
+            </div>
+
+            <!-- Operação -->
+            <div v-if="currentOperationLabel" class="diagnostic-row">
+              <dt class="diagnostic-label">Operação</dt>
+              <dd class="diagnostic-value">
+                <span class="operation-pill">{{ currentOperationLabel }}</span>
+              </dd>
+            </div>
+
+            <!-- Etapa técnica -->
+            <div v-if="currentStageLabel" class="diagnostic-row">
+              <dt class="diagnostic-label">Etapa técnica</dt>
+              <dd class="diagnostic-value">
+                <span class="stage-tag">{{ currentStageLabel }}</span>
+              </dd>
+            </div>
+
+            <!-- Diagnóstico da Análise -->
+            <div v-if="analysis" class="diagnostic-row diagnostic-row--analysis">
+              <dt class="diagnostic-label">
+                <span
+                  class="indicator-dot"
+                  :class="analysis.state === 'running' ? 'active' : 'subtle'"
+                />
+                Análise de Conteúdo
+              </dt>
+              <dd class="diagnostic-value diagnostic-value--analysis">
+                <div class="analysis-status-badge">
+                  <span class="analysis-state" :data-state="analysis.state">
+                    {{ analysisLabels[analysis.state] }}
+                  </span>
+                </div>
+                <div class="analysis-chips">
+                  <span class="telemetry-chip">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9zM3.5 3a.5.5 0 0 0-.5.5V6h10V3.5a.5.5 0 0 0-.5-.5h-9zM13 7H3v5.5a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7z"
+                      />
+                    </svg>
+                    {{ analysis.completed_windows }}/{{ analysis.total_windows }} janelas
+                  </span>
+                  <span class="telemetry-chip">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M4 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm4.5-3.5L5.7 6.2a2.5 2.5 0 0 0-3.2-1.2 2.5 2.5 0 0 0-1.2 3.2l7.2 4.3 6-3.6-6-3.6z"
+                      />
+                    </svg>
+                    {{ analysis.proposals.length }} propostas
+                  </span>
+                </div>
+              </dd>
+            </div>
+          </dl>
+
+          <div v-else class="telemetry-idle">
+            <span class="idle-text">Nenhuma tarefa ativa no momento.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 4: Fases do Motor Local (Card independente, dedicado e segmentado) -->
+      <section class="dashboard-card stages-card" aria-labelledby="stages-heading">
+        <header class="card-header">
+          <div class="card-header-left">
+            <AppIcon name="engine" size="sm" class="card-icon" />
+            <h3 id="stages-heading" class="card-title">Fases do Motor Local</h3>
+          </div>
+          <span class="card-badge">
+            {{ technicalCompletedCount }}/{{ technicalSteps.length }} etapas
+          </span>
+        </header>
+
+        <div class="card-body stages-body">
+          <PipelineStepList :steps="technicalSteps" technical @action="perform" />
+        </div>
+      </section>
+    </aside>
   </section>
 </template>
 
 <style scoped>
-.preparation-panel {
+.preparation-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 1fr);
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+  padding: 0 0 24px 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.dashboard-column {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   min-width: 0;
-  padding: 24px;
-  background: transparent;
 }
-.preparation-panel > :deep(.pipeline-step-list) {
-  max-width: 760px;
+
+.pipeline-aside {
+  position: sticky;
+  top: 16px;
 }
+
+/* Modular Dashboard Cards */
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-icon {
+  color: var(--color-action-primary);
+  opacity: 0.9;
+}
+
+.card-title {
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.card-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: var(--color-surface-raised);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stages-body {
+  padding: 12px 14px;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  line-height: 1.3;
+}
+
+.status-badge.default {
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.status-badge.active {
+  background: rgba(175, 198, 213, 0.12);
+  color: var(--color-action-primary);
+  border: 1px solid rgba(175, 198, 213, 0.3);
+}
+
+.status-badge.success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
+}
+
+.status-badge.error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger-border);
+}
+
+.status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-action-primary);
+}
+
+/* Diagnostics Rows */
 .pipeline-diagnostics {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.diagnostic-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  transition: border-color 0.15s ease;
+}
+
+.diagnostic-row:hover {
+  border-color: var(--color-border-strong);
+}
+
+.diagnostic-row--analysis {
+  background: rgba(175, 198, 213, 0.04);
+  border-color: rgba(175, 198, 213, 0.2);
+}
+
+.diagnostic-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.indicator-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.indicator-dot.active {
+  background-color: var(--color-action-primary);
+  box-shadow: 0 0 6px rgba(175, 198, 213, 0.6);
+}
+
+.indicator-dot.subtle {
+  background-color: var(--color-border-strong);
+}
+
+.diagnostic-value {
   margin: 0;
   font-size: var(--font-size-control);
-}
-dt {
-  color: var(--color-text-secondary);
-}
-dd {
-  margin: 0;
+  color: var(--color-text-primary);
   overflow-wrap: anywhere;
 }
-.pipeline-video {
-  width: min(100%, 560px);
-  margin: 0;
-}
-.pipeline-video video {
-  display: block;
-  width: 100%;
-  max-height: 320px;
-  aspect-ratio: 16/9;
+
+.job-id-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--color-text-primary);
   background: var(--color-canvas);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-subtle);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.pipeline-video figcaption {
-  margin-top: 8px;
+
+.operation-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-action-primary);
+}
+
+.stage-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.diagnostic-value--analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analysis-status-badge {
+  display: flex;
+  align-items: center;
+}
+
+.analysis-state {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.analysis-state[data-state='completed'] {
+  color: var(--color-success);
+}
+
+.analysis-state[data-state='running'] {
+  color: var(--color-action-primary);
+}
+
+.analysis-state[data-state='failed'] {
+  color: var(--color-danger);
+}
+
+.analysis-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.telemetry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-meta);
+  background: var(--color-canvas);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-subtle);
 }
-@media (max-width: 1000px) {
-  .preparation-panel {
+
+.telemetry-idle {
+  padding: 12px;
+  background: var(--color-surface-raised);
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+
+.idle-text {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 1024px) {
+  .preparation-dashboard {
+    grid-template-columns: 1fr;
     padding: 16px;
+  }
+  .pipeline-aside {
+    position: static;
   }
 }
 </style>

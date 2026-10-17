@@ -126,7 +126,7 @@ describe('workflow visibility', () => {
     expect(w.emitted('trash')).toHaveLength(1);
     w.unmount();
   });
-  it('shows failed import with recovery and places small video inside preparation', async () => {
+  it('shows failed import with recovery and separates technical details to the side', async () => {
     resetNotifications();
     const errorToast = vi.spyOn(notify, 'error');
     const w = mount(ProjectWorkspace, {
@@ -161,7 +161,8 @@ describe('workflow visibility', () => {
     });
     expect(w.text()).not.toContain('Importação em andamento');
     expect(w.find('.original-column').exists()).toBe(false);
-    expect(w.find('.pipeline-panel .pipeline-video').exists()).toBe(true);
+    expect(w.find('.pipeline-panel .pipeline-video').exists()).toBe(false);
+    expect(w.find('.pipeline-panel .pipeline-aside').exists()).toBe(true);
     expect(w.get('[data-stage=import]').text()).not.toContain('YouTube bloqueou');
     expect(errorToast).toHaveBeenCalledWith(
       expect.any(String),
@@ -376,7 +377,7 @@ describe('workflow visibility', () => {
     expect(w.get('[data-stage=render]').text()).toContain('Na fila');
     w.unmount();
   });
-  it('shows three preparation milestones and keeps engine stages in collapsed details', () => {
+  it('shows three preparation milestones and keeps engine stages in processing details', () => {
     const imported = {
       ...project,
       has_transcript: true,
@@ -404,8 +405,8 @@ describe('workflow visibility', () => {
     expect(nodes[0].attributes('data-state')).toBe('completed');
     expect(nodes[1].attributes('data-state')).toBe('completed');
     expect(nodes[2].attributes('data-state')).toBe('pending');
-    expect(w.get('details').attributes('open')).toBeUndefined();
-    expect(w.findAll('details [data-stage]')).toHaveLength(11);
+    expect(w.find('.pipeline-aside').exists()).toBe(true);
+    expect(w.findAll('[data-stage]')).toHaveLength(11);
     w.unmount();
   });
 });

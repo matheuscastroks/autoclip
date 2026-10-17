@@ -12,10 +12,18 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
     :data-state="status.state"
     aria-labelledby="pipeline-current-state"
   >
-    <p class="preparation-label">Preparação</p>
-    <h2 id="pipeline-current-state">{{ status.title }}</h2>
+    <div class="hero-eyebrow">
+      <span class="eyebrow-pill">Preparação do Projeto</span>
+      <span v-if="status.state" class="state-chip" :data-state="status.state">
+        <span class="chip-dot" />
+        {{ status.state }}
+      </span>
+    </div>
+
+    <h2 id="pipeline-current-state" class="hero-title">{{ status.title }}</h2>
     <p class="hero-description">{{ status.description }}</p>
     <p v-if="status.notice" class="hero-notice">{{ status.notice }}</p>
+
     <ProcessProgress
       v-if="
         status.job &&
@@ -37,6 +45,7 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
       />
       <span>{{ status.progress.label }}</span>
     </div>
+
     <div class="hero-actions">
       <AppButton
         v-if="status.primary"
@@ -72,45 +81,106 @@ defineEmits<{ action: [value: PipelineAction]; errorDetails: [] }>();
   display: flex;
   flex-direction: column;
   align-items: start;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
-  padding: 0 0 24px;
-  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.preparation-label {
+
+.state-hero-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eyebrow-pill {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-control);
 }
-h2 {
+
+.state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+  text-transform: capitalize;
+}
+
+.chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--color-action-primary);
+}
+
+.hero-title {
   font-size: var(--font-size-title);
   font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.25;
 }
+
 .hero-description {
-  max-width: 65ch;
+  max-width: 68ch;
   color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  margin: 0;
 }
+
 .hero-notice {
   max-width: 75ch;
   color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+  border: 1px solid var(--color-warning-border);
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-control);
   overflow-wrap: anywhere;
+  margin: 0;
 }
+
 .hero-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 6px;
 }
+
 .pipeline-progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(100%, 560px);
+  width: 100%;
+  max-width: 560px;
   color: var(--color-text-secondary);
   font-size: var(--font-size-meta);
 }
+
 progress {
   width: 100%;
   height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
   accent-color: var(--color-action-primary);
 }
 </style>

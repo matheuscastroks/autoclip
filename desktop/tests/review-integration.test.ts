@@ -227,11 +227,8 @@ describe('review identity across refresh and failures', () => {
     vi.mocked(api.projects).mockResolvedValue([imported]);
     vi.mocked(api.project).mockResolvedValue(imported);
     await w.get('[title="Atualizar projetos"]').trigger('click');
-    await flushPromises();
-    const details = w.get('.pipeline-panel details');
-    details.element.open = true;
-    await details.trigger('toggle');
-    expect(w.get('video').attributes('src')).toBe('/media/source');
+    expect(w.find('.pipeline-panel .pipeline-aside').exists()).toBe(true);
+    expect(w.find('.pipeline-panel video').exists()).toBe(false);
     w.unmount();
   });
   it('offers download for selected B without editorial approval', async () => {
@@ -284,10 +281,8 @@ describe('review identity across refresh and failures', () => {
     setup();
     vi.mocked(api.revisions).mockRejectedValue(new Error('Preview damaged'));
     const w = await open();
-    const details = w.get('.pipeline-panel details');
-    details.element.open = true;
-    await details.trigger('toggle');
-    expect(w.find('video').attributes('src')).toBe('/media/source');
+    expect(w.find('.pipeline-panel .pipeline-aside').exists()).toBe(true);
+    expect(w.find('.pipeline-panel video').exists()).toBe(false);
     await w.get('[role=tablist] button:nth-child(2)').trigger('click');
     await flushPromises();
     expect(w.text()).toContain('Texto fixture');

@@ -76,22 +76,11 @@ it('prioritizes the current final render over an older failed cut and offers one
   }
 });
 
-it('does not load a player until details open and releases it when they close', async () => {
+it('does not render a video player in preparation panel', async () => {
   const w = panel();
   try {
     expect(w.find('video').exists()).toBe(false);
-    const detail = w.get('details');
-    detail.element.open = true;
-    await detail.trigger('toggle');
-    const video = w.get('video').element;
-    const pause = vi.spyOn(video, 'pause');
-    const load = vi.spyOn(video, 'load');
-    detail.element.open = false;
-    await detail.trigger('toggle');
-    expect(pause).toHaveBeenCalled();
-    expect(load).toHaveBeenCalled();
-    expect(video.getAttribute('src')).toBeNull();
-    expect(w.find('video').exists()).toBe(false);
+    expect(w.find('.pipeline-aside').exists()).toBe(true);
   } finally {
     w.unmount();
   }

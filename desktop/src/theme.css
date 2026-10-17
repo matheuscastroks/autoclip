@@ -464,7 +464,6 @@ input[type='checkbox'] {
   color: var(--muted);
 }
 .project-table,
-.pipeline-panel,
 .settings-main,
 .topic-list,
 .proposal-detail,
